@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import advisory
+from app.routers import advisory,triage
 from app.routers import scam, currency, graph, citizen, officer, llm
-from app.routers import triage
+
 
 app = FastAPI(
     title="KshemOS API",

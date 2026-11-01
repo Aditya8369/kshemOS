@@ -131,33 +131,3 @@ class IncidentTriageResponse(BaseModel):
     auto_calculated_severity: str
     is_overridden: bool = False
     history: List[TriageHistoryEntry] = []
-class TriageScoreRequest(BaseModel):
-    incident_id: str
-    incident_type: str
-    urgency_level: str
-    caller_claims_authority: bool = False
-    financial_loss_imminent: bool = False
-    affected_count: int = 1
-
-
-class SeverityOverrideRequest(BaseModel):
-    supervisor_id: str
-    new_severity: str
-    reason: str
-
-
-class TriageHistoryEntry(BaseModel):
-    timestamp: str
-    previous_severity: Optional[str]
-    new_severity: str
-    updated_by: str
-    action_type: str
-    reason: Optional[str]
-
-
-class IncidentTriageResponse(BaseModel):
-    incident_id: str
-    current_severity: str
-    auto_calculated_severity: str
-    is_overridden: bool = False
-    history: List[TriageHistoryEntry] = []    
