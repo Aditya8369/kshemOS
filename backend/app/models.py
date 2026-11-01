@@ -2,7 +2,6 @@
 Pydantic models shared across KshemOS backend routers.
 """
 from __future__ import annotations
-
 from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
@@ -149,6 +148,37 @@ class AdvisoryStatusUpdate(BaseModel):
     status: str = Field(..., description="Status: draft | pending_approval | approved | published | rejected")
     reviewer_notes: Optional[str] = Field(None, description="Optional notes regarding approval/rejection")
 
+class EvidenceCreateRequest(BaseModel):
+    incident_id: str
+    file_name: str
+    file_type: str = Field(..., description="document | image | audio | video | operational_note")
+    file_size_kb: int
+    content_hash: str  # SHA-256 for cryptographic integrity verification
+    sensitivity_level: str = Field("restricted", description="public | internal | restricted | confidential")
+    notes: Optional[str] = None
+
+class EvidenceAccessAudit(BaseModel):
+    timestamp: str
+    user_id: str
+    user_role: str
+    action: str  # "UPLOAD" | "VIEW" | "DOWNLOAD" | "EXPORT"
+
+class EvidenceResponse(BaseModel):
+    evidence_id: str
+    incident_id: str
+    file_name: str
+    file_type: str
+    file_size_kb: int
+    content_hash: str
+    sensitivity_level: str
+    version: int = 1
+    notes: Optional[str] = None
+    created_at: str
+    access_history: List[EvidenceAccessAudit] = Field(default_factory=list)
+
+class EvidenceExportRequest(BaseModel):
+    evidence_ids: List[str]
+    export_reason: str = Field(..., description="legal_review | formal_audit | court_subpoena")
 
 class AdvisoryResponse(AdvisoryCreate):
     id: str
