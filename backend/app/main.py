@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import advisory
 from app.routers import scam, currency, graph, citizen, officer, llm
+from app.routers import triage
 
 app = FastAPI(
     title="KshemOS API",
@@ -29,7 +30,7 @@ app.include_router(citizen.router)
 app.include_router(officer.router)
 app.include_router(llm.router)
 app.include_router(advisory.router)
-
+app.include_router(triage.router)
 
 @app.get("/", tags=["Health"])
 def root():
