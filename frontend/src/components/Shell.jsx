@@ -70,6 +70,16 @@ export default function Shell({ portal, setPortal, activeView, setActiveView, ch
                   activeView === 'meet' ? 'bg-[var(--ink)] text-white shadow-sm' : 'text-[var(--ink-text)]/60 hover:bg-white'
                 }`}
               >
+                <button 
+  onClick={() => setActiveView('advisory')} 
+  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+    activeView === 'advisory' 
+      ? 'bg-indigo-600 text-white' 
+      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+  }`}
+>
+  Advisory Composer
+</button>
                 Meet
               </button>
               <button
