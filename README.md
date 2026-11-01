@@ -121,6 +121,9 @@ If the risk threshold is crossed, the system pushes an intervention — **before
 kshemos/
 ├── backend/                          # FastAPI service — 5 agents, one app
 │   ├── requirements.txt              # Python dependencies
+│   ├── requirements-dev.txt          # Test dependencies (pytest, httpx)
+│   ├── tests/
+│   │   └── test_incidents.py         # Incident dashboard API tests
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── main.py                   # FastAPI app factory + CORS + router includes
@@ -136,6 +139,7 @@ kshemos/
 │   │   │   ├── graph.py              # GET /api/graph/ring/{account_id}
 │   │   │   ├── citizen.py            # POST /api/citizen/ask, /api/citizen/report
 │   │   │   ├── officer.py            # GET /api/officer/case/{report_id}
+│   │   │   ├── incidents.py          # /api/incidents — live incident dashboard feed
 │   │   │   └── llm.py                # POST /api/llm/chat
 │   │   └── services/
 │   │       ├── __init__.py
@@ -144,6 +148,7 @@ kshemos/
 │   │       ├── fraud_graph.py        # NetworkX graph query + mule scoring
 │   │       ├── claude_client.py      # Anthropic API wrapper (with placeholder fallback)
 │   │       ├── local_llm.py          # Local LLM endpoint (llama-cpp-python)
+│   │       ├── incidents.py          # Incident lifecycle, staffing, in-memory store
 │   │       └── store.py              # In-memory report store
 │
 ├── frontend/                         # React + Vite + Tailwind — Citizen & Officer UIs
@@ -162,6 +167,9 @@ kshemos/
 │       ├── ruleEngine.js             # Client-side rule engine (scam, currency, graph, report)
 │       ├── scamRulePlugins.js        # Plugin architecture for scam rule extensions
 │       ├── ruleEngine.test.js        # Unit tests for the rule engine
+│       ├── incidentDashboard.js      # Incident model + dashboard aggregations
+│       ├── incidentDashboard.test.js # Unit tests for the incident dashboard
+│       ├── incidentStore.js          # Live incident feed: backend first, browser fallback
 │       ├── assets/
 │       │   ├── hero.png              # Home page hero image
 │       │   ├── react.svg             # React logo
@@ -171,6 +179,8 @@ kshemos/
 │           ├── HomePage.jsx          # Landing page
 │           ├── CitizenPortal.jsx     # Main citizen dashboard
 │           ├── OfficerCommandCenter.jsx  # Officer dashboard
+│           ├── IncidentDashboardView.jsx # Live operational incident dashboard
+│           ├── incidentDashboard/        # Dashboard parts: tables, coverage, case detail, feed hook
 │           ├── ScamIntelligencePage.jsx  # Live scam analysis (rule engine output)
 │           ├── FraudGraphView.jsx        # Fraud graph visualisation
 │           ├── RiskGauge.jsx             # Live risk score gauge
@@ -251,7 +261,11 @@ flowchart TB
 | `POST` | `/api/currency/scan` | Counterfeit | Scans a currency note image. Multipart form upload → **Response:** `{ verdict, confidence, reasons[], signals{} }` |
 | `GET` | `/api/graph/ring/{account_id}` | Fraud Graph | Looks up an account in the fraud graph. → **Response:** `{ account_id, is_flagged, mule_probability, ring_id, connected_accounts[] }` |
 | `POST` | `/api/citizen/ask` | Citizen Assistant | Asks a safety question. **Request:** `{ question, language }` → **Response:** `{ answer }` |
-| `POST` | `/api/citizen/report` | Citizen Assistant | Submits a fraud/scam report. **Request:** `{ reporter_name, language, category, description }` → **Response:** `{ report_id, acknowledgement, draft_fir }` |
+| `POST` | `/api/citizen/report` | Citizen Assistant | Submits a fraud/scam report and opens a matching incident. **Request:** `{ reporter_name, language, category, description, region? }` → **Response:** `{ report_id, incident_id, acknowledgement, draft_fir }` |
+| `GET` | `/api/incidents` | Incident Dashboard | Live feed for the officer dashboard. → **Response:** `{ regions[], staffing[], incidents[] }` |
+| `POST` | `/api/incidents` | Incident Dashboard | Opens an incident from a report; severity is scored from the description. **Request:** `{ category, description, region?, report_id?, linked_account? }` |
+| `PATCH` | `/api/incidents/{incident_id}` | Incident Dashboard | Officer update. **Request:** any of `{ status, severity, assigned_to, linked_account }` (send `""` to clear a field) |
+| `PUT` | `/api/incidents/staffing/{region}` | Incident Dashboard | Sets officers on duty in a region. **Request:** `{ officers_on_duty }` |
 | `GET` | `/api/officer/case/{report_id}` | Officer Copilot | Generates case summary. **Query:** `?account_id=ACC-XXXX` → **Response:** `{ case_id, priority, summary, suggested_next_steps[] }` |
 | `POST` | `/api/llm/chat` | LLM Bridge | Raw LLM chat endpoint. **Request:** `{ prompt, max_tokens }` → **Response:** `{ text }` |
 | `GET` | `/docs` | — | Swagger UI — interactive API documentation |
@@ -266,7 +280,7 @@ All API routers are prefixed under FastAPI and auto-documented at `http://localh
 |---|---|---|
 | `home` | `HomePage.jsx` | Landing page with hero, call-to-action, feature highlights |
 | `portal` (citizen) | `CitizenPortal.jsx` | Main citizen dashboard — scam check, currency scan, report incident |
-| `portal` (officer) | `OfficerCommandCenter.jsx` | Officer command center — graph lookup, case review, copilot |
+| `portal` (officer) | `OfficerCommandCenter.jsx` | Officer command center — live incident dashboard (`IncidentDashboardView.jsx`), graph lookup, case review, copilot |
 | `intelligence` | `ScamIntelligencePage.jsx` | Live scam analysis with entity extraction, evidence spans, score breakdown, timeline |
 | `rule-library` | `ThreatLibraryPage.jsx` | Browse threat pattern library with categorised scam examples |
 | `scam-examples` | `ScamExamplesPage.jsx` | Real-world scam scenario library (2,200+ synthetic patterns) |
@@ -331,6 +345,8 @@ npm run dev
 Open the URL printed in the terminal (typically `http://localhost:5173`).
 
 > **Note:** The frontend `api.js` is wired to call a local rule engine (`ruleEngine.js`) by default, so **everything works without a running backend**. For full Claude-powered responses, start the backend and set `VITE_API_URL=http://localhost:8000` in your `.env`.
+>
+> The **incident dashboard** is the exception: it reads `/api/incidents` from the backend so every officer sees the same live feed. If `VITE_API_URL` is empty, the dev server proxies `/api` to `http://localhost:8000`. When no backend answers, the dashboard falls back to this browser's storage (shared across its tabs only) and shows an **Offline** badge.
 
 ### Production Build
 
@@ -354,7 +370,7 @@ npm run preview       # Preview the production build locally
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `VITE_API_URL` | No | `''` (empty) | Backend API base URL (e.g. `http://localhost:8000`). Leave empty to use the local rule engine only |
+| `VITE_API_URL` | No | `''` (empty) | Backend API base URL (e.g. `http://localhost:8000`). Leave empty to use the local rule engine; the incident dashboard then uses the dev-server `/api` proxy |
 | `VITE_EMAILJS_SERVICE_ID` | No | — | EmailJS service ID for report confirmation emails |
 | `VITE_EMAILJS_TEMPLATE_ID` | No | — | EmailJS template ID |
 | `VITE_EMAILJS_PUBLIC_KEY` | No | — | EmailJS public key |
@@ -408,6 +424,15 @@ Try these scenarios to explore all five agents. The demo runs **end-to-end with 
    - **Priority** rating (low / medium / high / critical)
    - **Suggested next steps** for investigation
 
+### 6. Operational Incident Dashboard — Live Overview
+
+1. Start the backend, then open the app in two browser windows
+2. In one window, file a report under **Verify** — pick a region; the result shows the new `INC-XXXX` ID
+3. In the other, open **Officer** → **Incident dashboard** — the incident appears within 5 seconds, grouped by severity and region
+4. Use **+ / −** to set officers on duty per region; load and coverage (covered / stretched / over capacity) update for everyone
+5. Click any count, escalation, or case to open it beside the list, then assign an officer, change status or severity, or link an account
+6. Incidents with no response past their target (critical 30 min, high 2 h, medium 8 h, low 24 h) or with raised severity show under **Escalating incidents**
+
 ---
 
 ## Running Tests
@@ -419,11 +444,17 @@ cd frontend
 npm test
 ```
 
-This runs `ruleEngine.test.js` using Node.js native test runner (configured via `"test": "node --test"` in `package.json`).
+This runs every `*.test.js` file (rule engine, cyber features, incident dashboard) using Node.js native test runner (configured via `"test": "node --test"` in `package.json`).
 
 ### Backend
 
-Tests can be run using `pytest` if configured (not yet added — see the blueprint for the intended test strategy).
+```bash
+cd backend
+pip install -r requirements-dev.txt
+python -m pytest tests
+```
+
+Covers the incident dashboard API (`tests/test_incidents.py`).
 
 ### Linting
 
@@ -444,7 +475,8 @@ Everything runs **end-to-end with zero paid services**, so the demo works even w
 | **Counterfeit Currency Agent** | Pillow/numpy image heuristics (edge density, texture, sharpness, resolution) | YOLOv11 note/region detector + OCR + reference feature-matching |
 | **Fraud Graph Agent** | In-memory `networkx` graph, seeded with synthetic accounts | Neo4j + Graph Neural Network mule-probability model |
 | **Citizen Assistant / Officer Copilot** | Claude API (falls back to a placeholder string if no key is set) | Same, at production scale with retrieval over full case data |
-| **Data Store** | In-memory Python dict (`store.py`) | PostgreSQL with proper migrations |
+| **Data Store** | In-memory Python dicts (`store.py`, `services/incidents.py`) — reset when the server restarts | PostgreSQL with proper migrations |
+| **Incident Dashboard feed** | Browser polls `/api/incidents` every 5 s | Push updates (WebSocket / server-sent events) |
 
 ---
 
@@ -463,4 +495,5 @@ Everything runs **end-to-end with zero paid services**, so the demo works even w
 | Officer Copilot | ✅ **Built** | Case summary + next steps via Claude or local fallback |
 | Web UI (Citizen Portal) | ✅ **Built** | 13+ views, portal toggle, responsive layout |
 | Web UI (Officer Dashboard) | ✅ **Built** | Graph lookup, case review, copilot |
+| Operational Incident Dashboard | ✅ **Built** | Live incidents by severity/region, escalations, staffing coverage, case drill-down — `/api/incidents` with browser-storage fallback |
 | Authentication / RBAC | 🔜 **Roadmap** | See blueprint's Security section for JWT/Firebase Auth plan |

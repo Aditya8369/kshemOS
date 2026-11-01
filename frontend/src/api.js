@@ -8,6 +8,7 @@ import {
   getCaseSummaryLocally,
   getRuleLibrarySamplesLocally,
 } from './ruleEngine.js';
+import { recordIncident } from './incidentStore.js';
 import { scanQRCode } from './cyberFeatures/qrGuardian.js';
 import { inspectURL } from './cyberFeatures/linkShield.js';
 import { analyzeSMS } from './cyberFeatures/smsAnalyzer.js';
@@ -107,8 +108,18 @@ export async function askCitizenAssistant({ question, language }) {
 }
 
 export async function submitCitizenReport(payload) {
-  return submitCitizenReportLocally(payload);
+  const report = submitCitizenReportLocally(payload);
+  // Every report becomes a live incident on the officer dashboard. A failure here
+  // must not lose the citizen's acknowledgement, so it is reported, not thrown.
+  try {
+    const { incident, source } = await recordIncident({ ...payload, report_id: report.report_id });
+    return { ...report, incident_id: incident.id, incident_source: source };
+  } catch (error) {
+    return { ...report, incident_error: error.message };
+  }
 }
+
+export { fetchIncidentFeed, updateIncident, setRegionStaffing, INCIDENTS_CHANGED_EVENT } from './incidentStore.js';
 
 export async function sendReportConfirmationEmail({ reportId, reporterName, recipientEmail, category, description, acknowledgement }) {
   if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import RiskGauge from './RiskGauge';
+import { REGIONS } from '../incidentDashboard';
 import { analyzeScamTranscript, scanCurrencyImage, askCitizenAssistant, submitCitizenReport, sendReportConfirmationEmail } from '../api';
 
 const LANGUAGES = ['English', 'Hindi', 'Bengali', 'Tamil', 'Telugu', 'Marathi', 'Kannada'];
@@ -277,6 +278,7 @@ function ReportForm({ addReport }) {
   const [category, setCategory] = useState('scam_call');
   const [description, setDescription] = useState('');
   const [language, setLanguage] = useState('English');
+  const [region, setRegion] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -284,6 +286,10 @@ function ReportForm({ addReport }) {
 
   async function submit() {
     if (!name.trim() || !description.trim()) return;
+    if (!region) {
+      setError('Please select your region so the report reaches the right cyber desk.');
+      return;
+    }
     setLoading(true);
     setError(null);
     setEmailStatus(null);
@@ -293,6 +299,7 @@ function ReportForm({ addReport }) {
         language,
         category,
         description,
+        region,
       });
       setResult(res);
       addReport({
@@ -353,6 +360,19 @@ function ReportForm({ addReport }) {
           <option value="fraud_tx">Fraudulent transaction</option>
           <option value="other">Other</option>
         </select>
+        <select
+          value={region}
+          onChange={(e) => setRegion(e.target.value)}
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+          aria-label="Your region"
+        >
+          <option value="">Select your region</option>
+          {REGIONS.map((r) => (
+            <option key={r} value={r}>
+              {r}
+            </option>
+          ))}
+        </select>
       </div>
       <textarea
         className="w-full h-20 rounded-lg border border-[var(--paper-line)] p-3 text-sm"
@@ -377,6 +397,16 @@ function ReportForm({ addReport }) {
         <div className="mt-3 text-sm bg-[var(--paper)] rounded-lg p-3 border border-[var(--paper-line)] space-y-2">
           <p className="font-mono text-xs text-[var(--saffron)]">{result.report_id}</p>
           <p>{result.acknowledgement}</p>
+          {result.incident_id && (
+            <p className="text-xs text-[var(--ink-text)]/70">
+              Logged as incident <span className="font-mono">{result.incident_id}</span> for the {region} cyber desk.
+            </p>
+          )}
+          {result.incident_error && (
+            <p className="text-xs text-[var(--alert)]">
+              Your report was saved, but it could not be sent to the cyber desk queue: {result.incident_error}
+            </p>
+          )}
           <details>
             <summary className="cursor-pointer font-semibold">Draft FIR statement</summary>
             <p className="mt-1 whitespace-pre-line">{result.draft_fir}</p>
