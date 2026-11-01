@@ -159,3 +159,79 @@ class AdvisoryResponse(AdvisoryCreate):
         default_factory=lambda: {"sent": 0, "pending": 0, "failed": 0}
     )
     audit_trail: List[Dict[str, Any]] = Field(default_factory=list)
+
+# ---------- Geofencing & Tactical Map Alerts ----------
+
+GeofenceType = Literal["polygon", "circle"]
+GeofenceCategory = Literal[
+    "high_risk",
+    "patrol_zone",
+    "restricted",
+    "critical_infra",
+    "transit_checkpoint",
+    "operational_sector",
+]
+GeofenceEventType = Literal["entry", "exit", "dwell"]
+AlertSeverity = Literal["critical", "warning", "info"]
+
+
+class PointCoordinate(BaseModel):
+    lat: float = Field(..., ge=-90.0, le=90.0)
+    lng: float = Field(..., ge=-180.0, le=180.0)
+
+
+class GeofenceBoundary(BaseModel):
+    id: str = Field(..., description="Unique boundary ID, e.g. GEO-FIN-01")
+    name: str = Field(..., description="Human readable zone name")
+    type: GeofenceType = Field(..., description="polygon or circle")
+    category: GeofenceCategory = Field(..., description="Operational classification")
+    color: str = Field("#ff7a1a", description="Hex or CSS color for map rendering")
+    center: Optional[PointCoordinate] = Field(None, description="Center coordinate for circular geofence")
+    radius_meters: Optional[float] = Field(None, description="Radius in meters for circular geofence")
+    coordinates: Optional[List[PointCoordinate]] = Field(None, description="Polygon vertices")
+    assigned_teams: List[str] = Field(default_factory=list, description="Teams assigned to this sector")
+    is_active: bool = Field(True, description="Whether boundary evaluation is active")
+
+
+class GeofenceRule(BaseModel):
+    id: str = Field(..., description="Unique rule ID, e.g. RULE-01")
+    name: str = Field(..., description="Descriptive name")
+    geofence_id: str = Field("*", description="Target geofence ID or '*' for all")
+    team: str = Field("*", description="Target team or '*' for all")
+    event_types: List[GeofenceEventType] = Field(..., description="List of entry, exit, dwell")
+    dwell_threshold_seconds: int = Field(60, description="Dwell duration before alert triggers")
+    alert_severity: AlertSeverity = Field("warning", description="critical | warning | info")
+    enabled: bool = Field(True, description="Whether rule is active")
+
+
+class GeofenceAlert(BaseModel):
+    id: str = Field(..., description="Unique alert ID")
+    rule_id: str
+    geofence_id: str
+    geofence_name: str
+    entity_id: str
+    team: str
+    event_type: GeofenceEventType
+    severity: AlertSeverity
+    message: str
+    timestamp: int
+    lat: float
+    lng: float
+    acknowledged: bool = False
+
+
+class LocationPingRequest(BaseModel):
+    entity_id: str = Field(..., description="ID of the tracked unit/responder")
+    team: str = Field("TEAM-ALPHA", description="Assigned team")
+    lat: float = Field(..., description="Current latitude")
+    lng: float = Field(..., description="Current longitude")
+    timestamp: Optional[int] = None
+
+
+class LocationPingResponse(BaseModel):
+    entity_id: str
+    team: str
+    current_geofences: List[str]
+    triggered_alerts: List[GeofenceAlert]
+    timestamp: int
+

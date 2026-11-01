@@ -121,6 +121,21 @@ export async function submitCitizenReport(payload) {
 
 export { fetchIncidentFeed, updateIncident, setRegionStaffing, INCIDENTS_CHANGED_EVENT } from './incidentStore.js';
 
+export {
+  getBoundaries,
+  saveBoundary,
+  deleteBoundary,
+  getRules as getGeofenceRules,
+  saveRule as saveGeofenceRule,
+  deleteRule as deleteGeofenceRule,
+  getAlerts as getGeofenceAlerts,
+  acknowledgeAlert as acknowledgeGeofenceAlert,
+  clearAlerts as clearGeofenceAlerts,
+  getUnits as getGeofenceUnits,
+  evaluateLocationPing,
+  GEOFENCE_CHANGED_EVENT,
+} from './geofenceEngine.js';
+
 export async function sendReportConfirmationEmail({ reportId, reporterName, recipientEmail, category, description, acknowledgement }) {
   if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
     return {
