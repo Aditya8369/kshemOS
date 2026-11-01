@@ -670,3 +670,4 @@ export async function deleteDispatchRuleApi(ruleId) {
   }
   return defaultJurisdictionStore.deleteDispatchRule(ruleId);
 }
+

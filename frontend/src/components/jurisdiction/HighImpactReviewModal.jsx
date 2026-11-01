@@ -182,3 +182,4 @@ export default function HighImpactReviewModal({ proposal, onReview, onClose }) {
     </div>
   );
 }
+
