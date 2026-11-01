@@ -1,7 +1,16 @@
 <div align="center">
 
 # 🛡️ KshemOS — AI Operating System for Digital Public Safety
+<div align="center">
 
+[![Winter of Code Social](https://img.shields.io/badge/Winter%20of%20Code-Social-FF6B6B?style=for-the-badge&logo=github)](https://winterofcode.com)
+[![Public Safety Tech](https://img.shields.io/badge/Public%20Safety-Tech-1E90FF?style=for-the-badge)](#)
+
+</div>
+
+### Winter of Code Social
+
+KshemOS is proud to be part of the Winter of Code Social initiative, supporting open-source innovation for public safety, digital security, and community resilience. We welcome contributors, students, developers, and researchers who want to build impactful technology for social good.
 **Stopping fraud before the money moves.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
