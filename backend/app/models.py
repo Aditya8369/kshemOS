@@ -3,7 +3,7 @@ Pydantic models shared across KshemOS backend routers.
 """
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
@@ -132,3 +132,30 @@ class IncidentFeedResponse(BaseModel):
     regions: list[str]
     staffing: list[RegionStaffing]
     incidents: list[Incident]
+
+
+# ---------- Public Advisory Bulletin Composer ----------
+
+class AdvisoryCreate(BaseModel):
+    title: str = Field(..., description="Advisory bulletin title")
+    description: str = Field(..., description="Detailed warning and safety guidance")
+    severity: str = Field(..., description="Severity level: low | medium | high | critical")
+    affected_location: str = Field(..., description="Impacted region or location")
+    target_audience: str = Field(..., description="Audience: citizens | banks | telecom | officers | all")
+    template_type: Optional[str] = Field(None, description="Optional emergency template ID used")
+
+
+class AdvisoryStatusUpdate(BaseModel):
+    status: str = Field(..., description="Status: draft | pending_approval | approved | published | rejected")
+    reviewer_notes: Optional[str] = Field(None, description="Optional notes regarding approval/rejection")
+
+
+class AdvisoryResponse(AdvisoryCreate):
+    id: str
+    status: str
+    created_at: str
+    updated_at: str
+    delivery_status: Dict[str, int] = Field(
+        default_factory=lambda: {"sent": 0, "pending": 0, "failed": 0}
+    )
+    audit_trail: List[Dict[str, Any]] = Field(default_factory=list)
