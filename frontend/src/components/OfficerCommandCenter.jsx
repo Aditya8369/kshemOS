@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import FraudGraphView from './FraudGraphView';
 import { lookupFraudRing, getCaseSummary } from '../api';
+import ResponseTeamMatrix from './ResponseTeamMatrix';
 
 const SAMPLE_ACCOUNTS = ['ACC-1002', 'ACC-1004', 'ACC-1009', 'ACC-1005'];
 
@@ -162,7 +163,7 @@ function CaseSummaryPanel() {
 export default function OfficerCommandCenter() {
   return (
     <div className="min-h-full bg-[var(--ink)] -mx-4 px-4 py-8">
-      <div className="max-w-3xl mx-auto space-y-6">
+      <div className="max-w-6xl mx-auto space-y-6">
         <div>
           <p className="font-mono text-xs uppercase tracking-widest text-[var(--saffron)] mb-2">
             Officer Command Center
@@ -176,6 +177,7 @@ export default function OfficerCommandCenter() {
         </div>
         <GraphPanel />
         <CaseSummaryPanel />
+        <ResponseTeamMatrix />
       </div>
     </div>
   );
