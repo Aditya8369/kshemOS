@@ -7,6 +7,7 @@ from app.models import (
     CitizenReportResponse,
 )
 from app.services.claude_client import ask_claude
+from app.services.incidents import create_incident
 from app.services.store import save_report
 
 router = APIRouter(prefix="/api/citizen", tags=["Citizen Assistant Agent"])
@@ -32,6 +33,12 @@ def ask(payload: CitizenAskRequest):
 @router.post("/report", response_model=CitizenReportResponse)
 def report(payload: CitizenReportRequest):
     report_id = save_report(payload.model_dump())
+    incident = create_incident(
+        category=payload.category,
+        description=payload.description,
+        region=payload.region,
+        report_id=report_id,
+    )
 
     fir_prompt = (
         f"Draft a short, factual, first-person FIR-style incident statement in "
@@ -51,6 +58,7 @@ def report(payload: CitizenReportRequest):
 
     return {
         "report_id": report_id,
+        "incident_id": incident["id"],
         "acknowledgement": acknowledgement,
         "draft_fir": draft_fir,
     }
