@@ -221,3 +221,16 @@ export async function analyzeWebSafetyPayload(payload) {
 export async function buildCyberCasePayload(payload) {
   return buildCyberCase(payload);
 }
+
+
+// Re-export Jurisdiction and Zone Configuration APIs
+export {
+  fetchJurisdictionData,
+  validateBoundaryApi,
+  saveServiceAreaApi,
+  reviewProposalApi,
+  restoreSnapshotApi,
+  saveDispatchRuleApi,
+  deleteDispatchRuleApi,
+  defaultJurisdictionStore,
+} from './jurisdictionStore.js';
