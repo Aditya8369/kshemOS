@@ -3,7 +3,7 @@ Pydantic models shared across KshemOS backend routers.
 """
 from __future__ import annotations
 
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Literal, Optional
 from pydantic import BaseModel, Field
 
 
@@ -53,10 +53,12 @@ class CitizenReportRequest(BaseModel):
     language: str = Field("English", description="Preferred reply language")
     category: str = Field(..., description="scam_call | counterfeit | fraud_tx | other")
     description: str
+    region: Optional[str] = Field(None, description="Operational region the incident belongs to")
 
 
 class CitizenReportResponse(BaseModel):
     report_id: str
+    incident_id: str
     acknowledgement: str
     draft_fir: str
 
@@ -77,6 +79,59 @@ class CaseSummaryResponse(BaseModel):
     priority: str
     summary: str
     suggested_next_steps: list[str]
+
+
+# ---------- Operational Incident Dashboard ----------
+
+Severity = Literal["critical", "high", "medium", "low"]
+IncidentStatus = Literal["new", "triaged", "in_progress", "escalated", "resolved"]
+
+
+class Incident(BaseModel):
+    id: str
+    report_id: Optional[str]
+    title: str
+    description: str
+    category: str
+    severity: Severity
+    previous_severity: Optional[Severity]
+    region: str
+    status: IncidentStatus
+    assigned_to: Optional[str]
+    linked_account: Optional[str]
+    opened_at: int = Field(..., description="Epoch milliseconds")
+    first_response_at: Optional[int]
+    resolved_at: Optional[int]
+
+
+class IncidentCreateRequest(BaseModel):
+    category: str = Field(..., description="scam_call | counterfeit | fraud_tx | other")
+    description: str = Field(..., min_length=1)
+    region: Optional[str] = None
+    report_id: Optional[str] = None
+    linked_account: Optional[str] = None
+
+
+class IncidentUpdateRequest(BaseModel):
+    status: Optional[IncidentStatus] = None
+    severity: Optional[Severity] = None
+    assigned_to: Optional[str] = Field(None, description="Officer code; empty string unassigns")
+    linked_account: Optional[str] = Field(None, description="Account ID; empty string unlinks")
+
+
+class RegionStaffing(BaseModel):
+    region: str
+    officers_on_duty: int
+
+
+class StaffingUpdateRequest(BaseModel):
+    officers_on_duty: int = Field(..., ge=0, le=500)
+
+
+class IncidentFeedResponse(BaseModel):
+    regions: list[str]
+    staffing: list[RegionStaffing]
+    incidents: list[Incident]
 
 
 # ---------- Public Advisory Bulletin Composer ----------
@@ -104,6 +159,7 @@ class AdvisoryResponse(AdvisoryCreate):
         default_factory=lambda: {"sent": 0, "pending": 0, "failed": 0}
     )
     audit_trail: List[Dict[str, Any]] = Field(default_factory=list)
+
 class TriageScoreRequest(BaseModel):
     incident_id: str
     incident_type: str
@@ -131,3 +187,4 @@ class IncidentTriageResponse(BaseModel):
     auto_calculated_severity: str
     is_overridden: bool = False
     history: List[TriageHistoryEntry] = []
+
