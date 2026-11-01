@@ -75,6 +75,7 @@ import ScamResilienceAssessmentView from './components/ScamResilienceAssessmentV
 import CyberPreparednessReportView from './components/CyberPreparednessReportView';
 import DigitalTrustScoreView from './components/DigitalTrustScoreView';
 import OnlineReputationSafetyView from './components/OnlineReputationSafetyView';
+import PublicAdvisoryComposer from './components/PublicAdvisoryComposer';
 import MeetPage from './components/MeetPage';
 
 export default function App() {
@@ -155,6 +156,7 @@ export default function App() {
     if (activeView === 'scam-resilience-assessment') return <ScamResilienceAssessmentView />;
     if (activeView === 'cyber-preparedness-report') return <CyberPreparednessReportView />;
     if (activeView === 'digital-trust-score') return <DigitalTrustScoreView />;
+    if (activeView === 'advisory') return <PublicAdvisoryComposer />;
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
     if (activeView === 'portal') {
