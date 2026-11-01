@@ -2,6 +2,18 @@
 
 Thank you for your interest in contributing to **KshemOS**! We welcome developers, designers, researchers, writers, and community members who want to help improve the project.
 
+## Winter of Code / Community Contribution Window
+
+KshemOS encourages contributions during the Winter of Code contribution period, which typically runs from **November 1 to January 31**. During this window, contributors are welcome to work on features, fixes, documentation, and improvements that align with the project’s mission of digital public safety and emergency response.
+
+Contributors are expected to keep PRs focused, respectful of the project’s goals, and clearly explained in the submission.
+
+## AI-Assisted Contributions
+
+Using AI tools to assist with development is allowed, including brainstorming, code generation, refactoring, and documentation support. However, contributors must still have a proper understanding of the feature being implemented, the surrounding code, and the project architecture before submitting a pull request.
+
+Please do not submit AI-generated changes that you cannot explain, validate, or justify. AI-generated code should be reviewed, tested, and adapted to the repository’s conventions before opening a PR. Contributions must reflect real understanding of the codebase and the problem being solved.
+
 ## How to Contribute
 
 ### 1. Fork the Repository
