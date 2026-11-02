@@ -74,6 +74,7 @@ import PersonalCyberHygieneView from './components/PersonalCyberHygieneView';
 import ScamResilienceAssessmentView from './components/ScamResilienceAssessmentView';
 import CyberPreparednessReportView from './components/CyberPreparednessReportView';
 import EvidenceVaultView from './components/EvidenceVaultView';
+import AlertDispatchView from './components/AlertDispatchView';
 import DigitalTrustScoreView from './components/DigitalTrustScoreView';
 import OnlineReputationSafetyView from './components/OnlineReputationSafetyView';
 import PublicAdvisoryComposer from './components/PublicAdvisoryComposer';
@@ -159,6 +160,7 @@ export default function App() {
     if (activeView === 'cyber-preparedness-report') return <CyberPreparednessReportView />;
     if (activeView === 'digital-trust-score') return <DigitalTrustScoreView />;
     if (activeView === 'advisory') return <PublicAdvisoryComposer />;
+    if (activeView === 'alerts') return <AlertDispatchView/>;
     if (activeView === 'evidence') return <EvidenceVaultView/>;
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
     if (activeView === 'geofence') return <GeofenceCommandCenterView />;
