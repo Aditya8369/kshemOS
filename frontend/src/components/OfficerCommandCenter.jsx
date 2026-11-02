@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import FraudGraphView from './FraudGraphView';
 import IncidentDashboardView from './IncidentDashboardView';
-import GeofenceCommandCenterView from './geofence/GeofenceCommandCenterView';
+import JurisdictionConfigView from './jurisdiction/JurisdictionConfigView';
 import { lookupFraudRing, getCaseSummary } from '../api';
 import ResponseTeamMatrix from './ResponseTeamMatrix';
 
@@ -164,7 +164,7 @@ function CaseSummaryPanel() {
 
 const TABS = [
   { key: 'incidents', label: 'Incident dashboard' },
-  { key: 'geofence', label: 'Tactical Map & Geofencing' },
+  { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
   { key: 'tools', label: 'Investigation tools' },
 ];
 
@@ -173,7 +173,7 @@ export default function OfficerCommandCenter() {
 
   return (
     <div className="min-h-full bg-[var(--ink)] px-4 py-8">
-      <div className={`${tab === 'incidents' || tab === 'geofence' ? 'max-w-6xl' : 'max-w-3xl'} mx-auto space-y-6`}>
+      <div className={`${tab === 'incidents' || tab === 'jurisdiction' ? 'max-w-6xl' : 'max-w-3xl'} mx-auto space-y-6`}>
         <div>
           <p className="font-mono text-xs uppercase tracking-widest text-[var(--saffron)] mb-2">
             Officer Command Center
@@ -184,8 +184,8 @@ export default function OfficerCommandCenter() {
           <p className="text-[var(--mist)] mt-1">
             {tab === 'incidents'
               ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
-              : tab === 'geofence'
-              ? 'Live tactical map, operational geofence boundaries, and entry/exit/dwell alerts by team.'
+              : tab === 'jurisdiction'
+              ? 'Operational zone boundaries, service areas, automated dispatch routing, and multi-officer change review.'
               : 'Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.'}
           </p>
         </div>
@@ -212,8 +212,8 @@ export default function OfficerCommandCenter() {
 
         {tab === 'incidents' ? (
           <IncidentDashboardView />
-        ) : tab === 'geofence' ? (
-          <GeofenceCommandCenterView />
+        ) : tab === 'jurisdiction' ? (
+          <JurisdictionConfigView />
         ) : (
           <>
             <GraphPanel />

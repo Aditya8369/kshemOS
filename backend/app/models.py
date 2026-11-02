@@ -190,31 +190,103 @@ class AdvisoryResponse(AdvisoryCreate):
     )
     audit_trail: List[Dict[str, Any]] = Field(default_factory=list)
 
-class TriageScoreRequest(BaseModel):
-    incident_id: str
-    incident_type: str
-    urgency_level: str
-    caller_claims_authority: bool = False
-    financial_loss_imminent: bool = False
-    affected_count: int = 1
+# ---------- Jurisdiction & Zone Configuration ----------
 
-class SeverityOverrideRequest(BaseModel):
-    supervisor_id: str
-    new_severity: str
-    reason: str
+JurisdictionStatus = Literal["active", "draft", "under_review", "archived"]
+ServiceAreaStatus = Literal["active", "maintenance", "inactive"]
+RiskLevel = Literal["critical", "high", "moderate", "low"]
+ImpactLevel = Literal["standard", "high"]
+ChangeReviewStatus = Literal["pending", "approved", "rejected"]
 
-class TriageHistoryEntry(BaseModel):
-    timestamp: str
-    previous_severity: Optional[str]
-    new_severity: str
-    updated_by: str
-    action_type: str
-    reason: Optional[str]
 
-class IncidentTriageResponse(BaseModel):
-    incident_id: str
-    current_severity: str
-    auto_calculated_severity: str
-    is_overridden: bool = False
-    history: List[TriageHistoryEntry] = []
+class Jurisdiction(BaseModel):
+    id: str = Field(..., description="Unique jurisdiction ID, e.g. JUR-DELHI-METRO")
+    name: str = Field(..., description="Jurisdiction title / authority")
+    code: str = Field(..., description="Administrative code, e.g. DL-CYBER")
+    status: JurisdictionStatus = "active"
+    headquarters: str = Field(..., description="Headquarters location / precinct")
+    contact_officer: str = Field(..., description="Lead commander or contact code")
+    region_scope: list[str] = Field(default_factory=list, description="Associated KshemOS operational zones")
+    description: Optional[str] = None
+    created_at: int = Field(..., description="Epoch milliseconds")
+    updated_at: int = Field(..., description="Epoch milliseconds")
+    version: int = 1
+
+
+class ServiceArea(BaseModel):
+    id: str = Field(..., description="Unique service area ID, e.g. SA-NORTH-01")
+    jurisdiction_id: str = Field(..., description="Parent jurisdiction ID")
+    name: str = Field(..., description="Service area name")
+    region: str = Field(..., description="Operational region (North/South/East/West/Central Zone)")
+    primary_station: str = Field(..., description="Dispatch desk or station name")
+    boundary_type: Literal["circle", "polygon"] = "circle"
+    center_lat: Optional[float] = None
+    center_lng: Optional[float] = None
+    radius_km: Optional[float] = None
+    polygon_coordinates: Optional[list[dict[str, float]]] = None
+    authorized_units: list[str] = Field(default_factory=list, description="Authorized officer codes")
+    capacity_limit_points: int = 24
+    risk_level: RiskLevel = "moderate"
+    status: ServiceAreaStatus = "active"
+    version: int = 1
+    updated_at: int = Field(..., description="Epoch milliseconds")
+
+
+class DispatchRule(BaseModel):
+    id: str = Field(..., description="Unique rule ID, e.g. DISP-RULE-01")
+    name: str = Field(..., description="Rule description")
+    jurisdiction_id: str
+    service_area_id: str
+    categories: list[str] = Field(default_factory=list, description="Incident categories or ['*'] for all")
+    min_severity: Literal["low", "medium", "high", "critical"] = "low"
+    target_desk: str = Field(..., description="Target desk or default assigned officer code")
+    overflow_service_area_id: Optional[str] = Field(None, description="Redirect destination if primary desk overloaded")
+    priority: int = 1
+    enabled: bool = True
+    updated_at: int = Field(..., description="Epoch milliseconds")
+
+
+class BoundaryValidationResult(BaseModel):
+    is_valid: bool
+    impact_level: ImpactLevel
+    warnings: list[str] = Field(default_factory=list)
+    affected_active_incidents: int = 0
+    coverage_gap_detected: bool = False
+    overlap_conflicts: list[str] = Field(default_factory=list)
+    requires_review: bool = False
+
+
+class ChangeProposal(BaseModel):
+    id: str
+    entity_type: Literal["jurisdiction", "service_area", "dispatch_rule"]
+    entity_id: str
+    proposed_by: str
+    change_summary: str
+    impact_level: ImpactLevel
+    status: ChangeReviewStatus = "pending"
+    validation: BoundaryValidationResult
+    proposed_payload: dict[str, Any]
+    original_payload: Optional[dict[str, Any]] = None
+    created_at: int
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[int] = None
+    reviewer_notes: Optional[str] = None
+
+
+class ChangeReviewAction(BaseModel):
+    reviewer_code: str
+    decision: Literal["approved", "rejected"]
+    reviewer_notes: str
+
+
+class ConfigSnapshot(BaseModel):
+    snapshot_id: str
+    version: int
+    timestamp: int
+    author: str
+    change_summary: str
+    impact_level: ImpactLevel
+    jurisdictions: list[Jurisdiction]
+    service_areas: list[ServiceArea]
+    dispatch_rules: list[DispatchRule]
 

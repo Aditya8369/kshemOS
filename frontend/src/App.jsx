@@ -78,7 +78,7 @@ import AlertDispatchView from './components/AlertDispatchView';
 import DigitalTrustScoreView from './components/DigitalTrustScoreView';
 import OnlineReputationSafetyView from './components/OnlineReputationSafetyView';
 import PublicAdvisoryComposer from './components/PublicAdvisoryComposer';
-import TriageCommandView from './components/TriageCommandView';
+import JurisdictionConfigView from './components/jurisdiction/JurisdictionConfigView';
 import MeetPage from './components/MeetPage';
 
 export default function App() {
@@ -166,7 +166,7 @@ feature/triage-system
     if (activeView === 'evidence') return <EvidenceVaultView/>;
 main
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
-    if (activeView === 'geofence') return <GeofenceCommandCenterView />;
+    if (activeView === 'jurisdiction') return <JurisdictionConfigView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
     if (activeView === 'portal') {
       return portal === 'citizen' ? <CitizenPortal /> : <OfficerCommandCenter />;
