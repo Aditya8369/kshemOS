@@ -375,20 +375,19 @@ export {
   defaultJurisdictionStore,
 } from './jurisdictionStore.js';
 
-
 // ======================================================
-// AUTOMATED CHAIN OF CUSTODY & EVIDENCE VAULT APIs
+// CROSS-JURISDICTION MUTUAL AID & REBALANCING APIs
 // ======================================================
 
 export {
-  fetchEvidenceItems,
-  fetchEvidenceItem,
-  ingestEvidenceApi,
-  fetchCustodialLedgerApi,
-  logCustodialActionApi,
-  toggleLegalHoldApi,
-  verifyEvidenceIntegrityApi,
-  generateForensicBundleApi,
-  fetchRetentionPoliciesApi,
-  defaultEvidenceStore,
-} from './evidenceStore.js';
+  fetchMutualAidDataApi,
+  declareMutualAidApi,
+  deescalateDeclarationApi,
+  delegateGuestUnitApi,
+  revokeGuestUnitApi,
+  createJointTaskforceApi,
+  getJointTaskforceWorkspaceApi,
+  logGuestActionApi,
+  getSunsetAuditLogApi,
+  defaultMutualAidStore,
+} from './mutualAidStore.js';
