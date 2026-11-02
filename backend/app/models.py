@@ -189,25 +189,32 @@ class AdvisoryResponse(AdvisoryCreate):
         default_factory=lambda: {"sent": 0, "pending": 0, "failed": 0}
     )
     audit_trail: List[Dict[str, Any]] = Field(default_factory=list)
-class AlertDispatchPayload(BaseModel):
+
+class TriageScoreRequest(BaseModel):
     incident_id: str
     incident_type: str
-    urgency_level: str = Field(..., description="low | medium | high | critical")
-    target_roles: List[str] = Field(..., description="e.g. ['operator', 'supervisor', 'field_officer']")
-    location_zone: str = Field(..., description="e.g. 'zone_north', 'sector_4'")
-    message_content: str
+    urgency_level: str
+    caller_claims_authority: bool = False
+    financial_loss_imminent: bool = False
+    affected_count: int = 1
 
-class AlertAckRequest(BaseModel):
-    alert_id: str
-    responder_id: str
-    responder_role: str
-    response_action: str = Field(..., description="acknowledged | investigating | resolved | false_alarm")
+class SeverityOverrideRequest(BaseModel):
+    supervisor_id: str
+    new_severity: str
+    reason: str
 
-class AlertRoutingAuditEntry(BaseModel):
+class TriageHistoryEntry(BaseModel):
     timestamp: str
-    alert_id: str
+    previous_severity: Optional[str]
+    new_severity: str
+    updated_by: str
+    action_type: str
+    reason: Optional[str]
+
+class IncidentTriageResponse(BaseModel):
     incident_id: str
-    action: str  # "DISPATCHED" | "SUPPRESSED_DUPLICATE" | "ACKNOWLEDGED" | "ESCALATION_CANCELLED"
-    recipient_roles: List[str]
-    suppression_hash: Optional[str] = None
-    details: str
+    current_severity: str
+    auto_calculated_severity: str
+    is_overridden: bool = False
+    history: List[TriageHistoryEntry] = []
+

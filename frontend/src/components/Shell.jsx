@@ -64,6 +64,14 @@ export default function Shell({ portal, setPortal, activeView, setActiveView, ch
               >
                 Officer
               </button>
+              <button
+  onClick={() => setActiveView('triage')}
+  className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 ${
+    activeView === 'triage' ? 'bg-[var(--ink)] text-white shadow-sm' : 'text-[var(--ink-text)]/60 hover:bg-white'
+  }`}
+>
+  Triage Engine
+</button>
 <button
                 onClick={() => setActiveView('meet')}
                 className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 ${

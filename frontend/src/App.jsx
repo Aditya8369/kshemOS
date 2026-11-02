@@ -78,7 +78,7 @@ import AlertDispatchView from './components/AlertDispatchView';
 import DigitalTrustScoreView from './components/DigitalTrustScoreView';
 import OnlineReputationSafetyView from './components/OnlineReputationSafetyView';
 import PublicAdvisoryComposer from './components/PublicAdvisoryComposer';
-import GeofenceCommandCenterView from './components/geofence/GeofenceCommandCenterView';
+import TriageCommandView from './components/TriageCommandView';
 import MeetPage from './components/MeetPage';
 
 export default function App() {
@@ -160,8 +160,11 @@ export default function App() {
     if (activeView === 'cyber-preparedness-report') return <CyberPreparednessReportView />;
     if (activeView === 'digital-trust-score') return <DigitalTrustScoreView />;
     if (activeView === 'advisory') return <PublicAdvisoryComposer />;
-    if (activeView === 'alerts') return <AlertDispatchView/>;
+feature/triage-system
+    if (activeView === 'triage') return <TriageCommandView/>;
+
     if (activeView === 'evidence') return <EvidenceVaultView/>;
+main
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
     if (activeView === 'geofence') return <GeofenceCommandCenterView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;

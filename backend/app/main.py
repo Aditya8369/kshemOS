@@ -1,7 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+feature/triage-system
+from app.routers import advisory,triage
+from app.routers import scam, currency, graph, citizen, officer, llm
+
 from app.routers import scam, currency, graph, citizen, officer, llm, incidents, advisory, response_teams
-from app.routers import alerts
+
 app = FastAPI(
     title="KshemOS API",
     description=(
@@ -28,9 +32,8 @@ app.include_router(citizen.router)
 app.include_router(officer.router)
 app.include_router(response_teams.router) 
 app.include_router(llm.router)
-app.include_router(incidents.router)
 app.include_router(advisory.router)
-app.include_router(alerts.router)
+app.include_router(triage.router)
 
 @app.get("/", tags=["Health"])
 def root():
