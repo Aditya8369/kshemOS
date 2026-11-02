@@ -77,6 +77,7 @@ import EvidenceVaultView from './components/EvidenceVaultView';
 import DigitalTrustScoreView from './components/DigitalTrustScoreView';
 import OnlineReputationSafetyView from './components/OnlineReputationSafetyView';
 import PublicAdvisoryComposer from './components/PublicAdvisoryComposer';
+import GeofenceCommandCenterView from './components/geofence/GeofenceCommandCenterView';
 import MeetPage from './components/MeetPage';
 
 export default function App() {
@@ -160,6 +161,7 @@ export default function App() {
     if (activeView === 'advisory') return <PublicAdvisoryComposer />;
     if (activeView === 'evidence') return <EvidenceVaultView/>;
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
+    if (activeView === 'geofence') return <GeofenceCommandCenterView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
     if (activeView === 'portal') {
       return portal === 'citizen' ? <CitizenPortal /> : <OfficerCommandCenter />;
