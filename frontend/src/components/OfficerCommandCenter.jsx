@@ -2,6 +2,7 @@ import { useState } from 'react';
 import FraudGraphView from './FraudGraphView';
 import IncidentDashboardView from './IncidentDashboardView';
 import JurisdictionConfigView from './jurisdiction/JurisdictionConfigView';
+import EvidenceVaultView from './evidence/EvidenceVaultView';
 import { lookupFraudRing, getCaseSummary } from '../api';
 import ResponseTeamMatrix from './ResponseTeamMatrix';
 
@@ -165,6 +166,7 @@ function CaseSummaryPanel() {
 const TABS = [
   { key: 'incidents', label: 'Incident dashboard' },
   { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
+  { key: 'evidence', label: 'Evidence Vault' },
   { key: 'tools', label: 'Investigation tools' },
 ];
 
@@ -173,7 +175,7 @@ export default function OfficerCommandCenter() {
 
   return (
     <div className="min-h-full bg-[var(--ink)] px-4 py-8">
-      <div className={`${tab === 'incidents' || tab === 'jurisdiction' ? 'max-w-6xl' : 'max-w-3xl'} mx-auto space-y-6`}>
+      <div className={`${tab === 'incidents' || tab === 'jurisdiction' || tab === 'evidence' ? 'max-w-6xl' : 'max-w-3xl'} mx-auto space-y-6`}>
         <div>
           <p className="font-mono text-xs uppercase tracking-widest text-[var(--saffron)] mb-2">
             Officer Command Center
@@ -214,6 +216,8 @@ export default function OfficerCommandCenter() {
           <IncidentDashboardView />
         ) : tab === 'jurisdiction' ? (
           <JurisdictionConfigView />
+        ) : tab === 'evidence' ? (
+          <EvidenceVaultView />
         ) : (
           <>
             <GraphPanel />

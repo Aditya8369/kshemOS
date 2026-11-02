@@ -1,108 +1,119 @@
-from fastapi import APIRouter, HTTPException, Header
-from typing import List, Optional
-from datetime import datetime
-import uuid
-from app.models import EvidenceCreateRequest, EvidenceResponse, EvidenceAccessAudit, EvidenceExportRequest
+"""
+FastAPI Router for Automated Chain of Custody & Digital Evidence Vault.
+"""
+from __future__ import annotations
 
-router = APIRouter(prefix="/api/evidence", tags=["Evidence Vault"])
+from typing import Any, Optional
+from fastapi import APIRouter, HTTPException, Query, Request
 
-# In-memory vault repository
-evidence_store = {}
+from app.models import (
+    CustodialActionRequest,
+    EvidenceIngestRequest,
+    EvidenceItem,
+    ForensicExportBundle,
+    LegalHoldToggleRequest,
+)
+from app.services import evidence as evidence_service
 
-ROLE_PERMISSIONS = {
-    "public": ["operator", "analyst", "supervisor", "command_officer", "admin"],
-    "internal": ["operator", "analyst", "supervisor", "command_officer", "admin"],
-    "restricted": ["analyst", "supervisor", "command_officer", "admin"],
-    "confidential": ["supervisor", "command_officer", "admin"]
-}
+router = APIRouter(prefix="/api/evidence", tags=["Digital Evidence Vault & Custody"])
 
-@router.post("/upload", response_model=EvidenceResponse)
-def upload_evidence(
-    payload: EvidenceCreateRequest,
-    x_user_id: str = Header("SYS_OPERATOR", alias="X-User-Id"),
-    x_user_role: str = Header("operator", alias="X-User-Role")
+
+@router.get("/items", response_model=list[EvidenceItem])
+def list_evidence(
+    case_id: Optional[str] = None,
+    category: Optional[str] = None,
+    legal_hold: Optional[bool] = None,
 ):
-    evidence_id = f"EVD-{uuid.uuid4().hex[:8].upper()}"
-    now = datetime.utcnow().isoformat()
-    
-    audit_entry = {
-        "timestamp": now,
-        "user_id": x_user_id,
-        "user_role": x_user_role,
-        "action": "UPLOAD"
-    }
-    
-    record = {
-        "evidence_id": evidence_id,
-        "incident_id": payload.incident_id,
-        "file_name": payload.file_name,
-        "file_type": payload.file_type,
-        "file_size_kb": payload.file_size_kb,
-        "content_hash": payload.content_hash,
-        "sensitivity_level": payload.sensitivity_level,
-        "version": 1,
-        "notes": payload.notes,
-        "created_at": now,
-        "access_history": [audit_entry]
-    }
-    
-    evidence_store[evidence_id] = record
-    return record
+    # Guard against FastAPI Query object evaluation during direct python invocation
+    c_id = case_id if isinstance(case_id, str) else None
+    cat = category if isinstance(category, str) else None
+    lh = legal_hold if isinstance(legal_hold, bool) else None
+    return evidence_service.list_evidence(case_id=c_id, category=cat, legal_hold=lh)
 
-@router.get("/case/{incident_id}", response_model=List[EvidenceResponse])
-def get_case_evidence(
-    incident_id: str,
-    x_user_id: str = Header("SYS_OPERATOR", alias="X-User-Id"),
-    x_user_role: str = Header("operator", alias="X-User-Role")
-):
-    case_files = [ev for ev in evidence_store.values() if ev["incident_id"] == incident_id]
-    accessible_files = []
-    
-    now = datetime.utcnow().isoformat()
-    for item in case_files:
-        allowed_roles = ROLE_PERMISSIONS.get(item["sensitivity_level"], [])
-        if x_user_role in allowed_roles:
-            item["access_history"].append({
-                "timestamp": now,
-                "user_id": x_user_id,
-                "user_role": x_user_role,
-                "action": "VIEW"
-            })
-            accessible_files.append(item)
-            
-    return accessible_files
 
-@router.post("/export", response_model=dict)
-def export_evidence_package(
-    payload: EvidenceExportRequest,
-    x_user_id: str = Header("SYS_COMMAND", alias="X-User-Id"),
-    x_user_role: str = Header("command_officer", alias="X-User-Role")
+@router.get("/items/{evidence_id}")
+def get_evidence(
+    evidence_id: str,
+    log_view: bool = False,
+    officer_badge_id: str = "OFF-INSPECT",
 ):
-    if x_user_role not in ["supervisor", "command_officer", "admin"]:
-        raise HTTPException(
-            status_code=403,
-            detail="Unauthorized: Evidence export is restricted to supervisor and command roles."
-        )
-        
-    exported_records = []
-    now = datetime.utcnow().isoformat()
-    
-    for ev_id in payload.evidence_ids:
-        if ev_id in evidence_store:
-            record = evidence_store[ev_id]
-            record["access_history"].append({
-                "timestamp": now,
-                "user_id": x_user_id,
-                "user_role": x_user_role,
-                "action": f"EXPORT ({payload.export_reason})"
-            })
-            exported_records.append(record)
-            
-    return {
-        "export_id": f"EXP-{uuid.uuid4().hex[:8].upper()}",
-        "export_timestamp": now,
-        "export_reason": payload.export_reason,
-        "exported_by": x_user_id,
-        "total_files": len(exported_records),
-        "files": exported_records
-    }
+    item = evidence_service.get_evidence(
+        evidence_id=evidence_id,
+        log_view=log_view,
+        officer_badge_id=officer_badge_id,
+    )
+    if not item:
+        raise HTTPException(status_code=404, detail="Evidence item not found in vault")
+    return item
+
+
+@router.post("/ingest", response_model=EvidenceItem, status_code=201)
+def ingest_evidence(payload: EvidenceIngestRequest):
+    data = payload.model_dump()
+    return evidence_service.ingest_evidence(data)
+
+
+@router.get("/items/{evidence_id}/custody-ledger")
+def get_custodial_ledger(evidence_id: str):
+    item = evidence_service.get_evidence(evidence_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Evidence item not found")
+    return evidence_service.get_custodial_ledger(evidence_id)
+
+
+@router.post("/items/{evidence_id}/log-action")
+def log_action(evidence_id: str, payload: CustodialActionRequest):
+    entry = evidence_service.log_custodial_action(
+        evidence_id=evidence_id,
+        action=payload.action,
+        officer_badge_id=payload.officer_badge_id,
+        officer_name=payload.officer_name,
+        client_ip=payload.client_ip,
+        details=payload.details,
+    )
+    if not entry:
+        raise HTTPException(status_code=404, detail="Evidence item not found")
+    return entry
+
+
+@router.post("/items/{evidence_id}/legal-hold")
+def toggle_legal_hold(evidence_id: str, payload: LegalHoldToggleRequest):
+    item = evidence_service.toggle_legal_hold(
+        evidence_id=evidence_id,
+        legal_hold=payload.legal_hold,
+        reason=payload.reason,
+        officer_badge_id=payload.officer_badge_id,
+        officer_name=payload.officer_name,
+    )
+    if not item:
+        raise HTTPException(status_code=404, detail="Evidence item not found")
+    return item
+
+
+@router.post("/items/{evidence_id}/verify")
+def verify_integrity(evidence_id: str):
+    res = evidence_service.verify_evidence_integrity(evidence_id)
+    if not res.get("verified") and res.get("error"):
+        raise HTTPException(status_code=404, detail=res["error"])
+    return res
+
+
+@router.get("/forensic-bundle", response_model=ForensicExportBundle)
+def generate_forensic_bundle(
+    case_id: str = Query(..., description="Target Case or Incident ID"),
+    officer_badge_id: str = Query("OFF-FORENSIC-LEAD", description="Authorizing officer badge"),
+):
+    safe_case_id = case_id if isinstance(case_id, str) else "CASE-2026-DELHI-01"
+    safe_officer = officer_badge_id if isinstance(officer_badge_id, str) else "OFF-FORENSIC-LEAD"
+    bundle = evidence_service.generate_forensic_export_bundle(
+        case_id=safe_case_id,
+        generated_by=safe_officer,
+    )
+    if not bundle:
+        raise HTTPException(status_code=404, detail="Could not generate forensic bundle for case")
+    return bundle
+
+
+@router.get("/retention-policies")
+def list_retention_policies():
+    return evidence_service.list_retention_policies()

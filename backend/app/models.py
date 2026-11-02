@@ -116,6 +116,30 @@ class IncidentUpdateRequest(BaseModel):
     severity: Optional[Severity] = None
     assigned_to: Optional[str] = Field(None, description="Officer code; empty string unassigns")
     linked_account: Optional[str] = Field(None, description="Account ID; empty string unlinks")
+    expected_version: Optional[int] = Field(None, description="Client's expected version for concurrency checking")
+    force: bool = Field(False, description="Override concurrency conflict if true")
+
+
+class SyncQueueItem(BaseModel):
+    queue_id: str
+    action: Literal["create", "update"]
+    incident_id: Optional[str] = None
+    create_payload: Optional[IncidentCreateRequest] = None
+    changes: Optional[IncidentUpdateRequest] = None
+    expected_version: Optional[int] = None
+    client_timestamp: Optional[int] = None
+    force: bool = False
+
+
+class SyncBatchRequest(BaseModel):
+    items: list[SyncQueueItem]
+
+
+class SyncBatchResponse(BaseModel):
+    applied_count: int
+    conflict_count: int
+    failed_count: int
+    results: list[dict[str, Any]]
 
 
 class RegionStaffing(BaseModel):
