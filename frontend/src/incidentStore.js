@@ -1,168 +1,697 @@
 /*
- * Live incident feed for the Operational Incident Dashboard.
+
+ * Live incident feed & offline synchronization store for field units.
+
  *
- * Uses the FastAPI backend (`/api/incidents`) when it is reachable so every
- * officer sees the same incidents. When it is not, falls back to this
- * browser's localStorage so the app still works without a backend — in that
- * mode the feed is shared across tabs on this device only.
+
+ * Responders in the field may lose connectivity at any time. This store:
+
+ * 1. Automatically caches the incident feed in localStorage (`kshemos.cache.incidents.v2`).
+
+ * 2. When offline, serves the cached snapshot with queued local changes merged optimistically.
+
+ * 3. Enqueues field updates (status changes, triage, notes, assignments) into the Outbox.
+
+ * 4. Pushes changes automatically once connectivity resumes, handling version conflicts clearly.
+
  */
+
 import { analyzeScamTranscript } from './ruleEngine.js';
-import { applyIncidentUpdate, createIncident, defaultStaffing, REGIONS } from './incidentDashboard.js';
+
+import {
+
+  applyIncidentUpdate,
+
+  createIncident,
+
+  defaultStaffing,
+
+  REGIONS,
+
+} from './incidentDashboard.js';
+
+import {
+
+  enqueueCreate,
+
+  enqueueUpdate,
+
+  getSyncQueue,
+
+  isOnline,
+
+  processSyncQueue,
+
+} from './syncQueue.js';
 
 const BASE_URL = import.meta.env?.VITE_API_URL || '';
 
 const INCIDENTS_KEY = 'kshemos.incidents.v1';
+
 const STAFFING_KEY = 'kshemos.staffing.v1';
 
-// Fired on `window` after a local write, so other components in this tab refresh.
-// Other tabs hear about it through the browser's `storage` event.
+const CACHE_KEY = 'kshemos.cache.incidents.v2';
+
 export const INCIDENTS_CHANGED_EVENT = 'kshemos:incidents-changed';
 
-// After the backend fails, use local storage for this long before trying it again.
-const BACKEND_RETRY_MS = 30 * 1000;
+const BACKEND_RETRY_MS = 15 * 1000;
 
 let backendDownUntil = 0;
 
-async function backendRequest(path, options = {}) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...options.headers },
-  });
-  // A static host without the API answers with index.html, not JSON.
-  if (!(res.headers.get('content-type') || '').includes('application/json')) {
-    throw Object.assign(new Error('Incident backend is not available'), { unavailable: true });
-  }
-  const body = await res.json();
-  if (!res.ok) {
-    const message = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail || body);
-    throw Object.assign(new Error(message), { status: res.status });
-  }
-  return body;
-}
-
-// Only used for the feed and create calls: there a 404 means this server has no
-// incidents API (another app on the port, or an older backend), not a missing incident.
-const UNAVAILABLE_STATUSES = [404, 502, 503, 504];
-
-function isUnavailable(error) {
-  // fetch rejects with a TypeError when the server cannot be reached at all.
-  return error.unavailable || error instanceof TypeError || UNAVAILABLE_STATUSES.includes(error.status);
-}
-
-async function withBackend(remote, local) {
-  if (Date.now() >= backendDownUntil) {
-    try {
-      const result = await remote();
-      backendDownUntil = 0;
-      return { ...result, source: 'backend' };
-    } catch (error) {
-      if (!isUnavailable(error)) throw error;
-      backendDownUntil = Date.now() + BACKEND_RETRY_MS;
-    }
-  }
-  return { ...local(), source: 'local' };
-}
+const storeMemory = new Map();
+const fallbackStore = {
+  getItem: (k) => storeMemory.get(k) ?? null,
+  setItem: (k, v) => storeMemory.set(k, String(v)),
+  removeItem: (k) => storeMemory.delete(k),
+  clear: () => storeMemory.clear(),
+};
 
 function safeLocalStorage() {
   try {
-    return globalThis.localStorage ?? null;
+    if (typeof globalThis.localStorage?.getItem === 'function' && typeof globalThis.localStorage?.setItem === 'function') {
+      return globalThis.localStorage;
+    }
   } catch {
-    return null; // Access can throw in private mode or with storage blocked.
+    // fallback
   }
+  return fallbackStore;
+}
+
+async function backendRequest(path, options = {}) {
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+
+    ...options,
+
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+
+  });
+
+  if (!(res.headers.get('content-type') || '').includes('application/json')) {
+
+    throw Object.assign(new Error('Incident backend is not available'), { unavailable: true });
+
+  }
+
+  const body = await res.json();
+
+  if (!res.ok) {
+
+    const message = typeof body.detail === 'string' ? body.detail : JSON.stringify(body.detail || body);
+
+    throw Object.assign(new Error(message), { status: res.status, detail: body.detail || body });
+
+  }
+
+  return body;
+
+}
+
+const UNAVAILABLE_STATUSES = [404, 502, 503, 504];
+
+function isUnavailable(error) {
+
+  return error?.unavailable || error instanceof TypeError || UNAVAILABLE_STATUSES.includes(error?.status);
+
+}
+
+function readCache(storage = safeLocalStorage()) {
+
+  try {
+
+    const raw = storage?.getItem(CACHE_KEY);
+
+    return raw ? JSON.parse(raw) : null;
+
+  } catch {
+
+    return null;
+
+  }
+
+}
+
+function writeCache(feed, storage = safeLocalStorage()) {
+
+  try {
+
+    storage?.setItem(CACHE_KEY, JSON.stringify(feed));
+
+  } catch {
+
+    // Ignore storage issues in test/private mode
+
+  }
+
+}
+
+/**
+
+ * Merge the persistent sync queue onto incidents so field responders see their
+
+ * queued changes optimistically, with clear sync indicators.
+
+ */
+
+export function overlaySyncQueue(baseIncidents = [], queue = getSyncQueue()) {
+
+  const incidentMap = new Map(baseIncidents.map((i) => [i.id, { ...i, _syncStatus: 'synced' }]));
+
+  for (const item of queue) {
+
+    if (item.action === 'update' && item.incidentId) {
+
+      const existing = incidentMap.get(item.incidentId);
+
+      if (existing) {
+
+        const merged = applyIncidentUpdate(existing, item.changes, item.queuedAt || Date.now());
+
+        merged._syncStatus = item.status;
+
+        merged._queueId = item.queueId;
+
+        merged._serverConflictData = item.serverConflictData || null;
+
+        merged._syncError = item.error || null;
+
+        incidentMap.set(item.incidentId, merged);
+
+      }
+
+    } else if (item.action === 'create' && item.input) {
+
+      const tempId = `INC-PENDING-${item.queueId.slice(-4)}`;
+
+      if (!incidentMap.has(tempId)) {
+
+        const synthetic = createIncident(item.input, {
+
+          id: tempId,
+
+          severity: analyzeScamTranscript(item.input.description || '').risk_band,
+
+          now: item.queuedAt || Date.now(),
+
+        });
+
+        synthetic._syncStatus = item.status;
+
+        synthetic._queueId = item.queueId;
+
+        synthetic._syncError = item.error || null;
+
+        incidentMap.set(tempId, synthetic);
+
+      }
+
+    }
+
+  }
+
+  return Array.from(incidentMap.values());
+
 }
 
 export function createLocalIncidentStore(storage = safeLocalStorage(), { notify = () => {} } = {}) {
+
   function read(key, fallback) {
+
     try {
+
       const raw = storage?.getItem(key);
+
       return raw ? JSON.parse(raw) : fallback;
+
     } catch {
+
       return fallback;
+
     }
+
   }
 
   function write(key, value) {
+
     try {
+
       storage?.setItem(key, JSON.stringify(value));
+
     } catch {
+
       throw new Error('Could not save to browser storage');
+
     }
+
     notify();
+
   }
 
   function incidents() {
+
     return read(INCIDENTS_KEY, []);
+
   }
 
   function staffing() {
+
     const saved = read(STAFFING_KEY, []);
+
     return defaultStaffing().map((s) => saved.find((x) => x.region === s.region) || s);
+
   }
 
   return {
+
     feed() {
+
       return { regions: REGIONS, staffing: staffing(), incidents: incidents() };
+
     },
 
     create(input, now = Date.now()) {
+
       const all = incidents();
+
       const next = all.reduce((max, i) => Math.max(max, Number(i.id.replace(/\D/g, '')) || 0), 0) + 1;
+
       const severity = analyzeScamTranscript(input.description || '').risk_band;
+
       const incident = createIncident(input, { id: `INC-L${String(next).padStart(4, '0')}`, severity, now });
+
       write(INCIDENTS_KEY, [...all, incident]);
+
       return incident;
+
     },
 
     update(id, changes, now = Date.now()) {
+
       const all = incidents();
+
       const current = all.find((i) => i.id === id);
+
       if (!current) throw new Error('Incident not found');
+
       const updated = applyIncidentUpdate(current, changes, now);
+
       write(INCIDENTS_KEY, all.map((i) => (i.id === id ? updated : i)));
+
       return updated;
+
     },
 
     setStaffing(region, officersOnDuty) {
+
       if (!REGIONS.includes(region)) throw new Error('Unknown region');
+
       write(
+
         STAFFING_KEY,
+
         staffing().map((s) => (s.region === region ? { region, officers_on_duty: officersOnDuty } : s))
+
       );
+
       return { region, officers_on_duty: officersOnDuty };
+
     },
+
   };
+
 }
 
 const local = createLocalIncidentStore(undefined, {
+
   notify: () => globalThis.dispatchEvent?.(new Event(INCIDENTS_CHANGED_EVENT)),
+
 });
 
-export function fetchIncidentFeed() {
-  return withBackend(() => backendRequest('/api/incidents'), () => local.feed());
+export async function fetchIncidentFeed() {
+
+  const online = isOnline();
+
+  if (online && Date.now() >= backendDownUntil) {
+
+    try {
+
+      const feed = await backendRequest('/api/incidents');
+
+      backendDownUntil = 0;
+
+      writeCache(feed);
+
+      // Trigger background sync if queue has pending items
+
+      const queue = getSyncQueue();
+
+      if (queue.some((i) => i.status === 'pending')) {
+
+        processSyncQueue().then(() => {
+
+          globalThis.dispatchEvent?.(new Event(INCIDENTS_CHANGED_EVENT));
+
+        });
+
+      }
+
+      return {
+
+        ...feed,
+
+        incidents: overlaySyncQueue(feed.incidents, queue),
+
+        source: 'backend',
+
+      };
+
+    } catch (error) {
+
+      if (!isUnavailable(error)) throw error;
+
+      backendDownUntil = Date.now() + BACKEND_RETRY_MS;
+
+    }
+
+  }
+
+  // Fallback: Read from local cache or local store
+
+  const cached = readCache();
+
+  const queue = getSyncQueue();
+
+  if (cached) {
+
+    return {
+
+      ...cached,
+
+      incidents: overlaySyncQueue(cached.incidents, queue),
+
+      source: online ? 'cached_offline' : 'offline',
+
+    };
+
+  }
+
+  const localFeed = local.feed();
+
+  return {
+
+    ...localFeed,
+
+    incidents: overlaySyncQueue(localFeed.incidents, queue),
+
+    source: 'local',
+
+  };
+
 }
 
 export async function recordIncident(input) {
-  const { source, ...incident } = await withBackend(
-    () => backendRequest('/api/incidents', { method: 'POST', body: JSON.stringify(input) }),
-    () => local.create(input)
-  );
-  return { incident, source };
+
+  if (!isOnline()) {
+
+    const queueItem = enqueueCreate({ input });
+
+    const localIncident = local.create(input);
+
+    const incidentWithSync = { ...localIncident, _syncStatus: 'pending', _queueId: queueItem.queueId };
+
+    globalThis.dispatchEvent?.(new Event(INCIDENTS_CHANGED_EVENT));
+
+    return { incident: incidentWithSync, source: 'offline' };
+
+  }
+
+  try {
+
+    const remote = await backendRequest('/api/incidents', {
+
+      method: 'POST',
+
+      body: JSON.stringify(input),
+
+    });
+
+    return { incident: { ...remote, _syncStatus: 'synced' }, source: 'backend' };
+
+  } catch (error) {
+
+    if (isUnavailable(error)) {
+
+      const queueItem = enqueueCreate({ input });
+
+      const localIncident = local.create(input);
+
+      const incidentWithSync = { ...localIncident, _syncStatus: 'pending', _queueId: queueItem.queueId };
+
+      globalThis.dispatchEvent?.(new Event(INCIDENTS_CHANGED_EVENT));
+
+      return { incident: incidentWithSync, source: 'local' };
+
+    }
+
+    throw error;
+
+  }
+
 }
 
-// `source` is where the incident was read from, so a change made while the
-// backend is offline is not sent to a server that has never seen the incident.
-export async function updateIncident(id, changes, source) {
-  if (source === 'local') return local.update(id, changes);
-  return backendRequest(`/api/incidents/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: JSON.stringify(changes),
-  });
+export async function updateIncident(id, changes, source, baseIncident = null) {
+
+  const online = isOnline();
+
+  // If responder is offline or in simulated offline mode:
+
+  if (!online || source === 'local' || source === 'offline' || source === 'cached_offline') {
+
+    const queueItem = enqueueUpdate({
+
+      incidentId: id,
+
+      changes,
+
+      baseIncident,
+
+    });
+
+    // Update local cache & fallback store optimistically
+
+    try {
+
+      local.update(id, changes);
+
+    } catch {
+
+      // Incident may only exist in cache
+
+    }
+
+    const cached = readCache();
+
+    if (cached) {
+
+      const updatedIncidents = cached.incidents.map((i) =>
+
+        i.id === id ? applyIncidentUpdate(i, changes, Date.now()) : i
+
+      );
+
+      writeCache({ ...cached, incidents: updatedIncidents });
+
+    }
+
+    globalThis.dispatchEvent?.(new Event(INCIDENTS_CHANGED_EVENT));
+
+    return {
+
+      ...(baseIncident || { id }),
+
+      ...changes,
+
+      _syncStatus: 'pending',
+
+      _queueId: queueItem.queueId,
+
+    };
+
+  }
+
+  // If online, push directly to backend with expected_version for conflict detection
+
+  try {
+
+    const payload = {
+
+      ...changes,
+
+      expected_version: baseIncident?.version,
+
+      force: false,
+
+    };
+
+    const updated = await backendRequest(`/api/incidents/${encodeURIComponent(id)}`, {
+
+      method: 'PATCH',
+
+      body: JSON.stringify(payload),
+
+    });
+
+    // Update local cache with confirmed version
+
+    const cached = readCache();
+
+    if (cached) {
+
+      const updatedIncidents = cached.incidents.map((i) => (i.id === id ? updated : i));
+
+      writeCache({ ...cached, incidents: updatedIncidents });
+
+    }
+
+    globalThis.dispatchEvent?.(new Event(INCIDENTS_CHANGED_EVENT));
+
+    return { ...updated, _syncStatus: 'synced' };
+
+  } catch (error) {
+
+    if (error.status === 409) {
+
+      // Conflict detected by server! Enqueue as conflict so user can resolve in UI
+
+      const serverIncident = error.detail?.server_incident || {};
+
+      const queueItem = enqueueUpdate({
+
+        incidentId: id,
+
+        changes,
+
+        baseIncident,
+
+      });
+
+      // Mark queue item as conflict
+
+      const queue = getSyncQueue();
+
+      const updatedQueue = queue.map((i) =>
+
+        i.queueId === queueItem.queueId
+
+          ? {
+
+              ...i,
+
+              status: 'conflict',
+
+              serverConflictData: {
+
+                serverIncident,
+
+                conflictingFields: error.detail?.conflicting_fields || ['status'],
+
+                message: error.detail?.message || 'Server incident was modified by another officer',
+
+              },
+
+            }
+
+          : i
+
+      );
+
+      safeLocalStorage()?.setItem('kshemos.sync_queue.v1', JSON.stringify(updatedQueue));
+
+      globalThis.dispatchEvent?.(new Event(INCIDENTS_CHANGED_EVENT));
+
+      return {
+
+        ...(baseIncident || { id }),
+
+        ...changes,
+
+        _syncStatus: 'conflict',
+
+        _queueId: queueItem.queueId,
+
+        _serverConflictData: {
+
+          serverIncident,
+
+          conflictingFields: error.detail?.conflicting_fields || ['status'],
+
+        },
+
+      };
+
+    }
+
+    if (isUnavailable(error)) {
+
+      // Connection dropped during update — queue for offline sync
+
+      const queueItem = enqueueUpdate({
+
+        incidentId: id,
+
+        changes,
+
+        baseIncident,
+
+      });
+
+      const cached = readCache();
+
+      if (cached) {
+
+        const updatedIncidents = cached.incidents.map((i) =>
+
+          i.id === id ? applyIncidentUpdate(i, changes, Date.now()) : i
+
+        );
+
+        writeCache({ ...cached, incidents: updatedIncidents });
+
+      }
+
+      globalThis.dispatchEvent?.(new Event(INCIDENTS_CHANGED_EVENT));
+
+      return {
+
+        ...(baseIncident || { id }),
+
+        ...changes,
+
+        _syncStatus: 'pending',
+
+        _queueId: queueItem.queueId,
+
+      };
+
+    }
+
+    throw error;
+
+  }
+
 }
 
 export async function setRegionStaffing(region, officersOnDuty, source) {
-  if (source === 'local') return local.setStaffing(region, officersOnDuty);
+
+  if (source === 'local' || !isOnline()) return local.setStaffing(region, officersOnDuty);
+
   return backendRequest(`/api/incidents/staffing/${encodeURIComponent(region)}`, {
+
     method: 'PUT',
+
     body: JSON.stringify({ officers_on_duty: officersOnDuty }),
+
   });
+
 }
+
