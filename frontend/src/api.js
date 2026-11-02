@@ -1,4 +1,5 @@
 import emailjs from '@emailjs/browser';
+
 import {
   analyzeScamTranscript as analyzeLocally,
   scanCurrencyImageLocally,
@@ -8,12 +9,18 @@ import {
   getCaseSummaryLocally,
   getRuleLibrarySamplesLocally,
 } from './ruleEngine.js';
+
 import { recordIncident } from './incidentStore.js';
+
 import { scanQRCode } from './cyberFeatures/qrGuardian.js';
 import { inspectURL } from './cyberFeatures/linkShield.js';
 import { analyzeSMS } from './cyberFeatures/smsAnalyzer.js';
 import { analyzeEmail } from './cyberFeatures/phishDetect.js';
-import { analyzeTransaction, analyzeUPIHistory } from './cyberFeatures/upiFraudShield.js';
+import {
+  analyzeTransaction,
+  analyzeUPIHistory,
+} from './cyberFeatures/upiFraudShield.js';
+
 import { analyzeJobOffer } from './cyberFeatures/jobScamRadar.js';
 import { analyzeInvestment } from './cyberFeatures/investScan.js';
 import { analyzeLoanOffer } from './cyberFeatures/loanTrapAlert.js';
@@ -24,7 +31,8 @@ import { analyzeSocialEngineering } from './cyberFeatures/socialEngShield.js';
 import { analyzeOTPRequest } from './cyberFeatures/otpGuard.js';
 import { analyzeWebSafety } from './cyberFeatures/webSafeAnalyzer.js';
 import { buildCyberCase } from './cyberFeatures/caseBuilder.js';
-// Phase 2 - New cyberFeatures (already had JS files, now adding views)
+
+// Phase 2 - Cyber Features
 import { analyzeBrowserPermissions } from './cyberFeatures/browserPermissionAbuse.js';
 import { analyzeClipboardRisk } from './cyberFeatures/clipboardHijack.js';
 import { analyzeScreenSharing } from './cyberFeatures/screenSharingSafety.js';
@@ -46,7 +54,8 @@ import { analyzeSocialProfile } from './cyberFeatures/fakeSocialProfileInspector
 import { analyzeUsername } from './cyberFeatures/suspiciousUsernameAnalyzer.js';
 import { analyzeGiveaway } from './cyberFeatures/fakeGiveawayDetector.js';
 import { analyzeSubscriptionFraud } from './cyberFeatures/subscriptionFraudChecker.js';
-// Phase 3 - All new cyberFeatures (24 new)
+
+// Phase 3 - Cyber Features
 import { analyzeMarketplaceListing } from './cyberFeatures/marketplaceFraudEvaluator.js';
 import { analyzeDeliveryScam } from './cyberFeatures/deliveryScamPredictor.js';
 import { analyzeTravelBooking } from './cyberFeatures/travelBookingFraudDetector.js';
@@ -72,26 +81,44 @@ import { calculateDigitalTrustScore } from './cyberFeatures/digitalTrustScore.js
 import { analyzeOnlineReputation } from './cyberFeatures/onlineReputationSafety.js';
 import { analyzePersuasionBreakdown } from './cyberFeatures/scamPersuasionBreakdown.js';
 
+// Environment configuration
 const BASE_URL = import.meta.env.VITE_API_URL || '';
-const EMAILJS_SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID || '';
-const EMAILJS_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID || '';
-const EMAILJS_PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY || '';
+
+const EMAILJS_SERVICE_ID =
+  import.meta.env.VITE_EMAILJS_SERVICE_ID || '';
+
+const EMAILJS_TEMPLATE_ID =
+  import.meta.env.VITE_EMAILJS_TEMPLATE_ID || '';
+
+const EMAILJS_PUBLIC_KEY =
+  import.meta.env.VITE_EMAILJS_PUBLIC_KEY || '';
 
 async function handle(res) {
   if (!res.ok) {
     let detail = res.statusText;
+
     try {
       const body = await res.json();
       detail = body.detail || JSON.stringify(body);
     } catch (_) {
-      /* ignore */
+      // Ignore JSON parsing errors.
     }
+
     throw new Error(detail);
   }
+
   return res.json();
 }
 
-export async function analyzeScamTranscript({ transcript, callerClaimsToBe, callerNumber }) {
+// ======================================================
+// CITIZEN AND SCAM ANALYSIS APIs
+// ======================================================
+
+export async function analyzeScamTranscript({
+  transcript,
+  callerClaimsToBe,
+  callerNumber,
+}) {
   return analyzeLocally(transcript, callerClaimsToBe);
 }
 
@@ -104,28 +131,99 @@ export async function lookupFraudRing(accountId) {
 }
 
 export async function askCitizenAssistant({ question, language }) {
-  return { answer: askCitizenAssistantLocally(question, language) };
+  return {
+    answer: askCitizenAssistantLocally(question, language),
+  };
 }
+
+// ======================================================
+// CITIZEN REPORT APIs
+// ======================================================
 
 export async function submitCitizenReport(payload) {
   const report = submitCitizenReportLocally(payload);
-  // Every report becomes a live incident on the officer dashboard. A failure here
-  // must not lose the citizen's acknowledgement, so it is reported, not thrown.
+
+  // Every report becomes a live incident on the officer dashboard.
+  // A failure here must not lose the citizen's acknowledgement.
   try {
-    const { incident, source } = await recordIncident({ ...payload, report_id: report.report_id });
-    return { ...report, incident_id: incident.id, incident_source: source };
+    const { incident, source } = await recordIncident({
+      ...payload,
+      report_id: report.report_id,
+    });
+
+    return {
+      ...report,
+      incident_id: incident.id,
+      incident_source: source,
+    };
   } catch (error) {
-    return { ...report, incident_error: error.message };
+    return {
+      ...report,
+      incident_error: error.message,
+    };
   }
 }
 
-export { fetchIncidentFeed, updateIncident, setRegionStaffing, INCIDENTS_CHANGED_EVENT } from './incidentStore.js';
+// ======================================================
+// INCIDENT MANAGEMENT APIs
+// ======================================================
 
-export async function sendReportConfirmationEmail({ reportId, reporterName, recipientEmail, category, description, acknowledgement }) {
-  if (!EMAILJS_SERVICE_ID || !EMAILJS_TEMPLATE_ID || !EMAILJS_PUBLIC_KEY) {
+export {
+  fetchIncidentFeed,
+  updateIncident,
+  setRegionStaffing,
+  INCIDENTS_CHANGED_EVENT,
+} from './incidentStore.js';
+
+// ======================================================
+// OFFLINE SYNC QUEUE APIs
+// ======================================================
+
+export {
+  getSyncQueue,
+  getSyncHistory,
+  getPendingCount,
+  getConflictCount,
+  getFailedCount,
+  isOnline,
+  isSimulatedOffline,
+  setSimulatedOffline,
+  processSyncQueue,
+  enqueueUpdate,
+  enqueueCreate,
+  discardQueueItem,
+  retryQueueItem,
+  resolveConflict,
+  clearSyncHistory,
+  setSyncStorage,
+  emitSyncChange,
+  SYNC_QUEUE_KEY,
+  SYNC_HISTORY_KEY,
+  SIMULATED_OFFLINE_KEY,
+  SYNC_STATUS_CHANGED_EVENT,
+} from './syncQueue.js';
+
+// ======================================================
+// EMAIL CONFIRMATION API
+// ======================================================
+
+export async function sendReportConfirmationEmail({
+  reportId,
+  reporterName,
+  recipientEmail,
+  category,
+  description,
+  acknowledgement,
+}) {
+  if (
+    !EMAILJS_SERVICE_ID ||
+    !EMAILJS_TEMPLATE_ID ||
+    !EMAILJS_PUBLIC_KEY
+  ) {
     return {
       success: false,
-      message: 'EmailJS configuration is missing. Set VITE_EMAILJS_SERVICE_ID, VITE_EMAILJS_TEMPLATE_ID, and VITE_EMAILJS_PUBLIC_KEY.',
+      message:
+        'EmailJS configuration is missing. Set VITE_EMAILJS_SERVICE_ID, VITE_EMAILJS_TEMPLATE_ID, and VITE_EMAILJS_PUBLIC_KEY.',
     };
   }
 
@@ -139,16 +237,31 @@ export async function sendReportConfirmationEmail({ reportId, reporterName, reci
       acknowledgement,
     };
 
-    await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY);
+    await emailjs.send(
+      EMAILJS_SERVICE_ID,
+      EMAILJS_TEMPLATE_ID,
+      templateParams,
+      EMAILJS_PUBLIC_KEY
+    );
 
-    return { success: true, message: 'Confirmation email sent successfully.' };
+    return {
+      success: true,
+      message: 'Confirmation email sent successfully.',
+    };
   } catch (error) {
     return {
       success: false,
-      message: error?.text || error?.message || 'EmailJS failed to send confirmation.',
+      message:
+        error?.text ||
+        error?.message ||
+        'EmailJS failed to send confirmation.',
     };
   }
 }
+
+// ======================================================
+// RULE LIBRARY AND CASE APIs
+// ======================================================
 
 export async function getRuleLibrarySamples(limit) {
   return getRuleLibrarySamplesLocally(limit);
@@ -158,6 +271,10 @@ export async function getCaseSummary(reportId, accountId) {
   return getCaseSummaryLocally(reportId, accountId);
 }
 
+// ======================================================
+// CYBER SECURITY ANALYSIS APIs
+// ======================================================
+
 export async function inspectLink(url) {
   return inspectURL(url);
 }
@@ -166,16 +283,37 @@ export async function analyzeQRPayload(payload) {
   return scanQRCode(payload);
 }
 
-export async function analyzeSMSPayload(sender, message, timestamp) {
+export async function analyzeSMSPayload(
+  sender,
+  message,
+  timestamp
+) {
   return analyzeSMS(sender, message, timestamp);
 }
 
-export async function analyzeEmailPayload(from, subject, body, headers) {
+export async function analyzeEmailPayload(
+  from,
+  subject,
+  body,
+  headers
+) {
   return analyzeEmail(from, subject, body, headers);
 }
 
-export async function analyzeUPIPayment(upiId, amount, reason, timestamp, recentTransactions) {
-  return analyzeTransaction(upiId, amount, reason, timestamp, recentTransactions);
+export async function analyzeUPIPayment(
+  upiId,
+  amount,
+  reason,
+  timestamp,
+  recentTransactions
+) {
+  return analyzeTransaction(
+    upiId,
+    amount,
+    reason,
+    timestamp,
+    recentTransactions
+  );
 }
 
 export async function analyzeUPIHistoryPayload(transactions) {
@@ -222,8 +360,10 @@ export async function buildCyberCasePayload(payload) {
   return buildCyberCase(payload);
 }
 
+// ======================================================
+// JURISDICTION AND ZONE CONFIGURATION APIs
+// ======================================================
 
-// Re-export Jurisdiction and Zone Configuration APIs
 export {
   fetchJurisdictionData,
   validateBoundaryApi,
