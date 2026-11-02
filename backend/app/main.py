@@ -5,7 +5,6 @@ from app.routers import advisory,triage
 from app.routers import scam, currency, graph, citizen, officer, llm
 
 from app.routers import scam, currency, graph, citizen, officer, llm, incidents, advisory, response_teams
- main
 
 app = FastAPI(
     title="KshemOS API",

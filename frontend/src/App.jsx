@@ -74,6 +74,7 @@ import PersonalCyberHygieneView from './components/PersonalCyberHygieneView';
 import ScamResilienceAssessmentView from './components/ScamResilienceAssessmentView';
 import CyberPreparednessReportView from './components/CyberPreparednessReportView';
 import EvidenceVaultView from './components/EvidenceVaultView';
+import AlertDispatchView from './components/AlertDispatchView';
 import DigitalTrustScoreView from './components/DigitalTrustScoreView';
 import OnlineReputationSafetyView from './components/OnlineReputationSafetyView';
 import PublicAdvisoryComposer from './components/PublicAdvisoryComposer';
@@ -165,6 +166,7 @@ feature/triage-system
     if (activeView === 'evidence') return <EvidenceVaultView/>;
 main
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
+    if (activeView === 'geofence') return <GeofenceCommandCenterView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
     if (activeView === 'portal') {
       return portal === 'citizen' ? <CitizenPortal /> : <OfficerCommandCenter />;
