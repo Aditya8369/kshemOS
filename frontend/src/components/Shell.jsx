@@ -80,6 +80,14 @@ export default function Shell({ portal, setPortal, activeView, setActiveView, ch
 >
   Advisory Composer
 </button>
+<button
+  onClick={() => setActiveView('evidence')}
+  className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 ${
+    activeView === 'evidence' ? 'bg-[var(--ink)] text-white shadow-sm' : 'text-[var(--ink-text)]/60 hover:bg-white'
+  }`}
+>
+  Evidence Vault
+</button>
                 Meet
               </button>
               <button
