@@ -3,6 +3,7 @@ import FraudGraphView from './FraudGraphView';
 import IncidentDashboardView from './IncidentDashboardView';
 import JurisdictionConfigView from './jurisdiction/JurisdictionConfigView';
 import { lookupFraudRing, getCaseSummary } from '../api';
+import ResponseTeamMatrix from './ResponseTeamMatrix';
 
 const SAMPLE_ACCOUNTS = ['ACC-1002', 'ACC-1004', 'ACC-1009', 'ACC-1005'];
 
@@ -188,7 +189,10 @@ export default function OfficerCommandCenter() {
               : 'Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.'}
           </p>
         </div>
-        <div role="tablist" className="inline-flex gap-1 bg-[var(--navy)] border border-[var(--navy-line)] rounded-full p-1 text-sm">
+        <div
+          role="tablist"
+          className="inline-flex gap-1 bg-[var(--navy)] border border-[var(--navy-line)] rounded-full p-1 text-sm"
+        >
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -196,13 +200,16 @@ export default function OfficerCommandCenter() {
               aria-selected={tab === t.key}
               onClick={() => setTab(t.key)}
               className={`px-4 py-1.5 rounded-full font-semibold transition-colors ${
-                tab === t.key ? 'bg-[var(--saffron)] text-white' : 'text-[var(--mist)] hover:text-white'
+                tab === t.key
+                  ? 'bg-[var(--saffron)] text-white'
+                  : 'text-[var(--mist)] hover:text-white'
               }`}
             >
               {t.label}
             </button>
           ))}
         </div>
+
         {tab === 'incidents' ? (
           <IncidentDashboardView />
         ) : tab === 'jurisdiction' ? (
