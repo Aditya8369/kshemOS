@@ -189,3 +189,25 @@ class AdvisoryResponse(AdvisoryCreate):
         default_factory=lambda: {"sent": 0, "pending": 0, "failed": 0}
     )
     audit_trail: List[Dict[str, Any]] = Field(default_factory=list)
+class AlertDispatchPayload(BaseModel):
+    incident_id: str
+    incident_type: str
+    urgency_level: str = Field(..., description="low | medium | high | critical")
+    target_roles: List[str] = Field(..., description="e.g. ['operator', 'supervisor', 'field_officer']")
+    location_zone: str = Field(..., description="e.g. 'zone_north', 'sector_4'")
+    message_content: str
+
+class AlertAckRequest(BaseModel):
+    alert_id: str
+    responder_id: str
+    responder_role: str
+    response_action: str = Field(..., description="acknowledged | investigating | resolved | false_alarm")
+
+class AlertRoutingAuditEntry(BaseModel):
+    timestamp: str
+    alert_id: str
+    incident_id: str
+    action: str  # "DISPATCHED" | "SUPPRESSED_DUPLICATE" | "ACKNOWLEDGED" | "ESCALATION_CANCELLED"
+    recipient_roles: List[str]
+    suppression_hash: Optional[str] = None
+    details: str
