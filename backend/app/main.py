@@ -29,7 +29,6 @@ app.include_router(citizen.router)
 app.include_router(officer.router)
 app.include_router(response_teams.router) 
 app.include_router(llm.router)
-app.include_router(incidents.router)
 app.include_router(advisory.router)
 app.include_router(jurisdiction.router)
 
