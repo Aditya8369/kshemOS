@@ -116,6 +116,30 @@ class IncidentUpdateRequest(BaseModel):
     severity: Optional[Severity] = None
     assigned_to: Optional[str] = Field(None, description="Officer code; empty string unassigns")
     linked_account: Optional[str] = Field(None, description="Account ID; empty string unlinks")
+    expected_version: Optional[int] = Field(None, description="Client's expected version for concurrency checking")
+    force: bool = Field(False, description="Override concurrency conflict if true")
+
+
+class SyncQueueItem(BaseModel):
+    queue_id: str
+    action: Literal["create", "update"]
+    incident_id: Optional[str] = None
+    create_payload: Optional[IncidentCreateRequest] = None
+    changes: Optional[IncidentUpdateRequest] = None
+    expected_version: Optional[int] = None
+    client_timestamp: Optional[int] = None
+    force: bool = False
+
+
+class SyncBatchRequest(BaseModel):
+    items: list[SyncQueueItem]
+
+
+class SyncBatchResponse(BaseModel):
+    applied_count: int
+    conflict_count: int
+    failed_count: int
+    results: list[dict[str, Any]]
 
 
 class RegionStaffing(BaseModel):
@@ -290,3 +314,272 @@ class ConfigSnapshot(BaseModel):
     service_areas: list[ServiceArea]
     dispatch_rules: list[DispatchRule]
 
+
+
+# ---------- Automated Chain of Custody & Digital Evidence Vault ----------
+
+EvidenceType = Literal[
+    "audio_recording",
+    "document",
+    "transaction_receipt",
+    "image_screenshot",
+    "chat_transcript",
+    "video",
+    "other",
+]
+
+EvidenceCategory = Literal[
+    "digital_arrest",
+    "financial_fraud",
+    "counterfeit_currency",
+    "identity_theft",
+    "cyber_extortion",
+    "other",
+]
+
+EvidenceSource = Literal[
+    "citizen_report",
+    "field_capture",
+    "bank_slip",
+    "forensic_extraction",
+    "patrol_upload",
+]
+
+CustodialAction = Literal[
+    "INGESTION",
+    "VIEW",
+    "DOWNLOAD",
+    "ANNOTATE",
+    "REDACT",
+    "LEGAL_HOLD_APPLIED",
+    "LEGAL_HOLD_RELEASED",
+    "EXPORT_BUNDLE",
+    "CHECKOUT",
+    "RETURN",
+]
+
+CustodialStatus = Literal["vaulted", "checked_out", "archived", "disposed"]
+
+
+class RFC3161Token(BaseModel):
+    timestamp_iso: str
+    serial_number: str
+    digest_algorithm: str = "SHA-256"
+    digest_value: str
+    tsa_authority: str = "KshemOS-TSA-Root-CA-01"
+
+
+class CustodialLogEntry(BaseModel):
+    log_id: str
+    evidence_id: str
+    action: CustodialAction
+    officer_badge_id: str
+    officer_name: str
+    timestamp: int
+    client_ip: str = "127.0.0.1"
+    user_agent: Optional[str] = None
+    details: str
+    integrity_hash: str
+    previous_hash: str
+
+
+class EvidenceItem(BaseModel):
+    id: str
+    case_id: str
+    title: str
+    description: str
+    evidence_type: EvidenceType
+    category: EvidenceCategory
+    source: EvidenceSource
+    file_name: str
+    file_size_bytes: int
+    sha256_hash: str
+    rfc3161_token: RFC3161Token
+    ingested_by: str
+    ingested_at: int
+    retention_days: int
+    retention_until: int
+    legal_hold: bool = False
+    legal_hold_reason: Optional[str] = None
+    custodial_status: CustodialStatus = "vaulted"
+    tags: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class EvidenceIngestRequest(BaseModel):
+    case_id: str
+    title: str
+    description: str
+    evidence_type: EvidenceType
+    category: EvidenceCategory
+    source: EvidenceSource
+    raw_content: Optional[str] = None
+    file_name: str
+    file_size_bytes: Optional[int] = None
+    provided_hash: Optional[str] = None
+    officer_badge_id: str
+    officer_name: str = "OFFICER"
+    legal_hold: bool = False
+    legal_hold_reason: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class CustodialActionRequest(BaseModel):
+    action: CustodialAction
+    officer_badge_id: str
+    officer_name: str = "OFFICER"
+    client_ip: str = "127.0.0.1"
+    details: str
+
+
+class LegalHoldToggleRequest(BaseModel):
+    legal_hold: bool
+    reason: str
+    officer_badge_id: str
+    officer_name: str = "OFFICER"
+
+
+class ForensicExportBundle(BaseModel):
+    bundle_id: str
+    generated_at: int
+    generated_by: str
+    case_id: str
+    evidence_items: list[EvidenceItem]
+    manifest_sha256: str
+    custodial_chain: list[CustodialLogEntry]
+    tamper_verification_passed: bool
+    attestation_statement: str
+    export_format: str = "court_package_v1"
+
+
+# ---------- Geofencing & Map Tactical Alerts ----------
+
+class PointCoordinate(BaseModel):
+    lat: float
+    lng: float
+
+
+class GeofenceBoundary(BaseModel):
+    id: str
+    name: str
+    type: Literal["circle", "polygon"] = "circle"
+    category: str = "operational_sector"
+    color: str = "#3b82f6"
+    center: Optional[PointCoordinate] = None
+    radius_meters: Optional[float] = None
+    coordinates: Optional[list[PointCoordinate]] = None
+    assigned_teams: list[str] = Field(default_factory=list)
+    is_active: bool = True
+
+
+class GeofenceRule(BaseModel):
+    id: str
+    name: str
+    geofence_id: str
+    team: str = "*"
+    event_types: list[Literal["entry", "exit", "dwell"]]
+    dwell_threshold_seconds: int = 0
+    alert_severity: Literal["info", "warning", "critical"] = "warning"
+    enabled: bool = True
+
+
+class GeofenceAlert(BaseModel):
+    id: str
+    rule_id: str
+    geofence_id: str
+    geofence_name: str
+    entity_id: str
+    team: str
+    event_type: Literal["entry", "exit", "dwell"]
+    severity: Literal["info", "warning", "critical"]
+    description: str
+    timestamp: int
+    acknowledged: bool = False
+
+
+class LocationPingRequest(BaseModel):
+    entity_id: str
+    team: str = "DEFAULT"
+    lat: float
+    lng: float
+    timestamp: Optional[int] = None
+
+
+class LocationPingResponse(BaseModel):
+    entity_id: str
+    team: str
+    lat: float
+    lng: float
+    timestamp: int
+    current_geofences: list[str]
+    triggered_alerts: list[dict[str, Any]]
+
+
+# ---------- Alert Dispatch System ----------
+
+class AlertDispatchPayload(BaseModel):
+    incident_id: str
+    category: str
+    severity: str
+    location_zone: str
+    target_roles: list[str]
+    description: str
+
+
+class AlertRoutingAuditEntry(BaseModel):
+    timestamp: str
+    alert_id: str
+    incident_id: str
+    action: str
+    recipient_roles: list[str]
+    suppression_hash: str
+    details: str
+
+
+class AlertDispatchResponse(BaseModel):
+    alert_id: str
+    incident_id: str
+    status: str
+    suppression_hash: str
+    routed_recipients: list[str]
+    audit_history: list[dict[str, Any]]
+
+
+class AlertAckRequest(BaseModel):
+    alert_id: str
+    responder_id: str
+    responder_role: str
+
+
+# ---------- Triage System ----------
+
+class TriageScoreRequest(BaseModel):
+    incident_id: str
+    incident_type: str
+    caller_claims_authority: bool = False
+    financial_loss_imminent: bool = False
+    urgency_level: str = "medium"
+
+
+class SeverityOverrideRequest(BaseModel):
+    supervisor_id: str
+    new_severity: str
+    reason: str
+
+
+class TriageAuditEntry(BaseModel):
+    timestamp: str
+    previous_severity: Optional[str] = None
+    new_severity: str
+    updated_by: str
+    action_type: str
+    reason: str
+
+
+class IncidentTriageResponse(BaseModel):
+    incident_id: str
+    current_severity: str
+    auto_calculated_severity: str
+    is_overridden: bool = False
+    history: list[dict[str, Any]]

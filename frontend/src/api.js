@@ -374,3 +374,21 @@ export {
   deleteDispatchRuleApi,
   defaultJurisdictionStore,
 } from './jurisdictionStore.js';
+
+
+// ======================================================
+// AUTOMATED CHAIN OF CUSTODY & EVIDENCE VAULT APIs
+// ======================================================
+
+export {
+  fetchEvidenceItems,
+  fetchEvidenceItem,
+  ingestEvidenceApi,
+  fetchCustodialLedgerApi,
+  logCustodialActionApi,
+  toggleLegalHoldApi,
+  verifyEvidenceIntegrityApi,
+  generateForensicBundleApi,
+  fetchRetentionPoliciesApi,
+  defaultEvidenceStore,
+} from './evidenceStore.js';

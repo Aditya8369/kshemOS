@@ -160,11 +160,11 @@ export default function App() {
     if (activeView === 'cyber-preparedness-report') return <CyberPreparednessReportView />;
     if (activeView === 'digital-trust-score') return <DigitalTrustScoreView />;
     if (activeView === 'advisory') return <PublicAdvisoryComposer />;
-feature/triage-system
-    if (activeView === 'triage') return <TriageCommandView/>;
+
+
 
     if (activeView === 'evidence') return <EvidenceVaultView/>;
-main
+
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
