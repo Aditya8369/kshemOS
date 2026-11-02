@@ -73,6 +73,7 @@ import MfaReadinessCheckerView from './components/MfaReadinessCheckerView';
 import PersonalCyberHygieneView from './components/PersonalCyberHygieneView';
 import ScamResilienceAssessmentView from './components/ScamResilienceAssessmentView';
 import CyberPreparednessReportView from './components/CyberPreparednessReportView';
+import EvidenceVaultView from './components/EvidenceVaultView';
 import DigitalTrustScoreView from './components/DigitalTrustScoreView';
 import OnlineReputationSafetyView from './components/OnlineReputationSafetyView';
 import PublicAdvisoryComposer from './components/PublicAdvisoryComposer';
@@ -158,7 +159,11 @@ export default function App() {
     if (activeView === 'cyber-preparedness-report') return <CyberPreparednessReportView />;
     if (activeView === 'digital-trust-score') return <DigitalTrustScoreView />;
     if (activeView === 'advisory') return <PublicAdvisoryComposer />;
+feature/triage-system
     if (activeView === 'triage') return <TriageCommandView/>;
+
+    if (activeView === 'evidence') return <EvidenceVaultView/>;
+main
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
     if (activeView === 'portal') {
