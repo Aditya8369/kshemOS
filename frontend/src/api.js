@@ -374,3 +374,20 @@ export {
   deleteDispatchRuleApi,
   defaultJurisdictionStore,
 } from './jurisdictionStore.js';
+
+// ======================================================
+// CROSS-JURISDICTION MUTUAL AID & REBALANCING APIs
+// ======================================================
+
+export {
+  fetchMutualAidDataApi,
+  declareMutualAidApi,
+  deescalateDeclarationApi,
+  delegateGuestUnitApi,
+  revokeGuestUnitApi,
+  createJointTaskforceApi,
+  getJointTaskforceWorkspaceApi,
+  logGuestActionApi,
+  getSunsetAuditLogApi,
+  defaultMutualAidStore,
+} from './mutualAidStore.js';
