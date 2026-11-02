@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import FraudGraphView from './FraudGraphView';
+import IncidentDashboardView from './IncidentDashboardView';
+import JurisdictionConfigView from './jurisdiction/JurisdictionConfigView';
+import EvidenceVaultView from './evidence/EvidenceVaultView';
 import { lookupFraudRing, getCaseSummary } from '../api';
+import ResponseTeamMatrix from './ResponseTeamMatrix';
 
 const SAMPLE_ACCOUNTS = ['ACC-1002', 'ACC-1004', 'ACC-1009', 'ACC-1005'];
 
@@ -159,10 +163,19 @@ function CaseSummaryPanel() {
   );
 }
 
+const TABS = [
+  { key: 'incidents', label: 'Incident dashboard' },
+  { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
+  { key: 'evidence', label: 'Evidence Vault' },
+  { key: 'tools', label: 'Investigation tools' },
+];
+
 export default function OfficerCommandCenter() {
+  const [tab, setTab] = useState('incidents');
+
   return (
-    <div className="min-h-full bg-[var(--ink)] -mx-4 px-4 py-8">
-      <div className="max-w-3xl mx-auto space-y-6">
+    <div className="min-h-full bg-[var(--ink)] px-4 py-8">
+      <div className={`${tab === 'incidents' || tab === 'jurisdiction' || tab === 'evidence' ? 'max-w-6xl' : 'max-w-3xl'} mx-auto space-y-6`}>
         <div>
           <p className="font-mono text-xs uppercase tracking-widest text-[var(--saffron)] mb-2">
             Officer Command Center
@@ -171,11 +184,46 @@ export default function OfficerCommandCenter() {
             One console, every signal.
           </h1>
           <p className="text-[var(--mist)] mt-1">
-            Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.
+            {tab === 'incidents'
+              ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
+              : tab === 'jurisdiction'
+              ? 'Operational zone boundaries, service areas, automated dispatch routing, and multi-officer change review.'
+              : 'Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.'}
           </p>
         </div>
-        <GraphPanel />
-        <CaseSummaryPanel />
+        <div
+          role="tablist"
+          className="inline-flex gap-1 bg-[var(--navy)] border border-[var(--navy-line)] rounded-full p-1 text-sm"
+        >
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              role="tab"
+              aria-selected={tab === t.key}
+              onClick={() => setTab(t.key)}
+              className={`px-4 py-1.5 rounded-full font-semibold transition-colors ${
+                tab === t.key
+                  ? 'bg-[var(--saffron)] text-white'
+                  : 'text-[var(--mist)] hover:text-white'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'incidents' ? (
+          <IncidentDashboardView />
+        ) : tab === 'jurisdiction' ? (
+          <JurisdictionConfigView />
+        ) : tab === 'evidence' ? (
+          <EvidenceVaultView />
+        ) : (
+          <>
+            <GraphPanel />
+            <CaseSummaryPanel />
+          </>
+        )}
       </div>
     </div>
   );
