@@ -1,3 +1,4 @@
+import CitizenCallForwardingCard from './telephony/CitizenCallForwardingCard.jsx';
 import { useEffect, useState } from 'react';
 import RiskGauge from './RiskGauge';
 import { REGIONS } from '../incidentDashboard';
@@ -485,6 +486,7 @@ export default function CitizenPortal() {
       </div>
       <CitizenMicroAdvisoryCard />
       <ScamCheck />
+      <CitizenCallForwardingCard />
       <CurrencyScanner />
       <Assistant />
       <ReportForm addReport={addReport} />

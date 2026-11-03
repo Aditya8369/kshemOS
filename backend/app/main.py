@@ -17,6 +17,7 @@ from app.routers import (
     alerts,
     triage,
     drills,
+    telephony_honeypot,
     spatial_intelligence,
 )
 
@@ -54,6 +55,7 @@ app.include_router(geofence.router)
 app.include_router(alerts.router)
 app.include_router(triage.router)
 app.include_router(drills.router)
+app.include_router(telephony_honeypot.router)
 app.include_router(spatial_intelligence.router)
 
 

@@ -790,6 +790,82 @@ class RebalanceEvaluationResponse(BaseModel):
     auto_declarations_triggered: list[MutualAidDeclaration]
 
 
+# ---------- AI Telephony Honeypot & Call-Pattern Triangulation ----------
+
+class HoneypotPersona(BaseModel):
+    id: str = Field(..., description="Unique persona identifier")
+    name: str = Field(..., description="Persona name, e.g. Prof. Rameshwar Shastri")
+    age: int
+    profile: str = Field(..., description="Demographic and behavioral persona description")
+    prolongation_tactic: str = Field(..., description="Specific tactic to drag out call and extract mules")
+    primary_target_extraction: str = Field(..., description="Primary credentials targeted for harvesting")
+    voice_profile: str = Field("elderly_male_hindi_english")
+
+
+class AcousticFingerprint(BaseModel):
+    ambient_cross_talk_score: float = Field(0.0, description="0.0 - 1.0 probability of call-center background chatter")
+    voip_codec_jitter_ms: float = Field(0.0, description="VoIP latency and packet jitter in milliseconds")
+    background_noise_profile: str = Field("Clean Audio", description="Acoustic background characterization")
+    ivr_signature_match: Optional[str] = Field(None, description="Matched predictive dialer / PBX signature")
+    synthetic_voice_probability: float = Field(0.0, description="Probability of deepfake or TTS voice clone")
+
+
+class ScriptTriangulation(BaseModel):
+    matched_syndicate_id: Optional[str] = Field(None, description="Known syndicate ID e.g. SYND-MEWAT-08")
+    matched_syndicate_name: Optional[str] = Field(None, description="Name of syndicate ring")
+    script_similarity_pct: float = Field(0.0, description="Script match percentage against known corpus")
+    geographic_origin: Optional[str] = Field(None, description="Triangulated geographic origin or VoIP gateway")
+    confidence_score: float = Field(0.0, description="Overall triangulation confidence score 0.0 - 1.0")
+    matched_script_excerpts: List[str] = Field(default_factory=list)
+
+
+class HarvestedMuleCredential(BaseModel):
+    credential_id: str
+    credential_type: str = Field(..., description="bank_account | upi_vpa | payment_url")
+    value: str = Field(..., description="Account number, VPA, or URL")
+    bank_or_provider: str
+    beneficiary_name: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    extracted_at: str
+    confidence: float = 0.95
+    freeze_status: str = Field("recommended", description="recommended | freezing_initiated | frozen | pending_review")
+    freeze_warrant_id: Optional[str] = None
+
+
+class HoneypotCallSession(BaseModel):
+    session_id: str
+    caller_phone: str
+    caller_claims_to_be: str
+    forwarded_by_citizen_id: Optional[str] = None
+    persona: HoneypotPersona
+    call_status: str = Field("active", description="active | prolonging | completed | extracted")
+    call_duration_seconds: int = 0
+    transcript_turns: List[Dict[str, Any]] = Field(default_factory=list)
+    acoustic_fingerprint: AcousticFingerprint = Field(default_factory=AcousticFingerprint)
+    script_triangulation: ScriptTriangulation = Field(default_factory=ScriptTriangulation)
+    harvested_credentials: List[HarvestedMuleCredential] = Field(default_factory=list)
+    freeze_recommendations: List[Dict[str, Any]] = Field(default_factory=list)
+    created_at: str
+    updated_at: str
+
+
+class CallForwardRequest(BaseModel):
+    caller_phone: str = Field(..., description="Phone number of scam caller")
+    caller_claims_to_be: str = Field(..., description="Who caller claims to be e.g. CBI Officer")
+    citizen_name: Optional[str] = Field("Citizen User")
+    initial_transcript: Optional[str] = Field(None)
+    preferred_persona_id: Optional[str] = Field(None)
+
+
+class CallTurnRequest(BaseModel):
+    caller_utterance: str = Field(..., description="Incoming sentence from scam caller")
+
+
+class MuleFreezeRequest(BaseModel):
+    credential_id: str
+    officer_badge: str = Field("OFF-CYBER-901")
+    statutory_section: str = Field("Section 102 CrPC / Cyber Defense Act")
+    freeze_reason: Optional[str] = Field("Harvested active beneficiary account from live honeypot extortion call.")
 # ---------- Real-Time Threat Heatmap & Predictive Spatial Intelligence ----------
 
 class FinancialPOI(BaseModel):
