@@ -16,6 +16,7 @@ from app.routers import (
     geofence,
     alerts,
     triage,
+    drills,
 )
 
 app = FastAPI(
@@ -51,6 +52,7 @@ app.include_router(mutual_aid.router)
 app.include_router(geofence.router)
 app.include_router(alerts.router)
 app.include_router(triage.router)
+app.include_router(drills.router)
 
 
 @app.get("/", tags=["Health"])
