@@ -205,15 +205,21 @@ class GeofenceBoundary(BaseModel):
 
 class GeofenceRule(BaseModel):
     id: str
-    boundary_id: str
-    event_type: Literal["entry", "exit", "dwell"]
-    dwell_threshold_seconds: Optional[int] = None
-    alert_severity: Literal["low", "medium", "high", "critical"] = "medium"
+    name: Optional[str] = None
+    boundary_id: Optional[str] = None
+    geofence_id: Optional[str] = None
+    team: Optional[str] = "*"
+    event_type: Optional[str] = None
+    event_types: Optional[list[str]] = Field(default_factory=lambda: ["entry"])
+    dwell_threshold_seconds: Optional[int] = 0
+    alert_severity: str = "medium"
     enabled: bool = True
 
 
 class LocationPingRequest(BaseModel):
-    unit_id: str
+    unit_id: Optional[str] = None
+    entity_id: Optional[str] = None
+    team: Optional[str] = None
     lat: float
     lng: float
     accuracy_m: Optional[float] = None
@@ -685,3 +691,100 @@ class RebalanceEvaluationResponse(BaseModel):
     active_guest_delegations_count: int
     recommendations: list[RebalanceRecommendation]
     auto_declarations_triggered: list[MutualAidDeclaration]
+
+
+# ---------- Real-Time Threat Heatmap & Predictive Spatial Intelligence ----------
+
+class FinancialPOI(BaseModel):
+    id: str
+    name: str
+    poi_type: Literal["atm", "bank_branch", "money_exchange", "fintech_hub"]
+    bank_name: str
+    lat: float
+    lng: float
+    region: str
+    vulnerability_score: float = 0.5
+
+
+class SpatialIncident(BaseModel):
+    id: str
+    title: str
+    category: str
+    severity: Literal["low", "medium", "high", "critical"]
+    lat: float
+    lng: float
+    timestamp: int
+    region: str
+    nearby_poi_id: Optional[str] = None
+
+
+class ThreatCluster(BaseModel):
+    cluster_id: str
+    name: str
+    center_lat: float
+    center_lng: float
+    radius_meters: float
+    incident_count: int
+    severity_density: float
+    threat_level: Literal["critical", "high", "moderate", "low"]
+    primary_category: str
+    surrounding_poi_count: int
+    nearby_atms: list[str] = Field(default_factory=list)
+    region: str
+    service_area_id: Optional[str] = None
+
+
+class MigrationVector(BaseModel):
+    cluster_id: str
+    trend: Literal["expanding", "dissipating", "migrating", "stationary"]
+    heading_degrees: float
+    heading_cardinal: str
+    velocity_km_per_day: float
+    growth_rate_pct: float
+    target_service_area_id: Optional[str] = None
+    target_region: Optional[str] = None
+    risk_narrative: str
+
+
+class PatrolDispatchRecommendation(BaseModel):
+    recommendation_id: str
+    cluster_id: str
+    waypoint_name: str
+    lat: float
+    lng: float
+    suggested_priority: Literal["urgent_deterrence", "preventative_check", "surveillance_stakeout"]
+    assigned_team_code: str
+    suggested_unit_code: Optional[str] = None
+    target_infrastructure: str
+    action_checklist: list[str]
+    valid_duration_minutes: int = 120
+    generated_at: int
+
+
+class CitizenMicroAdvisoryRequest(BaseModel):
+    lat: float
+    lng: float
+    user_identifier: Optional[str] = None
+
+
+class CitizenMicroAdvisoryResponse(BaseModel):
+    proximity_meters: float
+    nearest_cluster_id: Optional[str] = None
+    nearest_cluster_name: Optional[str] = None
+    threat_level: Literal["critical", "high", "moderate", "low"]
+    localized_risk_score: int
+    active_incident_count_nearby: int
+    migration_trend: Optional[str] = None
+    safety_guidance: list[str] = Field(default_factory=list)
+    nearest_safe_precinct: str
+    timestamp: int
+
+
+class ThreatHeatmapResponse(BaseModel):
+    timestamp: int
+    clusters: list[ThreatCluster]
+    migration_vectors: list[MigrationVector]
+    patrol_recommendations: list[PatrolDispatchRecommendation]
+    financial_pois: list[FinancialPOI]
+    total_clusters: int
+    highest_threat_region: str

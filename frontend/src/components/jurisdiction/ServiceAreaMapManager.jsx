@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { validateBoundaryLocally } from '../../jurisdictionStore.js';
+import PredictiveSpatialPanel from '../spatial/PredictiveSpatialPanel.jsx';
 
 const RISK_BADGES = {
   critical: 'bg-red-500/20 text-red-300 border-red-500/40',
@@ -374,6 +375,21 @@ export default function ServiceAreaMapManager({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Real-Time Predictive Spatial Intelligence & Threat Clusters for this Sector */}
+      {selectedArea && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display font-semibold text-white text-base flex items-center gap-2">
+              <span>Predictive Spatial Intelligence & Threat Hotspots</span>
+              <span className="text-xs font-mono text-[var(--saffron)] px-2 py-0.5 rounded-full bg-[var(--saffron)]/10 border border-[var(--saffron)]/30">
+                {selectedArea.region} Sector Overlay
+              </span>
+            </h3>
+          </div>
+          <PredictiveSpatialPanel selectedRegion={selectedArea.region} />
         </div>
       )}
     </div>

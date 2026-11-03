@@ -391,3 +391,16 @@ export {
   getSunsetAuditLogApi,
   defaultMutualAidStore,
 } from './mutualAidStore.js';
+
+// ======================================================
+// PREDICTIVE SPATIAL INTELLIGENCE & THREAT HEATMAP APIs
+// ======================================================
+
+export {
+  fetchThreatHeatmapDataApi,
+  fetchCitizenMicroAdvisoryApi,
+  addSpatialIncidentApi,
+  defaultSpatialStore,
+  CITIZEN_LOCATION_PRESETS,
+  SPATIAL_CHANGED_EVENT,
+} from './spatialIntelligenceStore.js';
