@@ -3,8 +3,8 @@ Pydantic models shared across KshemOS backend routers.
 """
 from __future__ import annotations
 from typing import Any, Dict, List, Literal, Optional
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, Field, field_validator
+from datetime import datetime
 
 # ---------- Scam / Digital Arrest Agent ----------
 
@@ -34,7 +34,28 @@ class CurrencyScanResponse(BaseModel):
     signals: dict
 
 
+
 # ---------- Fraud Graph Agent ----------
+
+class GraphEdgeExplanation(BaseModel):
+    edge_id: str
+    source: str
+    target: str
+    relationship_type: str
+    source_signal: str = Field(..., min_length=1)
+    observed_at: datetime
+    confidence: float = Field(..., ge=0, le=1)
+    provenance: Literal["verified", "inferred", "synthetic"]
+    annotation: str = Field(..., min_length=1)
+
+
+class GraphPathExplanation(BaseModel):
+    accounts: list[str]
+    edge_ids: list[str]
+    edge_explanations: list[GraphEdgeExplanation] = Field(
+        default_factory=list
+    )
+
 
 class RingLookupResponse(BaseModel):
     account_id: str
@@ -44,6 +65,78 @@ class RingLookupResponse(BaseModel):
     connected_accounts: list[str]
     shared_signals: list[str]
 
+    edges: list[GraphEdgeExplanation] = Field(
+        default_factory=list
+    )
+
+    paths: list[GraphPathExplanation] = Field(
+        default_factory=list
+    )
+
+# ---------- Fraud Graph Analyst Reviews ----------
+
+ReviewDecision = Literal["confirm", "dispute", "reject"]
+
+
+class GraphReviewRequest(BaseModel):
+    decision: ReviewDecision
+    reason: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("A review reason is required")
+        return value
+
+
+class GraphReviewReversalRequest(BaseModel):
+    reason: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("A reversal reason is required")
+        return value
+
+
+class GraphReviewEvent(BaseModel):
+    event_id: str
+    edge_id: str
+    event_type: Literal["decision", "reversal"]
+    decision: Optional[ReviewDecision] = None
+    reason: str
+    analyst_id: str
+    created_at: datetime
+    reverses_event_id: Optional[str] = None
+    previous_hash: str
+    integrity_hash: str
+
+
+class GraphReviewHistoryResponse(BaseModel):
+    edge_id: str
+    events: list[GraphReviewEvent]
+    current_decision: Optional[ReviewDecision] = None
+
+
+class GraphReviewEvaluationRecord(BaseModel):
+    edge_id: str
+    review_event_id: str
+    relationship_type: str
+    provenance: Literal["verified", "inferred", "synthetic"]
+    decision: ReviewDecision
+    evaluation_label: Optional[Literal["positive", "negative"]] = None
+    eligible_for_binary_evaluation: bool
+    reviewed_at: datetime
+
+
+class GraphReviewEvaluationExport(BaseModel):
+    generated_at: datetime
+    total: int
+    records: list[GraphReviewEvaluationRecord]
 
 # ---------- Citizen Assistant Agent ----------
 

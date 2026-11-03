@@ -3,7 +3,15 @@ import FraudGraphView from './FraudGraphView';
 import IncidentDashboardView from './IncidentDashboardView';
 import JurisdictionConfigView from './jurisdiction/JurisdictionConfigView';
 import EvidenceVaultView from './evidence/EvidenceVaultView';
-import { lookupFraudRing, getCaseSummary } from '../api';
+import {
+  lookupFraudRing,
+  getCaseSummary,
+  submitFraudGraphReview,
+  getFraudGraphReviewHistory,
+  reverseFraudGraphReview,
+  verifyFraudGraphReviewIntegrity,
+  exportFraudGraphReviews,
+} from '../api';
 import ResponseTeamMatrix from './ResponseTeamMatrix';
 
 const SAMPLE_ACCOUNTS = ['ACC-1002', 'ACC-1004', 'ACC-1009', 'ACC-1005'];
@@ -24,15 +32,37 @@ function GraphPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Analyst review state
+  const [analystToken, setAnalystToken] = useState('');
+  const [selectedEdgeId, setSelectedEdgeId] = useState('');
+  const [reviewReason, setReviewReason] = useState('');
+  const [reversalReason, setReversalReason] = useState('');
+  const [reviewHistory, setReviewHistory] = useState(null);
+  const [integrity, setIntegrity] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [reviewStatus, setReviewStatus] = useState('');
+
   async function run(id) {
     const target = id || accountId;
+
     if (!target.trim()) return;
+
     setLoading(true);
     setError(null);
+
     try {
       const res = await lookupFraudRing(target);
+
       setRing(res);
       setAccountId(target);
+
+      // A new graph lookup resets the previously selected relationship.
+      setSelectedEdgeId('');
+      setReviewHistory(null);
+      setIntegrity(null);
+      setReviewError('');
+      setReviewStatus('');
     } catch (e) {
       setError(e.message);
     } finally {
@@ -40,8 +70,169 @@ function GraphPanel() {
     }
   }
 
+  function selectEdge(edgeId) {
+    setSelectedEdgeId(edgeId);
+    setReviewHistory(null);
+    setIntegrity(null);
+    setReviewError('');
+    setReviewStatus('');
+    setReviewReason('');
+    setReversalReason('');
+  }
+
+  async function refreshReviewData(
+    edgeId = selectedEdgeId,
+    token = analystToken
+  ) {
+    const history = await getFraudGraphReviewHistory(edgeId, token);
+    const audit = await verifyFraudGraphReviewIntegrity(edgeId, token);
+
+    setReviewHistory(history);
+    setIntegrity(audit);
+  }
+
+  async function loadReviewHistory() {
+    if (!selectedEdgeId || !analystToken.trim()) {
+      setReviewError('Select a relationship and enter your analyst token.');
+      return;
+    }
+
+    setReviewLoading(true);
+    setReviewError('');
+    setReviewStatus('');
+
+    try {
+      await refreshReviewData();
+      setReviewStatus('Review history loaded successfully.');
+    } catch (e) {
+      setReviewError(e.message);
+    } finally {
+      setReviewLoading(false);
+    }
+  }
+
+  async function submitDecision(decision) {
+    if (!selectedEdgeId || !analystToken.trim()) {
+      setReviewError('Select a relationship and authenticate first.');
+      return;
+    }
+
+    if (!reviewReason.trim()) {
+      setReviewError('A reason is mandatory for every review decision.');
+      return;
+    }
+
+    setReviewLoading(true);
+    setReviewError('');
+    setReviewStatus('');
+
+    try {
+      const event = await submitFraudGraphReview(
+        selectedEdgeId,
+        {
+          decision,
+          reason: reviewReason.trim(),
+        },
+        analystToken
+      );
+
+      setReviewReason('');
+
+      await refreshReviewData();
+
+      setReviewStatus(
+        `${decision.toUpperCase()} recorded successfully. Event: ${event.event_id}`
+      );
+    } catch (e) {
+      setReviewError(e.message);
+    } finally {
+      setReviewLoading(false);
+    }
+  }
+
+  async function reverseDecision(eventId) {
+    if (!reversalReason.trim()) {
+      setReviewError('Enter a reason before reversing a decision.');
+      return;
+    }
+
+    setReviewLoading(true);
+    setReviewError('');
+    setReviewStatus('');
+
+    try {
+      const event = await reverseFraudGraphReview(
+        selectedEdgeId,
+        eventId,
+        reversalReason.trim(),
+        analystToken
+      );
+
+      setReversalReason('');
+
+      await refreshReviewData();
+
+      setReviewStatus(
+        `Reversal recorded successfully. Event: ${event.event_id}`
+      );
+    } catch (e) {
+      setReviewError(e.message);
+    } finally {
+      setReviewLoading(false);
+    }
+  }
+
+  async function downloadEvaluation() {
+    if (!analystToken.trim()) {
+      setReviewError('Enter your analyst token before exporting.');
+      return;
+    }
+
+    setReviewLoading(true);
+    setReviewError('');
+    setReviewStatus('');
+
+    try {
+      const result = await exportFraudGraphReviews(analystToken);
+
+      const blob = new Blob(
+        [JSON.stringify(result, null, 2)],
+        { type: 'application/json' }
+      );
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+
+      link.href = url;
+      link.download = 'fraud-graph-review-evaluation.json';
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(url);
+
+      setReviewStatus(
+        `Evaluation export generated with ${result.total} reviewed relationships.`
+      );
+    } catch (e) {
+      setReviewError(e.message);
+    } finally {
+      setReviewLoading(false);
+    }
+  }
+
+  const reversedEventIds = new Set(
+    (reviewHistory?.events || [])
+      .filter((event) => event.event_type === 'reversal')
+      .map((event) => event.reverses_event_id)
+  );
+
   return (
-    <Panel eyebrow="Fraud Graph Agent" title="Trace an account's fraud ring">
+    <Panel
+      eyebrow="Fraud Graph Agent"
+      title="Trace an account's fraud ring"
+    >
       <div className="flex gap-2 mb-3">
         <input
           className="flex-1 rounded-lg bg-[var(--ink)] border border-[var(--navy-line)] text-white p-2 text-sm font-mono"
@@ -49,14 +240,16 @@ function GraphPanel() {
           onChange={(e) => setAccountId(e.target.value)}
           placeholder="ACC-1002"
         />
+
         <button
           onClick={() => run()}
           disabled={loading}
           className="bg-[var(--saffron)] text-white rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-40"
         >
-          {loading ? '…' : 'Trace'}
+          {loading ? 'Loading...' : 'Trace'}
         </button>
       </div>
+
       <div className="flex flex-wrap gap-2 mb-4">
         {SAMPLE_ACCOUNTS.map((a) => (
           <button
@@ -68,22 +261,279 @@ function GraphPanel() {
           </button>
         ))}
       </div>
-      {error && <p className="text-sm text-[var(--alert)] mb-2">{error}</p>}
+
+      {error && (
+        <p className="text-sm text-[var(--alert)] mb-2">
+          {error}
+        </p>
+      )}
 
       <FraudGraphView
         centerId={ring?.account_id}
-        neighbors={ring?.connected_accounts || []}
-        relationships={ring?.shared_signals || []}
+        edges={ring?.edges || []}
+        paths={ring?.paths || []}
         flagged={ring?.is_flagged}
+        selectedEdgeId={selectedEdgeId}
+        onSelectEdge={selectEdge}
       />
 
       {ring && (
         <div className="grid grid-cols-3 gap-3 mt-4 text-center">
-          <Stat label="Mule probability" value={`${Math.round(ring.mule_probability * 100)}%`} />
-          <Stat label="Ring ID" value={ring.ring_id || '—'} />
-          <Stat label="Flagged" value={ring.is_flagged ? 'Yes' : 'No'} />
+          <Stat
+            label="Mule probability"
+            value={`${Math.round(ring.mule_probability * 100)}%`}
+          />
+          <Stat
+            label="Ring ID"
+            value={ring.ring_id || '—'}
+          />
+          <Stat
+            label="Flagged"
+            value={ring.is_flagged ? 'Yes' : 'No'}
+          />
         </div>
       )}
+
+      {/* Analyst review panel */}
+      <section className="mt-6 border-t border-[var(--navy-line)] pt-5 space-y-4">
+        <div>
+          <h3 className="text-lg font-semibold text-white">
+            Analyst relationship review
+          </h3>
+
+          <p className="text-xs text-[var(--mist)] mt-1">
+            Select a graph relationship to review its evidence and record
+            an auditable decision.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-xs text-[var(--mist)] mb-1">
+            Analyst access token
+          </label>
+
+          <input
+            type="password"
+            autoComplete="off"
+            value={analystToken}
+            onChange={(e) => setAnalystToken(e.target.value)}
+            placeholder="Enter server-configured analyst token"
+            className="w-full rounded-lg bg-[var(--ink)] border border-[var(--navy-line)] text-white p-2 text-sm"
+          />
+
+          <p className="text-[10px] text-[var(--mist)] mt-1">
+            Held in component memory only. Never stored in browser storage.
+          </p>
+        </div>
+
+        <div className="rounded-lg bg-[var(--ink)] border border-[var(--navy-line)] p-3">
+          <p className="text-xs text-[var(--mist)]">
+            Selected relationship
+          </p>
+
+          <p className="text-sm text-white font-mono mt-1">
+            {selectedEdgeId || 'No relationship selected'}
+          </p>
+
+          <button
+            type="button"
+            onClick={loadReviewHistory}
+            disabled={
+              !selectedEdgeId ||
+              !analystToken.trim() ||
+              reviewLoading
+            }
+            className="mt-3 text-xs rounded-lg px-3 py-2 border border-[var(--navy-line)] text-white disabled:opacity-40"
+          >
+            {reviewLoading ? 'Loading...' : 'Load review history'}
+          </button>
+        </div>
+
+        <div>
+          <label className="block text-xs text-[var(--mist)] mb-1">
+            Review reason (mandatory)
+          </label>
+
+          <textarea
+            rows={3}
+            maxLength={2000}
+            value={reviewReason}
+            onChange={(e) => setReviewReason(e.target.value)}
+            placeholder="Explain the evidence supporting your decision..."
+            className="w-full rounded-lg bg-[var(--ink)] border border-[var(--navy-line)] text-white p-3 text-sm"
+          />
+
+          <div className="flex flex-wrap gap-2 mt-3">
+            {['confirm', 'dispute', 'reject'].map((decision) => (
+              <button
+                key={decision}
+                type="button"
+                onClick={() => submitDecision(decision)}
+                disabled={
+                  !selectedEdgeId ||
+                  !analystToken.trim() ||
+                  !reviewReason.trim() ||
+                  reviewLoading
+                }
+                className="rounded-full px-4 py-2 text-xs font-semibold border border-[var(--navy-line)] text-white hover:border-[var(--saffron)] disabled:opacity-40"
+              >
+                {decision.charAt(0).toUpperCase() + decision.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {reviewError && (
+          <p role="alert" className="text-sm text-[var(--alert)]">
+            {reviewError}
+          </p>
+        )}
+
+        {reviewStatus && (
+          <p role="status" className="text-sm text-emerald-400">
+            {reviewStatus}
+          </p>
+        )}
+
+        {integrity && (
+          <div className="rounded-lg border border-[var(--navy-line)] p-3">
+            <p className="text-xs text-[var(--mist)]">
+              Review audit integrity
+            </p>
+
+            <p className="text-sm text-white mt-1">
+              {integrity.verified
+                ? 'Hash chain verified'
+                : 'Integrity verification failed'}
+            </p>
+
+            <p className="text-xs text-[var(--mist)] mt-1">
+              Events checked: {integrity.event_count}
+            </p>
+
+            {!integrity.verified && integrity.broken_event_id && (
+              <p className="text-xs text-[var(--alert)] mt-1">
+                Problem detected at {integrity.broken_event_id}
+              </p>
+            )}
+          </div>
+        )}
+
+        {reviewHistory && (
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-white">
+                Review history
+              </h4>
+
+              <p className="text-xs text-[var(--mist)] mt-1">
+                Current decision:{' '}
+                {reviewHistory.current_decision?.toUpperCase() || 'None'}
+              </p>
+            </div>
+
+            {reviewHistory.events.length === 0 ? (
+              <p className="text-xs text-[var(--mist)]">
+                No review events have been recorded for this relationship.
+              </p>
+            ) : (
+              reviewHistory.events
+                .slice()
+                .reverse()
+                .map((event) => {
+                  const canReverse =
+                    event.event_type === 'decision' &&
+                    !reversedEventIds.has(event.event_id);
+
+                  return (
+                    <article
+                      key={event.event_id}
+                      className="rounded-lg bg-[var(--ink)] border border-[var(--navy-line)] p-3 space-y-2"
+                    >
+                      <div className="flex flex-wrap justify-between gap-2">
+                        <span className="text-sm font-semibold text-white">
+                          {event.event_type === 'reversal'
+                            ? 'REVERSAL'
+                            : event.decision?.toUpperCase()}
+                        </span>
+
+                        <span className="text-xs text-[var(--mist)]">
+                          {event.event_id}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-[var(--mist)]">
+                        Analyst: {event.analyst_id}
+                      </p>
+
+                      <p className="text-xs text-[var(--mist)]">
+                        {new Date(event.created_at).toLocaleString()}
+                      </p>
+
+                      <p className="text-sm text-white break-words">
+                        {event.reason}
+                      </p>
+
+                      {event.event_type === 'reversal' && (
+                        <p className="text-xs text-amber-300">
+                          Reverses event: {event.reverses_event_id}
+                        </p>
+                      )}
+
+                      {canReverse && (
+                        <button
+                          type="button"
+                          onClick={() => reverseDecision(event.event_id)}
+                          disabled={
+                            !analystToken.trim() || reviewLoading
+                          }
+                          className="text-xs rounded-lg px-3 py-2 border border-[var(--navy-line)] text-white hover:border-[var(--alert)] disabled:opacity-40"
+                        >
+                          Reverse this decision
+                        </button>
+                      )}
+                    </article>
+                  );
+                })
+            )}
+
+            {reviewHistory.events.some(
+              (event) =>
+                event.event_type === 'decision' &&
+                !reversedEventIds.has(event.event_id)
+            ) && (
+              <div>
+                <label className="block text-xs text-[var(--mist)] mb-1">
+                  Reversal reason (mandatory)
+                </label>
+
+                <textarea
+                  rows={2}
+                  maxLength={2000}
+                  value={reversalReason}
+                  onChange={(e) => setReversalReason(e.target.value)}
+                  placeholder="Explain why the previous decision needs reversal..."
+                  className="w-full rounded-lg bg-[var(--ink)] border border-[var(--navy-line)] text-white p-3 text-sm"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={downloadEvaluation}
+          disabled={!analystToken.trim() || reviewLoading}
+          className="w-full rounded-lg border border-[var(--navy-line)] px-4 py-3 text-sm text-white hover:border-[var(--saffron)] disabled:opacity-40"
+        >
+          Export reviewed evaluation data (JSON)
+        </button>
+
+        <p className="text-[10px] text-[var(--mist)]">
+          Exported records are for offline evaluation. They do not
+          automatically update or retrain the fraud model.
+        </p>
+      </section>
     </Panel>
   );
 }
