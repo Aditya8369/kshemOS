@@ -427,3 +427,24 @@ export {
   OFFICIAL_HELPLINES,
   SAMPLE_CALL_SIMULATIONS,
 } from './liveCallSafetyStore.js';
+// ======================================================
+// PUBLIC ADVISORY & EMERGENCY BROADCAST APIs
+// ======================================================
+
+export {
+  fetchAdvisoriesApi,
+  createBroadcastApi,
+  authorizeBroadcastApi,
+  dispatchBroadcastApi,
+  advanceTelemetryApi,
+  estimateAudienceApi,
+  fetchAdvisoryTemplatesApi,
+  fetchActiveBannerApi,
+  SERVICE_AREAS_DEMOGRAPHICS,
+  EMERGENCY_TEMPLATES,
+  BROADCAST_CHANGED_EVENT,
+  BROADCAST_STORAGE_KEY,
+  DEFAULT_SEED_BROADCASTS,
+  AdvisoryBroadcastStore,
+  defaultBroadcastStore,
+} from './advisoryBroadcastStore.js';
