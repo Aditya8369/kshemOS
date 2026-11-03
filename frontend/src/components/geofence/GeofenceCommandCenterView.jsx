@@ -26,6 +26,7 @@ import {
 import TacticalMapView from './TacticalMapView';
 import GeofenceAlertsPanel from './GeofenceAlertsPanel';
 import GeofenceRulesManager from './GeofenceRulesManager';
+import PredictiveSpatialPanel from '../spatial/PredictiveSpatialPanel';
 
 export default function GeofenceCommandCenterView() {
   const [boundaries, setBoundaries] = useState(() => getBoundaries());
@@ -255,6 +256,16 @@ export default function GeofenceCommandCenterView() {
             Configurable Geofence Rules ({rules.length})
           </button>
           <button
+            onClick={() => setBottomTab('spatial')}
+            className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-colors ${
+              bottomTab === 'spatial'
+                ? 'bg-[var(--saffron)] text-[var(--ink)] border-[var(--saffron)] font-bold'
+                : 'bg-[var(--navy)] border-[var(--navy-line)] text-[var(--mist)] hover:text-white'
+            }`}
+          >
+            Predictive Spatial Intelligence
+          </button>
+          <button
             onClick={() => setBottomTab('boundaries')}
             className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-colors ${
               bottomTab === 'boundaries'
@@ -272,7 +283,7 @@ export default function GeofenceCommandCenterView() {
             boundaries={boundaries}
             onRefresh={refresh}
           />
-        ) : (
+        ) : bottomTab === 'boundaries' ? (
           <div className="bg-[var(--navy)] border border-[var(--navy-line)] rounded-2xl p-5 shadow-lg space-y-3">
             <h3 className="font-display font-semibold text-white text-base">
               Active Geofence Boundaries
@@ -299,6 +310,8 @@ export default function GeofenceCommandCenterView() {
               ))}
             </div>
           </div>
+        ) : (
+          <PredictiveSpatialPanel />
         )}
       </div>
     </div>
