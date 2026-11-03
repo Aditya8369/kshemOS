@@ -391,3 +391,23 @@ export {
   getSunsetAuditLogApi,
   defaultMutualAidStore,
 } from './mutualAidStore.js';
+
+
+// ======================================================
+// CONSENT-BASED LIVE SCAM-CALL TRANSCRIPTION & RISK ALERTS
+// ======================================================
+
+export {
+  createLiveCallSession,
+  ingestLiveCallChunk,
+  pauseLiveCallSession,
+  resumeLiveCallSession,
+  stopLiveCallSession,
+  purgeLiveCallSession,
+  detectSuspiciousPhrases,
+  calculateRiskAssessment,
+  localLiveCallManager,
+  SCAM_LEXICON,
+  OFFICIAL_HELPLINES,
+  SAMPLE_CALL_SIMULATIONS,
+} from './liveCallSafetyStore.js';

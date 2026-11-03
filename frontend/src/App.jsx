@@ -79,6 +79,7 @@ import DigitalTrustScoreView from './components/DigitalTrustScoreView';
 import OnlineReputationSafetyView from './components/OnlineReputationSafetyView';
 import PublicAdvisoryComposer from './components/PublicAdvisoryComposer';
 import JurisdictionConfigView from './components/jurisdiction/JurisdictionConfigView';
+import LiveCallSafetyView from './components/livecall/LiveCallSafetyView';
 import MeetPage from './components/MeetPage';
 
 export default function App() {
@@ -160,16 +161,14 @@ export default function App() {
     if (activeView === 'cyber-preparedness-report') return <CyberPreparednessReportView />;
     if (activeView === 'digital-trust-score') return <DigitalTrustScoreView />;
     if (activeView === 'advisory') return <PublicAdvisoryComposer />;
-
-
-
+    if (activeView === 'live-call-safety') return <LiveCallSafetyView />;
     if (activeView === 'evidence') return <EvidenceVaultView/>;
-
+    if (activeView === 'alerts') return <AlertDispatchView />;
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
     if (activeView === 'portal') {
-      return portal === 'citizen' ? <CitizenPortal /> : <OfficerCommandCenter />;
+      return portal === 'citizen' ? <CitizenPortal setActiveView={setActiveView} /> : <OfficerCommandCenter />;
     }
     return <HomePage setActiveView={setActiveView} />;
   }

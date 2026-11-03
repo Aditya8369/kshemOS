@@ -685,3 +685,77 @@ class RebalanceEvaluationResponse(BaseModel):
     active_guest_delegations_count: int
     recommendations: list[RebalanceRecommendation]
     auto_declarations_triggered: list[MutualAidDeclaration]
+
+
+# ---------- Consent-Based Live Scam-Call Transcription & Risk Alerts ----------
+
+class LiveCallConsent(BaseModel):
+    user_acknowledged: bool = Field(..., description="User explicitly acknowledged call safety monitoring")
+    mic_permission_granted: bool = Field(..., description="User granted live microphone audio stream access")
+    data_processing_accepted: bool = Field(..., description="User consented to real-time risk scoring and transcription")
+    no_auto_record_acknowledged: bool = Field(..., description="User acknowledged zero automatic recording policy")
+    timestamp: int = Field(..., description="Epoch millisecond timestamp when consent was granted")
+
+
+class SuspiciousPhrase(BaseModel):
+    phrase: str
+    category: Literal["threat", "urgency", "secrecy", "payment", "coercion"]
+    severity_weight: float
+    context_snippet: Optional[str] = None
+
+
+class SpeechUtterance(BaseModel):
+    utterance_id: str
+    timestamp_ms: int
+    speaker: str = "caller"
+    text: str
+    suspicious_phrases: list[SuspiciousPhrase] = Field(default_factory=list)
+    incremental_risk: float = 0.0
+
+
+class LiveCallSession(BaseModel):
+    session_id: str
+    status: Literal["consent_pending", "active", "paused", "stopped", "purged"] = "active"
+    consent: LiveCallConsent
+    started_at: int
+    updated_at: int
+    stopped_at: Optional[int] = None
+    caller_label: Optional[str] = None
+    full_transcript: str = ""
+    utterances: list[SpeechUtterance] = Field(default_factory=list)
+    current_risk_score: float = 0.0
+    current_risk_band: Literal["low", "medium", "high", "critical"] = "low"
+    detected_categories: list[str] = Field(default_factory=list)
+    highlighted_phrases: list[SuspiciousPhrase] = Field(default_factory=list)
+    actionable_safety_prompts: list[str] = Field(default_factory=list)
+    official_helpline_recommendations: list[dict[str, str]] = Field(default_factory=list)
+    tactics_breakdown: dict[str, float] = Field(default_factory=dict)
+
+
+class CreateLiveCallSessionRequest(BaseModel):
+    consent: LiveCallConsent
+    caller_label: Optional[str] = "Incoming Suspected Call"
+
+
+class IngestSpeechChunkRequest(BaseModel):
+    text: str
+    speaker: str = "caller"
+    audio_duration_ms: Optional[int] = None
+    is_final: bool = True
+
+
+class LiveCallSessionActionRequest(BaseModel):
+    action: Literal["pause", "resume", "stop", "purge"]
+
+
+class LiveCallRiskUpdateResponse(BaseModel):
+    session_id: str
+    status: str
+    new_utterance: Optional[SpeechUtterance] = None
+    full_transcript: str
+    current_risk_score: float
+    current_risk_band: str
+    highlighted_phrases: list[SuspiciousPhrase]
+    actionable_safety_prompts: list[str]
+    tactics_breakdown: dict[str, float]
+    official_helpline_recommendations: list[dict[str, str]]
