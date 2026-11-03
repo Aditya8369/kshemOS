@@ -411,3 +411,15 @@ export {
   EMERGENCY_TEMPLATES,
   BROADCAST_CHANGED_EVENT,
 } from './advisoryBroadcastStore.js';
+// ======================================================
+// PREDICTIVE SPATIAL INTELLIGENCE & THREAT HEATMAP APIs
+// ======================================================
+
+export {
+  fetchThreatHeatmapDataApi,
+  fetchCitizenMicroAdvisoryApi,
+  addSpatialIncidentApi,
+  defaultSpatialStore,
+  CITIZEN_LOCATION_PRESETS,
+  SPATIAL_CHANGED_EVENT,
+} from './spatialIntelligenceStore.js';
