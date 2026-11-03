@@ -1,12 +1,10 @@
 """
-Fraud Graph Intelligence Agent.
+Fraud Graph Intelligence Agent with AI Telephony Honeypot Integration.
 
 Hackathon-real implementation: an in-memory networkx graph seeded with
 synthetic accounts/edges, so the demo runs with zero external dependencies.
-The query patterns (shared-device rings, degree-based mule scoring) mirror
-the Cypher queries described in the architecture doc — swapping this module
-for a real Neo4j-backed service (see PRODUCTION UPGRADE) only requires
-re-implementing `get_ring_info` against Cypher instead of networkx.
+Now extended to receive automated mule account harvesting feeds from the
+AI Telephony Honeypot deflection engine.
 """
 from __future__ import annotations
 
@@ -15,12 +13,13 @@ import networkx as nx
 from app.data.seed_graph import ACCOUNTS, EDGES, FLAGGED_ACCOUNTS, KNOWN_MULE_ACCOUNTS
 
 _graph: nx.Graph | None = None
+HARVESTED_HONEYPOT_ACCOUNTS: set[str] = set()
 
 
 def _build_graph() -> nx.Graph:
     g = nx.Graph()
     for acc in ACCOUNTS:
-        g.add_node(acc, flagged=acc in FLAGGED_ACCOUNTS)
+        g.add_node(acc, flagged=acc in FLAGGED_ACCOUNTS, harvested=acc in HARVESTED_HONEYPOT_ACCOUNTS)
     for a, b, rel in EDGES:
         g.add_edge(a, b, relationship=rel)
     return g
@@ -33,16 +32,29 @@ def get_graph() -> nx.Graph:
     return _graph
 
 
+def inject_harvested_mule_account(
+    account_id: str,
+    connected_to: str = "ACC-1002",
+    relationship: str = "HARVESTED_HONEYPOT_BENEFICIARY",
+) -> dict:
+    """Injects newly trapped mule credentials from the AI Telephony Honeypot into the Fraud Graph."""
+    g = get_graph()
+    HARVESTED_HONEYPOT_ACCOUNTS.add(account_id)
+    FLAGGED_ACCOUNTS.add(account_id)
+    KNOWN_MULE_ACCOUNTS.add(account_id)
+
+    g.add_node(account_id, flagged=True, harvested=True)
+    if connected_to in g:
+        g.add_edge(account_id, connected_to, relationship=relationship)
+    else:
+        # Link to first known flagged mule
+        fallback = next(iter(FLAGGED_ACCOUNTS))
+        g.add_edge(account_id, fallback, relationship=relationship)
+
+    return get_ring_info(account_id)
+
+
 def get_ring_info(account_id: str) -> dict:
-    """
-    PRODUCTION UPGRADE: replace with a Cypher query against Neo4j, e.g.
-
-        MATCH (a:Account {id: $account_id})-[:SHARED_DEVICE|SAME_IP*1..2]-(b:Account)
-        RETURN b, a.flagged
-
-    plus a Graph Neural Network node-embedding classifier for mule_probability
-    instead of the degree-centrality heuristic used below.
-    """
     g = get_graph()
     if account_id not in g:
         return {
@@ -52,6 +64,7 @@ def get_ring_info(account_id: str) -> dict:
             "ring_id": None,
             "connected_accounts": [],
             "shared_signals": [],
+            "harvested_by_honeypot": False,
         }
 
     neighbors = list(g.neighbors(account_id))
@@ -66,6 +79,8 @@ def get_ring_info(account_id: str) -> dict:
         base += 0.3
     if account_id in KNOWN_MULE_ACCOUNTS:
         base += 0.2
+    if account_id in HARVESTED_HONEYPOT_ACCOUNTS:
+        base = max(base, 0.96)
     mule_probability = round(min(1.0, base), 2)
 
     # Ring id: use the smallest connected-component member as a stable label.
@@ -79,4 +94,5 @@ def get_ring_info(account_id: str) -> dict:
         "ring_id": ring_id,
         "connected_accounts": neighbors,
         "shared_signals": shared_signals,
+        "harvested_by_honeypot": account_id in HARVESTED_HONEYPOT_ACCOUNTS,
     }

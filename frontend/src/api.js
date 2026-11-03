@@ -391,3 +391,19 @@ export {
   getSunsetAuditLogApi,
   defaultMutualAidStore,
 } from './mutualAidStore.js';
+
+
+// ======================================================
+// AI TELEPHONY HONEYPOT & CALL-PATTERN TRIANGULATION APIs
+// ======================================================
+
+export {
+  fetchHoneypotPersonasApi,
+  fetchHoneypotSessionsApi,
+  forwardCallApi,
+  processCallTurnApi,
+  freezeMuleAccountApi,
+  defaultHoneypotStore,
+  HONEYPOT_PERSONAS,
+  HONEYPOT_CHANGED_EVENT,
+} from './telephonyHoneypotStore.js';

@@ -65,46 +65,52 @@ export default function Shell({ portal, setPortal, activeView, setActiveView, ch
                 Officer
               </button>
               <button
-  onClick={() => setActiveView('triage')}
-  className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 ${
-    activeView === 'triage' ? 'bg-[var(--ink)] text-white shadow-sm' : 'text-[var(--ink-text)]/60 hover:bg-white'
-  }`}
->
-  Triage Engine
-</button>
-<button
+                onClick={() => setActiveView('triage')}
+                className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 ${
+                  activeView === 'triage' ? 'bg-[var(--ink)] text-white shadow-sm' : 'text-[var(--ink-text)]/60 hover:bg-white'
+                }`}
+              >
+                Triage Engine
+              </button>
+              <button
                 onClick={() => setActiveView('meet')}
                 className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 ${
                   activeView === 'meet' ? 'bg-[var(--ink)] text-white shadow-sm' : 'text-[var(--ink-text)]/60 hover:bg-white'
                 }`}
               >
-                <button 
-  onClick={() => setActiveView('advisory')} 
-  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-    activeView === 'advisory' 
-      ? 'bg-indigo-600 text-white' 
-      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-  }`}
->
-  Advisory Composer
-</button>
-<button
-  onClick={() => setActiveView('evidence')}
-  className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 ${
-    activeView === 'evidence' ? 'bg-[var(--ink)] text-white shadow-sm' : 'text-[var(--ink-text)]/60 hover:bg-white'
-  }`}
->
-  Evidence Vault
-</button>
-<button
-  onClick={() => setActiveView('alerts')}
-  className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 ${
-    activeView === 'alerts' ? 'bg-[var(--ink)] text-white shadow-sm' : 'text-[var(--ink-text)]/60 hover:bg-white'
-  }`}
->
-  Alert Dispatch
-</button>
                 Meet
+              </button>
+              <button
+                onClick={() => setActiveView('advisory')}
+                className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 ${
+                  activeView === 'advisory' ? 'bg-[var(--ink)] text-white shadow-sm' : 'text-[var(--ink-text)]/60 hover:bg-white'
+                }`}
+              >
+                Advisory Composer
+              </button>
+              <button
+                onClick={() => setActiveView('evidence')}
+                className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 ${
+                  activeView === 'evidence' ? 'bg-[var(--ink)] text-white shadow-sm' : 'text-[var(--ink-text)]/60 hover:bg-white'
+                }`}
+              >
+                Evidence Vault
+              </button>
+              <button
+                onClick={() => setActiveView('honeypot')}
+                className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 ${
+                  activeView === 'honeypot' ? 'bg-[var(--ink)] text-white shadow-sm' : 'text-[var(--ink-text)]/60 hover:bg-white'
+                }`}
+              >
+                AI Honeypot
+              </button>
+              <button
+                onClick={() => setActiveView('alerts')}
+                className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 ${
+                  activeView === 'alerts' ? 'bg-[var(--ink)] text-white shadow-sm' : 'text-[var(--ink-text)]/60 hover:bg-white'
+                }`}
+              >
+                Alert Dispatch
               </button>
               <button
                 onClick={() => setActiveView('contact')}
