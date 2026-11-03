@@ -1,4 +1,4 @@
-```jsx
+
 import EmergencyPortalBanner from './EmergencyPortalBanner';
 
 function ShieldMark({ size = 28 }) {
@@ -27,36 +27,51 @@ export default function Shell({
   setActiveView,
   children,
 }) {
-  const navButton = (key, label, onClick, extraClass = '') => (
-    <button
-      key={key}
-      onClick={onClick}
-      className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 ${
-        activeView === key
-          ? 'bg-[var(--ink)] text-white shadow-sm'
-          : 'text-[var(--ink-text)]/60 hover:bg-white'
-      } ${extraClass}`}
-    >
-      {label}
-    </button>
-  );
+  const navButton = (key, label, onClick, extraClass = '') => {
+    const isActive = activeView === key;
+
+    const buttonClass = [
+      'px-3 py-1 rounded-full font-semibold transition-all duration-200',
+      isActive
+        ? 'bg-[var(--ink)] text-white shadow-sm'
+        : 'text-[var(--ink-text)]/60 hover:bg-white',
+      extraClass,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    return (
+      <button
+        key={key}
+        type="button"
+        onClick={onClick}
+        className={buttonClass}
+      >
+        {label}
+      </button>
+    );
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Emergency Banner */}
       <EmergencyPortalBanner
         onOpenAdvisory={() => setActiveView('advisory')}
       />
 
+      {/* Header */}
       <header className="border-b border-[var(--paper-line)] bg-white/80 backdrop-blur sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
 
           {/* Brand */}
           <div className="flex items-center gap-2 shrink-0">
             <ShieldMark />
+
             <div>
               <div className="font-display font-semibold leading-none tracking-tight">
                 KSHEM<span className="text-[var(--saffron)]">OS</span>
               </div>
+
               <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--ink-text)]/50">
                 Digital public safety
               </div>
@@ -64,7 +79,10 @@ export default function Shell({
           </div>
 
           {/* Navigation */}
-          <div className="flex flex-wrap items-center gap-2">
+          <nav
+            aria-label="Main navigation"
+            className="flex flex-wrap items-center gap-2"
+          >
 
             {/* Main Navigation */}
             <div className="flex flex-wrap items-center gap-2 bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
@@ -83,6 +101,7 @@ export default function Shell({
             {/* Feature Navigation */}
             <div className="flex flex-wrap items-center gap-2 bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
 
+              {/* Citizen Verification */}
               {navButton(
                 'portal',
                 'Verify',
@@ -92,30 +111,37 @@ export default function Shell({
                 }
               )}
 
+              {/* Indic Speech ASR */}
               <button
+                type="button"
                 onClick={() => setActiveView('multilingual-speech')}
-                className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 flex items-center gap-1.5 ${
+                className={[
+                  'px-3 py-1 rounded-full font-semibold transition-all duration-200 flex items-center gap-1.5',
                   activeView === 'multilingual-speech'
                     ? 'bg-[var(--ink)] text-white shadow-sm'
-                    : 'text-purple-700 bg-purple-50 hover:bg-purple-100'
-                }`}
+                    : 'text-purple-700 bg-purple-50 hover:bg-purple-100',
+                ].join(' ')}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
                 Indic Speech ASR
               </button>
 
+              {/* Live Call Shield */}
               <button
+                type="button"
                 onClick={() => setActiveView('live-call-safety')}
-                className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 flex items-center gap-1.5 ${
+                className={[
+                  'px-3 py-1 rounded-full font-semibold transition-all duration-200 flex items-center gap-1.5',
                   activeView === 'live-call-safety'
                     ? 'bg-red-600 text-white shadow-sm'
-                    : 'text-red-700 bg-red-50 hover:bg-red-100'
-                }`}
+                    : 'text-red-700 bg-red-50 hover:bg-red-100',
+                ].join(' ')}
               >
                 <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
                 Live Call Shield
               </button>
 
+              {/* Officer Portal */}
               {navButton(
                 'officer',
                 'Officer',
@@ -125,36 +151,42 @@ export default function Shell({
                 }
               )}
 
+              {/* Triage Engine */}
               {navButton(
                 'triage',
                 'Triage Engine',
                 () => setActiveView('triage')
               )}
 
+              {/* Meet */}
               {navButton(
                 'meet',
                 'Meet',
                 () => setActiveView('meet')
               )}
 
+              {/* Advisory Composer */}
               {navButton(
                 'advisory',
                 'Advisory Composer',
                 () => setActiveView('advisory')
               )}
 
+              {/* Evidence Vault */}
               {navButton(
                 'evidence',
                 'Evidence Vault',
                 () => setActiveView('evidence')
               )}
 
+              {/* Alert Dispatch */}
               {navButton(
                 'alerts',
                 'Alert Dispatch',
                 () => setActiveView('alerts')
               )}
 
+              {/* Contact */}
               {navButton(
                 'contact',
                 'Contact',
@@ -162,7 +194,7 @@ export default function Shell({
               )}
 
             </div>
-          </div>
+          </nav>
         </div>
       </header>
 
@@ -178,4 +210,3 @@ export default function Shell({
     </div>
   );
 }
-```
