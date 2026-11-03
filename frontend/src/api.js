@@ -466,3 +466,24 @@ export {
   KNOWN_SYNDICATES_DB,
   DEFAULT_SEED_SESSIONS,
 } from './telephonyHoneypotStore.js';
+// ======================================================
+// PREDICTIVE SPATIAL INTELLIGENCE & THREAT HEATMAP APIs
+// ======================================================
+
+export {
+  fetchThreatHeatmapDataApi,
+  fetchCitizenMicroAdvisoryApi,
+  addSpatialIncidentApi,
+  SPATIAL_INCIDENTS_KEY,
+  FINANCIAL_POIS_KEY,
+  PATROL_RECS_KEY,
+  SPATIAL_CHANGED_EVENT,
+  SEVERITY_WEIGHTS,
+  DEFAULT_FINANCIAL_POIS,
+  DEFAULT_SPATIAL_INCIDENTS,
+  CITIZEN_LOCATION_PRESETS,
+  haversineDistance,
+  calculateHeading,
+  SpatialIntelligenceStore,
+  defaultSpatialStore,
+} from './spatialIntelligenceStore.js';
