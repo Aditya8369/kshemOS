@@ -394,6 +394,22 @@ export {
 
 
 // ======================================================
+// MULTILINGUAL SPEECH RECOGNITION & REGIONAL ASR APIs
+// ======================================================
+
+export {
+  fetchAsrProviders,
+  fetchAsrSamples,
+  transcribeSpeechApi,
+  correctTurnApi,
+  analyzeMultilingualScamApi,
+  detectCodeSwitching,
+  localMultilingualASRManager,
+  ASR_PROVIDERS,
+  REGIONAL_LANGUAGES,
+  MULTILINGUAL_SAMPLES,
+  MULTILINGUAL_SCAM_LEXICON,
+} from './multilingualSpeechStore.js';
 // CONSENT-BASED LIVE SCAM-CALL TRANSCRIPTION & RISK ALERTS
 // ======================================================
 

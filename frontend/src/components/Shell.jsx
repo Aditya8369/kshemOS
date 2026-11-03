@@ -57,6 +57,13 @@ export default function Shell({ portal, setPortal, activeView, setActiveView, ch
                 Verify
               </button>
               <button
+                onClick={() => setActiveView('multilingual-speech')}
+                className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 flex items-center gap-1.5 ${
+                  activeView === 'multilingual-speech' ? 'bg-[var(--ink)] text-white shadow-sm' : 'text-purple-700 bg-purple-50 hover:bg-purple-100'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-600"></span>
+                Indic Speech ASR
                 onClick={() => setActiveView('live-call-safety')}
                 className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 flex items-center gap-1.5 ${
                   activeView === 'live-call-safety' ? 'bg-red-600 text-white shadow-sm' : 'text-red-700 bg-red-50 hover:bg-red-100'

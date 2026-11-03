@@ -80,6 +80,7 @@ import OnlineReputationSafetyView from './components/OnlineReputationSafetyView'
 import PublicAdvisoryComposer from './components/PublicAdvisoryComposer';
 import TelephonyHoneypotView from './components/telephony/TelephonyHoneypotView';
 import JurisdictionConfigView from './components/jurisdiction/JurisdictionConfigView';
+import MultilingualSpeechSafetyView from './components/speech/MultilingualSpeechSafetyView';
 import LiveCallSafetyView from './components/livecall/LiveCallSafetyView';
 import MeetPage from './components/MeetPage';
 
@@ -162,6 +163,7 @@ export default function App() {
     if (activeView === 'cyber-preparedness-report') return <CyberPreparednessReportView />;
     if (activeView === 'digital-trust-score') return <DigitalTrustScoreView />;
     if (activeView === 'advisory') return <PublicAdvisoryComposer />;
+    if (activeView === 'multilingual-speech') return <MultilingualSpeechSafetyView />;
     if (activeView === 'live-call-safety') return <LiveCallSafetyView />;
     if (activeView === 'evidence') return <EvidenceVaultView/>;
     if (activeView === 'alerts') return <AlertDispatchView />;

@@ -790,6 +790,9 @@ class RebalanceEvaluationResponse(BaseModel):
     auto_declarations_triggered: list[MutualAidDeclaration]
 
 
+# ---------- Multilingual Speech Recognition & Regional-Language Confidence ----------
+
+ASRProviderType = Literal["bhashini", "whisper_local", "browser_speech", "mock_adapter"]
 # ---------- Consent-Based Live Scam-Call Transcription & Risk Alerts ----------
 
 class LiveCallConsent(BaseModel):
@@ -799,6 +802,14 @@ class LiveCallConsent(BaseModel):
     no_auto_record_acknowledged: bool = Field(..., description="User acknowledged zero automatic recording policy")
     timestamp: int = Field(..., description="Epoch millisecond timestamp when consent was granted")
 
+class WordConfidence(BaseModel):
+    word: str
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    start_ms: Optional[int] = None
+    end_ms: Optional[int] = None
+    language: Optional[str] = "hi"
+    is_low_confidence: bool = False
+    alternatives: list[str] = Field(default_factory=list)
 
 class SuspiciousPhrase(BaseModel):
     phrase: str
@@ -806,6 +817,81 @@ class SuspiciousPhrase(BaseModel):
     severity_weight: float
     context_snippet: Optional[str] = None
 
+class CodeSwitchSegment(BaseModel):
+    text: str
+    language: str
+    confidence: float = 1.0
+
+
+class WordCorrection(BaseModel):
+    word_index: int
+    original_word: str
+    corrected_word: str
+    corrected_by: str = "citizen"
+    timestamp: int
+
+
+class SpeechTurn(BaseModel):
+    turn_id: str
+    speaker: Literal["caller", "citizen", "system"] = "caller"
+    timestamp_ms: int
+    original_text: str
+    corrected_text: str
+    words: list[WordConfidence] = Field(default_factory=list)
+    corrections: list[WordCorrection] = Field(default_factory=list)
+    is_citizen_corrected: bool = False
+    detected_language: str = "hi"
+    language_confidence: float = 0.95
+    code_switch_segments: list[CodeSwitchSegment] = Field(default_factory=list)
+    average_confidence: float = 1.0
+    provider: str = "bhashini"
+
+
+class ASRProviderInfo(BaseModel):
+    id: str
+    name: str
+    description: str
+    supported_languages: list[str]
+    supports_code_switching: bool
+    is_local: bool
+
+
+class ASRTranscribeRequest(BaseModel):
+    provider: ASRProviderType = "bhashini"
+    sample_id: Optional[str] = None
+    text_input: Optional[str] = None
+    audio_payload: Optional[str] = None
+    target_language: str = "hi"
+    speaker: Literal["caller", "citizen", "system"] = "caller"
+    enable_code_switching: bool = True
+    confidence_threshold: float = 0.70
+
+
+class ASRCorrectionRequest(BaseModel):
+    turn_id: str
+    word_corrections: list[WordCorrection] = Field(default_factory=list)
+    full_corrected_text: Optional[str] = None
+
+
+class MultilingualScamAnalyzeRequest(BaseModel):
+    turn_id: Optional[str] = None
+    text_to_analyze: str
+    original_asr_text: str
+    language: str = "hi"
+    caller_claims_to_be: Optional[str] = None
+
+
+class MultilingualScamAnalyzeResponse(BaseModel):
+    risk_score: float
+    risk_band: str
+    analyzed_text: str
+    original_asr_text: str
+    was_corrected: bool
+    detected_language: str
+    code_switch_ratio: float
+    matched_patterns: list[str]
+    recommendation: str
+    explanation: str
 
 class SpeechUtterance(BaseModel):
     utterance_id: str
