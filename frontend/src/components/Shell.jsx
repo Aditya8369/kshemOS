@@ -17,7 +17,7 @@ export default function Shell({ portal, setPortal, activeView, setActiveView, ch
     <div className="min-h-screen flex flex-col">
       <EmergencyPortalBanner onOpenAdvisory={() => setActiveView('advisory')} />
       <header className="border-b border-[var(--paper-line)] bg-white/80 backdrop-blur sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <ShieldMark />
             <div>
@@ -55,6 +55,15 @@ export default function Shell({ portal, setPortal, activeView, setActiveView, ch
                 }`}
               >
                 Verify
+              </button>
+              <button
+                onClick={() => setActiveView('live-call-safety')}
+                className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 flex items-center gap-1.5 ${
+                  activeView === 'live-call-safety' ? 'bg-red-600 text-white shadow-sm' : 'text-red-700 bg-red-50 hover:bg-red-100'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse"></span>
+                Live Call Shield
               </button>
               <button
                 onClick={() => {
@@ -98,14 +107,6 @@ export default function Shell({ portal, setPortal, activeView, setActiveView, ch
                 }`}
               >
                 Evidence Vault
-              </button>
-              <button
-                onClick={() => setActiveView('honeypot')}
-                className={`px-3 py-1 rounded-full font-semibold transition-all duration-200 ${
-                  activeView === 'honeypot' ? 'bg-[var(--ink)] text-white shadow-sm' : 'text-[var(--ink-text)]/60 hover:bg-white'
-                }`}
-              >
-                AI Honeypot
               </button>
               <button
                 onClick={() => setActiveView('alerts')}

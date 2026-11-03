@@ -394,45 +394,20 @@ export {
 
 
 // ======================================================
-// AI TELEPHONY HONEYPOT & CALL-PATTERN TRIANGULATION APIs
+// CONSENT-BASED LIVE SCAM-CALL TRANSCRIPTION & RISK ALERTS
 // ======================================================
 
 export {
-  fetchHoneypotPersonasApi,
-  fetchHoneypotSessionsApi,
-  forwardCallApi,
-  processCallTurnApi,
-  freezeMuleAccountApi,
-  defaultHoneypotStore,
-  HONEYPOT_PERSONAS,
-  HONEYPOT_CHANGED_EVENT,
-} from './telephonyHoneypotStore.js';
-// GEO-TARGETED MULTI-CHANNEL EMERGENCY BROADCAST APIs
-// ======================================================
-
-export {
-  fetchAdvisoryTemplatesApi,
-  estimateAudienceApi,
-  createBroadcastApi,
-  fetchAdvisoriesApi,
-  authorizeBroadcastApi,
-  dispatchBroadcastApi,
-  advanceTelemetryApi,
-  fetchActiveBannerApi,
-  defaultBroadcastStore,
-  SERVICE_AREAS_DEMOGRAPHICS,
-  EMERGENCY_TEMPLATES,
-  BROADCAST_CHANGED_EVENT,
-} from './advisoryBroadcastStore.js';
-// ======================================================
-// PREDICTIVE SPATIAL INTELLIGENCE & THREAT HEATMAP APIs
-// ======================================================
-
-export {
-  fetchThreatHeatmapDataApi,
-  fetchCitizenMicroAdvisoryApi,
-  addSpatialIncidentApi,
-  defaultSpatialStore,
-  CITIZEN_LOCATION_PRESETS,
-  SPATIAL_CHANGED_EVENT,
-} from './spatialIntelligenceStore.js';
+  createLiveCallSession,
+  ingestLiveCallChunk,
+  pauseLiveCallSession,
+  resumeLiveCallSession,
+  stopLiveCallSession,
+  purgeLiveCallSession,
+  detectSuspiciousPhrases,
+  calculateRiskAssessment,
+  localLiveCallManager,
+  SCAM_LEXICON,
+  OFFICIAL_HELPLINES,
+  SAMPLE_CALL_SIMULATIONS,
+} from './liveCallSafetyStore.js';

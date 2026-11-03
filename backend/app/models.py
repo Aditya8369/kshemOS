@@ -790,174 +790,75 @@ class RebalanceEvaluationResponse(BaseModel):
     auto_declarations_triggered: list[MutualAidDeclaration]
 
 
-# ---------- AI Telephony Honeypot & Call-Pattern Triangulation ----------
+# ---------- Consent-Based Live Scam-Call Transcription & Risk Alerts ----------
 
-class HoneypotPersona(BaseModel):
-    id: str = Field(..., description="Unique persona identifier")
-    name: str = Field(..., description="Persona name, e.g. Prof. Rameshwar Shastri")
-    age: int
-    profile: str = Field(..., description="Demographic and behavioral persona description")
-    prolongation_tactic: str = Field(..., description="Specific tactic to drag out call and extract mules")
-    primary_target_extraction: str = Field(..., description="Primary credentials targeted for harvesting")
-    voice_profile: str = Field("elderly_male_hindi_english")
+class LiveCallConsent(BaseModel):
+    user_acknowledged: bool = Field(..., description="User explicitly acknowledged call safety monitoring")
+    mic_permission_granted: bool = Field(..., description="User granted live microphone audio stream access")
+    data_processing_accepted: bool = Field(..., description="User consented to real-time risk scoring and transcription")
+    no_auto_record_acknowledged: bool = Field(..., description="User acknowledged zero automatic recording policy")
+    timestamp: int = Field(..., description="Epoch millisecond timestamp when consent was granted")
 
 
-class AcousticFingerprint(BaseModel):
-    ambient_cross_talk_score: float = Field(0.0, description="0.0 - 1.0 probability of call-center background chatter")
-    voip_codec_jitter_ms: float = Field(0.0, description="VoIP latency and packet jitter in milliseconds")
-    background_noise_profile: str = Field("Clean Audio", description="Acoustic background characterization")
-    ivr_signature_match: Optional[str] = Field(None, description="Matched predictive dialer / PBX signature")
-    synthetic_voice_probability: float = Field(0.0, description="Probability of deepfake or TTS voice clone")
+class SuspiciousPhrase(BaseModel):
+    phrase: str
+    category: Literal["threat", "urgency", "secrecy", "payment", "coercion"]
+    severity_weight: float
+    context_snippet: Optional[str] = None
 
 
-class ScriptTriangulation(BaseModel):
-    matched_syndicate_id: Optional[str] = Field(None, description="Known syndicate ID e.g. SYND-MEWAT-08")
-    matched_syndicate_name: Optional[str] = Field(None, description="Name of syndicate ring")
-    script_similarity_pct: float = Field(0.0, description="Script match percentage against known corpus")
-    geographic_origin: Optional[str] = Field(None, description="Triangulated geographic origin or VoIP gateway")
-    confidence_score: float = Field(0.0, description="Overall triangulation confidence score 0.0 - 1.0")
-    matched_script_excerpts: List[str] = Field(default_factory=list)
+class SpeechUtterance(BaseModel):
+    utterance_id: str
+    timestamp_ms: int
+    speaker: str = "caller"
+    text: str
+    suspicious_phrases: list[SuspiciousPhrase] = Field(default_factory=list)
+    incremental_risk: float = 0.0
 
 
-class HarvestedMuleCredential(BaseModel):
-    credential_id: str
-    credential_type: str = Field(..., description="bank_account | upi_vpa | payment_url")
-    value: str = Field(..., description="Account number, VPA, or URL")
-    bank_or_provider: str
-    beneficiary_name: Optional[str] = None
-    ifsc_code: Optional[str] = None
-    extracted_at: str
-    confidence: float = 0.95
-    freeze_status: str = Field("recommended", description="recommended | freezing_initiated | frozen | pending_review")
-    freeze_warrant_id: Optional[str] = None
-
-
-class HoneypotCallSession(BaseModel):
+class LiveCallSession(BaseModel):
     session_id: str
-    caller_phone: str
-    caller_claims_to_be: str
-    forwarded_by_citizen_id: Optional[str] = None
-    persona: HoneypotPersona
-    call_status: str = Field("active", description="active | prolonging | completed | extracted")
-    call_duration_seconds: int = 0
-    transcript_turns: List[Dict[str, Any]] = Field(default_factory=list)
-    acoustic_fingerprint: AcousticFingerprint = Field(default_factory=AcousticFingerprint)
-    script_triangulation: ScriptTriangulation = Field(default_factory=ScriptTriangulation)
-    harvested_credentials: List[HarvestedMuleCredential] = Field(default_factory=list)
-    freeze_recommendations: List[Dict[str, Any]] = Field(default_factory=list)
-    created_at: str
-    updated_at: str
+    status: Literal["consent_pending", "active", "paused", "stopped", "purged"] = "active"
+    consent: LiveCallConsent
+    started_at: int
+    updated_at: int
+    stopped_at: Optional[int] = None
+    caller_label: Optional[str] = None
+    full_transcript: str = ""
+    utterances: list[SpeechUtterance] = Field(default_factory=list)
+    current_risk_score: float = 0.0
+    current_risk_band: Literal["low", "medium", "high", "critical"] = "low"
+    detected_categories: list[str] = Field(default_factory=list)
+    highlighted_phrases: list[SuspiciousPhrase] = Field(default_factory=list)
+    actionable_safety_prompts: list[str] = Field(default_factory=list)
+    official_helpline_recommendations: list[dict[str, str]] = Field(default_factory=list)
+    tactics_breakdown: dict[str, float] = Field(default_factory=dict)
 
 
-class CallForwardRequest(BaseModel):
-    caller_phone: str = Field(..., description="Phone number of scam caller")
-    caller_claims_to_be: str = Field(..., description="Who caller claims to be e.g. CBI Officer")
-    citizen_name: Optional[str] = Field("Citizen User")
-    initial_transcript: Optional[str] = Field(None)
-    preferred_persona_id: Optional[str] = Field(None)
+class CreateLiveCallSessionRequest(BaseModel):
+    consent: LiveCallConsent
+    caller_label: Optional[str] = "Incoming Suspected Call"
 
 
-class CallTurnRequest(BaseModel):
-    caller_utterance: str = Field(..., description="Incoming sentence from scam caller")
+class IngestSpeechChunkRequest(BaseModel):
+    text: str
+    speaker: str = "caller"
+    audio_duration_ms: Optional[int] = None
+    is_final: bool = True
 
 
-class MuleFreezeRequest(BaseModel):
-    credential_id: str
-    officer_badge: str = Field("OFF-CYBER-901")
-    statutory_section: str = Field("Section 102 CrPC / Cyber Defense Act")
-    freeze_reason: Optional[str] = Field("Harvested active beneficiary account from live honeypot extortion call.")
-# ---------- Real-Time Threat Heatmap & Predictive Spatial Intelligence ----------
-
-class FinancialPOI(BaseModel):
-    id: str
-    name: str
-    poi_type: Literal["atm", "bank_branch", "money_exchange", "fintech_hub"]
-    bank_name: str
-    lat: float
-    lng: float
-    region: str
-    vulnerability_score: float = 0.5
+class LiveCallSessionActionRequest(BaseModel):
+    action: Literal["pause", "resume", "stop", "purge"]
 
 
-class SpatialIncident(BaseModel):
-    id: str
-    title: str
-    category: str
-    severity: Literal["low", "medium", "high", "critical"]
-    lat: float
-    lng: float
-    timestamp: int
-    region: str
-    nearby_poi_id: Optional[str] = None
-
-
-class ThreatCluster(BaseModel):
-    cluster_id: str
-    name: str
-    center_lat: float
-    center_lng: float
-    radius_meters: float
-    incident_count: int
-    severity_density: float
-    threat_level: Literal["critical", "high", "moderate", "low"]
-    primary_category: str
-    surrounding_poi_count: int
-    nearby_atms: list[str] = Field(default_factory=list)
-    region: str
-    service_area_id: Optional[str] = None
-
-
-class MigrationVector(BaseModel):
-    cluster_id: str
-    trend: Literal["expanding", "dissipating", "migrating", "stationary"]
-    heading_degrees: float
-    heading_cardinal: str
-    velocity_km_per_day: float
-    growth_rate_pct: float
-    target_service_area_id: Optional[str] = None
-    target_region: Optional[str] = None
-    risk_narrative: str
-
-
-class PatrolDispatchRecommendation(BaseModel):
-    recommendation_id: str
-    cluster_id: str
-    waypoint_name: str
-    lat: float
-    lng: float
-    suggested_priority: Literal["urgent_deterrence", "preventative_check", "surveillance_stakeout"]
-    assigned_team_code: str
-    suggested_unit_code: Optional[str] = None
-    target_infrastructure: str
-    action_checklist: list[str]
-    valid_duration_minutes: int = 120
-    generated_at: int
-
-
-class CitizenMicroAdvisoryRequest(BaseModel):
-    lat: float
-    lng: float
-    user_identifier: Optional[str] = None
-
-
-class CitizenMicroAdvisoryResponse(BaseModel):
-    proximity_meters: float
-    nearest_cluster_id: Optional[str] = None
-    nearest_cluster_name: Optional[str] = None
-    threat_level: Literal["critical", "high", "moderate", "low"]
-    localized_risk_score: int
-    active_incident_count_nearby: int
-    migration_trend: Optional[str] = None
-    safety_guidance: list[str] = Field(default_factory=list)
-    nearest_safe_precinct: str
-    timestamp: int
-
-
-class ThreatHeatmapResponse(BaseModel):
-    timestamp: int
-    clusters: list[ThreatCluster]
-    migration_vectors: list[MigrationVector]
-    patrol_recommendations: list[PatrolDispatchRecommendation]
-    financial_pois: list[FinancialPOI]
-    total_clusters: int
-    highest_threat_region: str
+class LiveCallRiskUpdateResponse(BaseModel):
+    session_id: str
+    status: str
+    new_utterance: Optional[SpeechUtterance] = None
+    full_transcript: str
+    current_risk_score: float
+    current_risk_band: str
+    highlighted_phrases: list[SuspiciousPhrase]
+    actionable_safety_prompts: list[str]
+    tactics_breakdown: dict[str, float]
+    official_helpline_recommendations: list[dict[str, str]]
