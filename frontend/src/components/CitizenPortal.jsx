@@ -977,6 +977,15 @@ export default function CitizenPortal({ setActiveView }) {
           <div className="w-10 h-10 rounded-xl bg-purple-700 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
 
             🎙️
+      {/* Live Scam-Call Shield Quick Launch Banner */}
+
+      <div className="bg-gradient-to-r from-red-500/10 via-amber-500/10 to-transparent border border-red-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+
+        <div className="flex items-start gap-3">
+
+          <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+
+            🛡️
 
           </div>
 
@@ -987,12 +996,16 @@ export default function CitizenPortal({ setActiveView }) {
               <span className="font-bold text-sm text-[var(--ink)]">Regional Language or Hinglish Call?</span>
 
               <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-purple-700 text-white">Bhashini ASR</span>
+              <span className="font-bold text-sm text-[var(--ink)]">On an active suspicious call right now?</span>
+
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-red-600 text-white">Live Guardian</span>
 
             </div>
 
             <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
 
               Transcribe Hindi, Tamil, Telugu, and code-switched dialogues with word-level confidence scores and interactive citizen corrections.
+              Activate consent-based live call transcription to detect digital arrest language, extortion tactics, and receive instant 1930 action directives.
 
             </p>
 
@@ -1009,6 +1022,15 @@ export default function CitizenPortal({ setActiveView }) {
         >
 
           Open Multilingual ASR
+          onClick={() => setActiveView && setActiveView('live-call-safety')}
+
+          className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+
+        >
+
+          <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+
+          Launch Live Call Shield
 
         </button>
 
