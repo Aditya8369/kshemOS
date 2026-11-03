@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import RiskGauge from './RiskGauge';
 import { REGIONS } from '../incidentDashboard';
 import { analyzeScamTranscript, scanCurrencyImage, askCitizenAssistant, submitCitizenReport, sendReportConfirmationEmail } from '../api';
+import CitizenMicroAdvisoryCard from './spatial/CitizenMicroAdvisoryCard.jsx';
 
 const LANGUAGES = ['English', 'Hindi', 'Bengali', 'Tamil', 'Telugu', 'Marathi', 'Kannada'];
 
@@ -482,6 +483,7 @@ export default function CitizenPortal() {
           Check a call, a note, or a payment request — before you act on it, not after.
         </p>
       </div>
+      <CitizenMicroAdvisoryCard />
       <ScamCheck />
       <CurrencyScanner />
       <Assistant />
