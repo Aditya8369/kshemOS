@@ -286,20 +286,107 @@ class IncidentTriageResponse(BaseModel):
     rationale: list[str]
 
 
-# ---------- Public Advisory Bulletin Composer ----------
+# ---------- Public Advisory & Geo-Targeted Emergency Broadcast ----------
+
+class SeniorCenterPOI(BaseModel):
+    name: str
+    lat: float
+    lng: float
+    capacity_beds: int
+    contact_phone: Optional[str] = None
+
+
+class PerimeterTargeting(BaseModel):
+    targeting_type: str = Field("service_area", description="service_area | custom_perimeter | all_regions")
+    service_area_id: Optional[str] = Field("SA-CENTRAL-01", description="Service Area ID from boundary registry")
+    service_area_name: Optional[str] = Field("Central Secretariat Cyber Command")
+    region: Optional[str] = Field("Central Zone")
+    center_lat: Optional[float] = Field(28.6139)
+    center_lng: Optional[float] = Field(77.2090)
+    radius_km: Optional[float] = Field(4.5)
+    postal_pincodes: List[str] = Field(default_factory=lambda: ["110001", "110002", "110005"])
+    estimated_citizens: int = Field(14500)
+    senior_centers_count: int = Field(6)
+    senior_centers: List[SeniorCenterPOI] = Field(default_factory=list)
+    merchant_nodes_count: int = Field(195)
+    bank_branches_count: int = Field(48)
+    primary_station: Optional[str] = Field("Central Cyber Cell Desk, Barakhamba Road")
+
+
+class ChannelConfig(BaseModel):
+    sms_gateway: bool = Field(True, description="CDAC/TRAI National Emergency SMS Pipeline")
+    whatsapp_emergency: bool = Field(True, description="Meta Verified Gov Emergency Broadcast")
+    push_notifications: bool = Field(True, description="KshemOS Priority Mobile APNS/FCM Push")
+    portal_header_banner: bool = Field(True, description="Citizen Portal & HQ Sticky Emergency Marquee")
+
+
+class DualAuthorization(BaseModel):
+    requires_dual_auth: bool = Field(True, description="True for critical/high severity or large audience")
+    authorizer_1_badge: Optional[str] = Field(None, description="Badge ID of first authorizing officer")
+    authorizer_1_name: Optional[str] = Field(None)
+    authorizer_1_role: Optional[str] = Field(None)
+    authorizer_1_timestamp: Optional[str] = Field(None)
+    authorizer_2_badge: Optional[str] = Field(None, description="Badge ID of second authorizing officer")
+    authorizer_2_name: Optional[str] = Field(None)
+    authorizer_2_role: Optional[str] = Field(None)
+    authorizer_2_timestamp: Optional[str] = Field(None)
+    is_fully_authorized: bool = Field(False)
+    rejection_reason: Optional[str] = Field(None)
+
+
+class ChannelTelemetryItem(BaseModel):
+    channel: str
+    channel_name: str
+    dispatched: int = 0
+    delivered: int = 0
+    read: int = 0
+    failed: int = 0
+    delivery_rate_pct: float = 0.0
+
+
+class DeliveryTelemetry(BaseModel):
+    dispatched: int = 0
+    delivered: int = 0
+    read: int = 0
+    failed: int = 0
+    linked_citizen_reports: int = 0
+    delivery_rate_pct: float = 0.0
+    read_rate_pct: float = 0.0
+    channels: Dict[str, ChannelTelemetryItem] = Field(default_factory=dict)
+
 
 class AdvisoryCreate(BaseModel):
     title: str = Field(..., description="Advisory bulletin title")
     description: str = Field(..., description="Detailed warning and safety guidance")
-    severity: str = Field(..., description="Severity level: low | medium | high | critical")
-    affected_location: str = Field(..., description="Impacted region or location")
-    target_audience: str = Field(..., description="Audience: citizens | banks | telecom | officers | all")
+    severity: str = Field("medium", description="Severity level: low | medium | high | critical")
+    affected_location: str = Field("Central Zone", description="Impacted region or location")
+    target_audience: str = Field("citizens", description="Audience: citizens | banks | telecom | officers | all")
     template_type: Optional[str] = Field(None, description="Optional emergency template ID used")
+    targeting: Optional[PerimeterTargeting] = Field(default_factory=PerimeterTargeting)
+    channels: Optional[ChannelConfig] = Field(default_factory=ChannelConfig)
+    created_by_badge: Optional[str] = Field("BADGE-CMD-701")
+    created_by_name: Optional[str] = Field("Commander Rajesh Varma")
 
 
 class AdvisoryStatusUpdate(BaseModel):
-    status: str = Field(..., description="Status: draft | pending_approval | approved | published | rejected")
+    status: str = Field(..., description="Status: draft | pending_approval | pending_second_authorization | approved | dispatched | published | rejected")
     reviewer_notes: Optional[str] = Field(None, description="Optional notes regarding approval/rejection")
+
+
+class AuthorizeBroadcastRequest(BaseModel):
+    authorizer_badge: str = Field(..., description="Badge ID of authorizing officer (e.g. BADGE-DCP-402)")
+    authorizer_name: str = Field(..., description="Name of authorizing officer")
+    authorizer_role: str = Field("Commanding Officer", description="Role / Designation")
+    decision: str = Field("approve", description="approve | reject")
+    reviewer_notes: Optional[str] = Field(None)
+
+
+class EstimateAudienceRequest(BaseModel):
+    targeting_type: str = Field("service_area", description="service_area | custom_perimeter")
+    service_area_id: Optional[str] = Field(None)
+    center_lat: Optional[float] = Field(None)
+    center_lng: Optional[float] = Field(None)
+    radius_km: Optional[float] = Field(None)
 
 
 class EvidenceCreateRequest(BaseModel):
@@ -338,14 +425,24 @@ class EvidenceExportRequest(BaseModel):
     export_reason: str = Field(..., description="legal_review | formal_audit | court_subpoena")
 
 
-class AdvisoryResponse(AdvisoryCreate):
+class AdvisoryResponse(BaseModel):
     id: str
-    status: str
+    title: str
+    description: str
+    severity: str
+    affected_location: str
+    target_audience: str
+    template_type: Optional[str] = None
+    status: str = "draft"
     created_at: str
     updated_at: str
+    targeting: PerimeterTargeting = Field(default_factory=PerimeterTargeting)
+    channels: ChannelConfig = Field(default_factory=ChannelConfig)
+    dual_auth: DualAuthorization = Field(default_factory=DualAuthorization)
     delivery_status: Dict[str, int] = Field(
         default_factory=lambda: {"sent": 0, "pending": 0, "failed": 0}
     )
+    telemetry: DeliveryTelemetry = Field(default_factory=DeliveryTelemetry)
     audit_trail: List[Dict[str, Any]] = Field(default_factory=list)
 
 

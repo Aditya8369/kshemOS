@@ -391,3 +391,23 @@ export {
   getSunsetAuditLogApi,
   defaultMutualAidStore,
 } from './mutualAidStore.js';
+
+
+// ======================================================
+// GEO-TARGETED MULTI-CHANNEL EMERGENCY BROADCAST APIs
+// ======================================================
+
+export {
+  fetchAdvisoryTemplatesApi,
+  estimateAudienceApi,
+  createBroadcastApi,
+  fetchAdvisoriesApi,
+  authorizeBroadcastApi,
+  dispatchBroadcastApi,
+  advanceTelemetryApi,
+  fetchActiveBannerApi,
+  defaultBroadcastStore,
+  SERVICE_AREAS_DEMOGRAPHICS,
+  EMERGENCY_TEMPLATES,
+  BROADCAST_CHANGED_EVENT,
+} from './advisoryBroadcastStore.js';
