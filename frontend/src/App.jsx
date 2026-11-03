@@ -78,6 +78,7 @@ import AlertDispatchView from './components/AlertDispatchView';
 import DigitalTrustScoreView from './components/DigitalTrustScoreView';
 import OnlineReputationSafetyView from './components/OnlineReputationSafetyView';
 import PublicAdvisoryComposer from './components/PublicAdvisoryComposer';
+import TelephonyHoneypotView from './components/telephony/TelephonyHoneypotView';
 import JurisdictionConfigView from './components/jurisdiction/JurisdictionConfigView';
 import MultilingualSpeechSafetyView from './components/speech/MultilingualSpeechSafetyView';
 import MeetPage from './components/MeetPage';

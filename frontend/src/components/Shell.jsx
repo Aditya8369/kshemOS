@@ -1,3 +1,5 @@
+import EmergencyPortalBanner from './EmergencyPortalBanner';
+
 function ShieldMark({ size = 28 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
@@ -13,6 +15,7 @@ function ShieldMark({ size = 28 }) {
 export default function Shell({ portal, setPortal, activeView, setActiveView, children }) {
   return (
     <div className="min-h-screen flex flex-col">
+      <EmergencyPortalBanner onOpenAdvisory={() => setActiveView('advisory')} />
       <header className="border-b border-[var(--paper-line)] bg-white/80 backdrop-blur sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
