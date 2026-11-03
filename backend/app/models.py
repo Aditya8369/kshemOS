@@ -205,15 +205,21 @@ class GeofenceBoundary(BaseModel):
 
 class GeofenceRule(BaseModel):
     id: str
-    boundary_id: str
-    event_type: Literal["entry", "exit", "dwell"]
-    dwell_threshold_seconds: Optional[int] = None
-    alert_severity: Literal["low", "medium", "high", "critical"] = "medium"
+    name: Optional[str] = None
+    boundary_id: Optional[str] = None
+    geofence_id: Optional[str] = None
+    team: Optional[str] = "*"
+    event_type: Optional[str] = None
+    event_types: Optional[list[str]] = Field(default_factory=lambda: ["entry"])
+    dwell_threshold_seconds: Optional[int] = 0
+    alert_severity: str = "medium"
     enabled: bool = True
 
 
 class LocationPingRequest(BaseModel):
-    unit_id: str
+    unit_id: Optional[str] = None
+    entity_id: Optional[str] = None
+    team: Optional[str] = None
     lat: float
     lng: float
     accuracy_m: Optional[float] = None
@@ -286,20 +292,107 @@ class IncidentTriageResponse(BaseModel):
     rationale: list[str]
 
 
-# ---------- Public Advisory Bulletin Composer ----------
+# ---------- Public Advisory & Geo-Targeted Emergency Broadcast ----------
+
+class SeniorCenterPOI(BaseModel):
+    name: str
+    lat: float
+    lng: float
+    capacity_beds: int
+    contact_phone: Optional[str] = None
+
+
+class PerimeterTargeting(BaseModel):
+    targeting_type: str = Field("service_area", description="service_area | custom_perimeter | all_regions")
+    service_area_id: Optional[str] = Field("SA-CENTRAL-01", description="Service Area ID from boundary registry")
+    service_area_name: Optional[str] = Field("Central Secretariat Cyber Command")
+    region: Optional[str] = Field("Central Zone")
+    center_lat: Optional[float] = Field(28.6139)
+    center_lng: Optional[float] = Field(77.2090)
+    radius_km: Optional[float] = Field(4.5)
+    postal_pincodes: List[str] = Field(default_factory=lambda: ["110001", "110002", "110005"])
+    estimated_citizens: int = Field(14500)
+    senior_centers_count: int = Field(6)
+    senior_centers: List[SeniorCenterPOI] = Field(default_factory=list)
+    merchant_nodes_count: int = Field(195)
+    bank_branches_count: int = Field(48)
+    primary_station: Optional[str] = Field("Central Cyber Cell Desk, Barakhamba Road")
+
+
+class ChannelConfig(BaseModel):
+    sms_gateway: bool = Field(True, description="CDAC/TRAI National Emergency SMS Pipeline")
+    whatsapp_emergency: bool = Field(True, description="Meta Verified Gov Emergency Broadcast")
+    push_notifications: bool = Field(True, description="KshemOS Priority Mobile APNS/FCM Push")
+    portal_header_banner: bool = Field(True, description="Citizen Portal & HQ Sticky Emergency Marquee")
+
+
+class DualAuthorization(BaseModel):
+    requires_dual_auth: bool = Field(True, description="True for critical/high severity or large audience")
+    authorizer_1_badge: Optional[str] = Field(None, description="Badge ID of first authorizing officer")
+    authorizer_1_name: Optional[str] = Field(None)
+    authorizer_1_role: Optional[str] = Field(None)
+    authorizer_1_timestamp: Optional[str] = Field(None)
+    authorizer_2_badge: Optional[str] = Field(None, description="Badge ID of second authorizing officer")
+    authorizer_2_name: Optional[str] = Field(None)
+    authorizer_2_role: Optional[str] = Field(None)
+    authorizer_2_timestamp: Optional[str] = Field(None)
+    is_fully_authorized: bool = Field(False)
+    rejection_reason: Optional[str] = Field(None)
+
+
+class ChannelTelemetryItem(BaseModel):
+    channel: str
+    channel_name: str
+    dispatched: int = 0
+    delivered: int = 0
+    read: int = 0
+    failed: int = 0
+    delivery_rate_pct: float = 0.0
+
+
+class DeliveryTelemetry(BaseModel):
+    dispatched: int = 0
+    delivered: int = 0
+    read: int = 0
+    failed: int = 0
+    linked_citizen_reports: int = 0
+    delivery_rate_pct: float = 0.0
+    read_rate_pct: float = 0.0
+    channels: Dict[str, ChannelTelemetryItem] = Field(default_factory=dict)
+
 
 class AdvisoryCreate(BaseModel):
     title: str = Field(..., description="Advisory bulletin title")
     description: str = Field(..., description="Detailed warning and safety guidance")
-    severity: str = Field(..., description="Severity level: low | medium | high | critical")
-    affected_location: str = Field(..., description="Impacted region or location")
-    target_audience: str = Field(..., description="Audience: citizens | banks | telecom | officers | all")
+    severity: str = Field("medium", description="Severity level: low | medium | high | critical")
+    affected_location: str = Field("Central Zone", description="Impacted region or location")
+    target_audience: str = Field("citizens", description="Audience: citizens | banks | telecom | officers | all")
     template_type: Optional[str] = Field(None, description="Optional emergency template ID used")
+    targeting: Optional[PerimeterTargeting] = Field(default_factory=PerimeterTargeting)
+    channels: Optional[ChannelConfig] = Field(default_factory=ChannelConfig)
+    created_by_badge: Optional[str] = Field("BADGE-CMD-701")
+    created_by_name: Optional[str] = Field("Commander Rajesh Varma")
 
 
 class AdvisoryStatusUpdate(BaseModel):
-    status: str = Field(..., description="Status: draft | pending_approval | approved | published | rejected")
+    status: str = Field(..., description="Status: draft | pending_approval | pending_second_authorization | approved | dispatched | published | rejected")
     reviewer_notes: Optional[str] = Field(None, description="Optional notes regarding approval/rejection")
+
+
+class AuthorizeBroadcastRequest(BaseModel):
+    authorizer_badge: str = Field(..., description="Badge ID of authorizing officer (e.g. BADGE-DCP-402)")
+    authorizer_name: str = Field(..., description="Name of authorizing officer")
+    authorizer_role: str = Field("Commanding Officer", description="Role / Designation")
+    decision: str = Field("approve", description="approve | reject")
+    reviewer_notes: Optional[str] = Field(None)
+
+
+class EstimateAudienceRequest(BaseModel):
+    targeting_type: str = Field("service_area", description="service_area | custom_perimeter")
+    service_area_id: Optional[str] = Field(None)
+    center_lat: Optional[float] = Field(None)
+    center_lng: Optional[float] = Field(None)
+    radius_km: Optional[float] = Field(None)
 
 
 class EvidenceCreateRequest(BaseModel):
@@ -338,14 +431,24 @@ class EvidenceExportRequest(BaseModel):
     export_reason: str = Field(..., description="legal_review | formal_audit | court_subpoena")
 
 
-class AdvisoryResponse(AdvisoryCreate):
+class AdvisoryResponse(BaseModel):
     id: str
-    status: str
+    title: str
+    description: str
+    severity: str
+    affected_location: str
+    target_audience: str
+    template_type: Optional[str] = None
+    status: str = "draft"
     created_at: str
     updated_at: str
+    targeting: PerimeterTargeting = Field(default_factory=PerimeterTargeting)
+    channels: ChannelConfig = Field(default_factory=ChannelConfig)
+    dual_auth: DualAuthorization = Field(default_factory=DualAuthorization)
     delivery_status: Dict[str, int] = Field(
         default_factory=lambda: {"sent": 0, "pending": 0, "failed": 0}
     )
+    telemetry: DeliveryTelemetry = Field(default_factory=DeliveryTelemetry)
     audit_trail: List[Dict[str, Any]] = Field(default_factory=list)
 
 
@@ -763,3 +866,98 @@ class MuleFreezeRequest(BaseModel):
     officer_badge: str = Field("OFF-CYBER-901")
     statutory_section: str = Field("Section 102 CrPC / Cyber Defense Act")
     freeze_reason: Optional[str] = Field("Harvested active beneficiary account from live honeypot extortion call.")
+# ---------- Real-Time Threat Heatmap & Predictive Spatial Intelligence ----------
+
+class FinancialPOI(BaseModel):
+    id: str
+    name: str
+    poi_type: Literal["atm", "bank_branch", "money_exchange", "fintech_hub"]
+    bank_name: str
+    lat: float
+    lng: float
+    region: str
+    vulnerability_score: float = 0.5
+
+
+class SpatialIncident(BaseModel):
+    id: str
+    title: str
+    category: str
+    severity: Literal["low", "medium", "high", "critical"]
+    lat: float
+    lng: float
+    timestamp: int
+    region: str
+    nearby_poi_id: Optional[str] = None
+
+
+class ThreatCluster(BaseModel):
+    cluster_id: str
+    name: str
+    center_lat: float
+    center_lng: float
+    radius_meters: float
+    incident_count: int
+    severity_density: float
+    threat_level: Literal["critical", "high", "moderate", "low"]
+    primary_category: str
+    surrounding_poi_count: int
+    nearby_atms: list[str] = Field(default_factory=list)
+    region: str
+    service_area_id: Optional[str] = None
+
+
+class MigrationVector(BaseModel):
+    cluster_id: str
+    trend: Literal["expanding", "dissipating", "migrating", "stationary"]
+    heading_degrees: float
+    heading_cardinal: str
+    velocity_km_per_day: float
+    growth_rate_pct: float
+    target_service_area_id: Optional[str] = None
+    target_region: Optional[str] = None
+    risk_narrative: str
+
+
+class PatrolDispatchRecommendation(BaseModel):
+    recommendation_id: str
+    cluster_id: str
+    waypoint_name: str
+    lat: float
+    lng: float
+    suggested_priority: Literal["urgent_deterrence", "preventative_check", "surveillance_stakeout"]
+    assigned_team_code: str
+    suggested_unit_code: Optional[str] = None
+    target_infrastructure: str
+    action_checklist: list[str]
+    valid_duration_minutes: int = 120
+    generated_at: int
+
+
+class CitizenMicroAdvisoryRequest(BaseModel):
+    lat: float
+    lng: float
+    user_identifier: Optional[str] = None
+
+
+class CitizenMicroAdvisoryResponse(BaseModel):
+    proximity_meters: float
+    nearest_cluster_id: Optional[str] = None
+    nearest_cluster_name: Optional[str] = None
+    threat_level: Literal["critical", "high", "moderate", "low"]
+    localized_risk_score: int
+    active_incident_count_nearby: int
+    migration_trend: Optional[str] = None
+    safety_guidance: list[str] = Field(default_factory=list)
+    nearest_safe_precinct: str
+    timestamp: int
+
+
+class ThreatHeatmapResponse(BaseModel):
+    timestamp: int
+    clusters: list[ThreatCluster]
+    migration_vectors: list[MigrationVector]
+    patrol_recommendations: list[PatrolDispatchRecommendation]
+    financial_pois: list[FinancialPOI]
+    total_clusters: int
+    highest_threat_region: str

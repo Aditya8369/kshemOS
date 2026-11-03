@@ -18,6 +18,7 @@ from app.routers import (
     triage,
     drills,
     telephony_honeypot,
+    spatial_intelligence,
 )
 
 app = FastAPI(
@@ -55,6 +56,7 @@ app.include_router(alerts.router)
 app.include_router(triage.router)
 app.include_router(drills.router)
 app.include_router(telephony_honeypot.router)
+app.include_router(spatial_intelligence.router)
 
 
 @app.get("/", tags=["Health"])
