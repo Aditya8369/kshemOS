@@ -448,3 +448,21 @@ export {
   AdvisoryBroadcastStore,
   defaultBroadcastStore,
 } from './advisoryBroadcastStore.js';
+// ======================================================
+// AI TELEPHONY HONEYPOT & CALL-PATTERN TRIANGULATION APIs
+// ======================================================
+
+export {
+  fetchHoneypotPersonasApi,
+  fetchHoneypotSessionsApi,
+  forwardCallApi,
+  processCallTurnApi,
+  freezeMuleAccountApi,
+  defaultHoneypotStore,
+  TelephonyHoneypotStore,
+  HONEYPOT_STORAGE_KEY,
+  HONEYPOT_CHANGED_EVENT,
+  HONEYPOT_PERSONAS,
+  KNOWN_SYNDICATES_DB,
+  DEFAULT_SEED_SESSIONS,
+} from './telephonyHoneypotStore.js';
