@@ -2,6 +2,8 @@ import { useMemo, useRef, useState } from 'react';
 
 import { Clock, Inbox, Radio, WifiOff, ShieldAlert, Users, Network, ArrowRightLeft, X } from 'lucide-react';
 import MutualAidRebalanceView from './jurisdiction/MutualAidRebalanceView';
+import IncidentNotificationConsole from './incidentDashboard/IncidentNotificationConsole';
+import { Mail } from 'lucide-react';
 
 import {
 
@@ -133,6 +135,7 @@ export default function IncidentDashboardView() {
 
   const [activeConflict, setActiveConflict] = useState(null);
   const [mutualAidModalOpen, setMutualAidModalOpen] = useState(false);
+  const [notificationConsoleOpen, setNotificationConsoleOpen] = useState(false);
   const [jointTaskforceMode, setJointTaskforceMode] = useState(false);
 
   const casesRef = useRef(null);
@@ -311,6 +314,13 @@ export default function IncidentDashboardView() {
         >
           <Users size={13} />
           Mutual Aid &amp; Guest Units
+        </button>
+        <button
+          onClick={() => setNotificationConsoleOpen(true)}
+          className="text-xs text-indigo-300 hover:text-indigo-200 flex items-center gap-1 px-2.5 py-1 rounded border border-indigo-500/30 bg-indigo-500/10"
+        >
+          <Mail size={13} />
+          Notifications &amp; Escalations
         </button>
       </div>
 
@@ -604,6 +614,15 @@ export default function IncidentDashboardView() {
               ]}
               incidents={rawIncidents}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Incident Notifications Modal */}
+      {notificationConsoleOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 overflow-y-auto">
+          <div className="bg-[var(--navy-surface)] border border-[var(--navy-line)] rounded-2xl max-w-6xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <IncidentNotificationConsole onClose={() => setNotificationConsoleOpen(false)} />
           </div>
         </div>
       )}
