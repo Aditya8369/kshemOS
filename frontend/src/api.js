@@ -490,87 +490,102 @@ export {
 
 
 // ======================================================
-// CALIBRATED MULTI-SIGNAL RISK MODEL & BENCHMARK APIs
+// ROLE-AWARE INCIDENT NOTIFICATION APIS
 // ======================================================
 
 export {
-  CalibratedRiskStore,
-  defaultCalibratedRiskStore,
-  BENCHMARK_CORPUS,
-} from './calibratedRiskStore.js';
+  IncidentNotificationStore,
+  defaultIncidentNotificationStore,
+  JURISDICTION_REGION_MAP,
+  INITIAL_OFFICER_DIRECTORY,
+} from './incidentNotificationStore.js';
 
-export async function fetchRiskModelConfigApi() {
+export async function fetchIncidentNotificationsApi(filters = {}) {
   try {
-    const res = await fetch('/api/scam/models');
+    const params = new URLSearchParams();
+    if (filters.incident_id) params.set('incident_id', filters.incident_id);
+    if (filters.recipient_id) params.set('recipient_id', filters.recipient_id);
+    if (filters.role) params.set('role', filters.role);
+    if (filters.event_type) params.set('event_type', filters.event_type);
+    if (filters.status) params.set('status', filters.status);
+    if (filters.limit) params.set('limit', String(filters.limit));
+
+    const res = await fetch(`/api/incident-notifications?${params.toString()}`);
     if (res.ok) return await res.json();
   } catch (e) {
     // offline/mock fallback
   }
-  const { defaultCalibratedRiskStore } = await import('./calibratedRiskStore.js');
-  return defaultCalibratedRiskStore.getConfig();
+  const { defaultIncidentNotificationStore } = await import('./incidentNotificationStore.js');
+  const state = defaultIncidentNotificationStore.getState();
+  return {
+    total: state.stats.total,
+    delivered: state.stats.delivered,
+    retrying: state.stats.retrying,
+    failed: state.stats.failed,
+    suppressed: state.stats.suppressed,
+    notifications: state.notifications,
+  };
 }
 
-export async function updateRiskModelConfigApi(updates) {
+export async function fetchNotificationDirectoryApi() {
   try {
-    const res = await fetch('/api/scam/models/config', {
-      method: 'POST',
+    const res = await fetch('/api/incident-notifications/directory');
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // offline fallback
+  }
+  const { defaultIncidentNotificationStore } = await import('./incidentNotificationStore.js');
+  return defaultIncidentNotificationStore.getState().officers;
+}
+
+export async function updateOfficerPreferencesApi(officerId, preferences) {
+  try {
+    const res = await fetch(`/api/incident-notifications/preferences/${officerId}`, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
+      body: JSON.stringify({ preferences }),
     });
     if (res.ok) return await res.json();
   } catch (e) {
-    // offline/mock fallback
+    // offline fallback
   }
-  const { defaultCalibratedRiskStore } = await import('./calibratedRiskStore.js');
-  return defaultCalibratedRiskStore.updateConfig(updates);
+  const { defaultIncidentNotificationStore } = await import('./incidentNotificationStore.js');
+  return defaultIncidentNotificationStore.updateOfficerPreferences(officerId, preferences);
 }
 
-export async function rollbackRiskModelApi(targetVersion = 'v1.0-legacy-rules', reason = 'Operator manual rollback') {
+export async function retryIncidentNotificationApi(notificationId) {
   try {
-    const res = await fetch('/api/scam/models/rollback', {
+    const res = await fetch(`/api/incident-notifications/retry/${notificationId}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target_version: targetVersion, reason }),
     });
     if (res.ok) return await res.json();
   } catch (e) {
-    // offline/mock fallback
+    // offline fallback
   }
-  const { defaultCalibratedRiskStore } = await import('./calibratedRiskStore.js');
-  return defaultCalibratedRiskStore.rollbackModel(targetVersion, reason);
+  const { defaultIncidentNotificationStore } = await import('./incidentNotificationStore.js');
+  const retried = defaultIncidentNotificationStore.retryNotification(notificationId, true);
+  return {
+    success: retried.delivery_status === 'delivered',
+    notification: retried,
+    message: 'Retry applied locally.',
+  };
 }
 
-export async function runRiskModelBenchmarkApi(modelVersion = null) {
+export async function dispatchIncidentNotificationApi(payload) {
   try {
-    const res = await fetch('/api/scam/benchmark', {
+    const res = await fetch('/api/incident-notifications/dispatch', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(modelVersion ? { model_version: modelVersion } : {}),
+      body: JSON.stringify(payload),
     });
     if (res.ok) return await res.json();
   } catch (e) {
-    // offline/mock fallback
+    // offline fallback
   }
-  const { defaultCalibratedRiskStore } = await import('./calibratedRiskStore.js');
-  return defaultCalibratedRiskStore.runBenchmarkLocally(modelVersion);
-}
-
-export async function analyzeCalibratedRiskApi({ transcript, callerClaimsToBe, modelVersion, context }) {
-  try {
-    const res = await fetch('/api/scam/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        transcript,
-        caller_claims_to_be: callerClaimsToBe,
-        model_version: modelVersion,
-        context,
-      }),
-    });
-    if (res.ok) return await res.json();
-  } catch (e) {
-    // offline/mock fallback
-  }
-  const { defaultCalibratedRiskStore } = await import('./calibratedRiskStore.js');
-  return defaultCalibratedRiskStore.evaluateTranscriptLocally(transcript, callerClaimsToBe, modelVersion, context);
+  const { defaultIncidentNotificationStore } = await import('./incidentNotificationStore.js');
+  const outcomes = defaultIncidentNotificationStore.dispatchNotifications(
+    { id: payload.incident_id, severity: 'high', region: 'Central Zone' },
+    payload.event_type
+  );
+  return { incident_id: payload.incident_id, dispatched_count: outcomes.length, outcomes };
 }
