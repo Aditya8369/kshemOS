@@ -519,3 +519,79 @@ export {
   EVIDENCE_UPLOAD_LINKS_KEY,
   DEFAULT_SAMPLE_UPLOAD_LINKS,
 } from './evidenceStore.js';
+// ======================================================
+// INCIDENT NOTIFICATION & OFFICER ESCALATION APIs
+// ======================================================
+
+export {
+  IncidentNotificationStore,
+  defaultIncidentNotificationStore,
+  INITIAL_OFFICER_DIRECTORY,
+  JURISDICTION_REGION_MAP,
+} from './incidentNotificationStore.js';
+
+// Fetch notification audit history and delivery statistics
+export async function fetchIncidentNotificationsApi() {
+  const state = defaultIncidentNotificationStore.getState();
+
+  return {
+    notifications: state.notifications,
+    ...state.stats,
+  };
+}
+
+// Fetch the officer directory
+export async function fetchNotificationDirectoryApi() {
+  return defaultIncidentNotificationStore.getState().officers;
+}
+
+// Update an officer's notification preferences
+export async function updateOfficerPreferencesApi(officerId, preferences) {
+  return defaultIncidentNotificationStore.updateOfficerPreferences(
+    officerId,
+    preferences
+  );
+}
+
+// Retry a failed or pending notification
+export async function retryIncidentNotificationApi(notificationId) {
+  try {
+    const notification =
+      defaultIncidentNotificationStore.retryNotification(notificationId);
+
+    return {
+      success: notification.delivery_status === 'delivered',
+      notification,
+      message: notification.delivery_status,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.message,
+    };
+  }
+}
+
+// Dispatch incident notifications
+export async function dispatchIncidentNotificationApi(
+  incident,
+  eventType,
+  previousAssignedTo = null,
+  actorId = null,
+  nowMs = Date.now()
+) {
+  const notifications =
+    defaultIncidentNotificationStore.dispatchNotifications(
+      incident,
+      eventType,
+      previousAssignedTo,
+      actorId,
+      nowMs
+    );
+
+  return {
+    success: true,
+    notifications,
+    count: notifications.length,
+  };
+}
