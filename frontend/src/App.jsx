@@ -82,6 +82,7 @@ import TelephonyHoneypotView from './components/telephony/TelephonyHoneypotView'
 import JurisdictionConfigView from './components/jurisdiction/JurisdictionConfigView';
 import MultilingualSpeechSafetyView from './components/speech/MultilingualSpeechSafetyView';
 import LiveCallSafetyView from './components/livecall/LiveCallSafetyView';
+import CalibratedRiskModelView from './components/risk/CalibratedRiskModelView';
 import MeetPage from './components/MeetPage';
 
 export default function App() {
@@ -165,6 +166,7 @@ export default function App() {
     if (activeView === 'advisory') return <PublicAdvisoryComposer />;
     if (activeView === 'multilingual-speech') return <MultilingualSpeechSafetyView />;
     if (activeView === 'live-call-safety') return <LiveCallSafetyView />;
+    if (activeView === 'calibrated-risk') return <CalibratedRiskModelView />;
     if (activeView === 'evidence') return <EvidenceVaultView/>;
     if (activeView === 'alerts') return <AlertDispatchView />;
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;

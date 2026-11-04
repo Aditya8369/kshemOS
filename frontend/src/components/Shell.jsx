@@ -141,6 +141,21 @@ export default function Shell({
                 Live Call Shield
               </button>
 
+              {/* Calibrated Risk Model */}
+              <button
+                type="button"
+                onClick={() => setActiveView('calibrated-risk')}
+                className={[
+                  'px-3 py-1 rounded-full font-semibold transition-all duration-200 flex items-center gap-1.5',
+                  activeView === 'calibrated-risk'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100',
+                ].join(' ')}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                Risk Model
+              </button>
+
               {/* Officer Portal */}
               {navButton(
                 'officer',
