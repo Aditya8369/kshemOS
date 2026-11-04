@@ -950,81 +950,83 @@ class LiveCallRiskUpdateResponse(BaseModel):
     official_helpline_recommendations: list[dict[str, str]]
 
 
-# ---------- Role-Aware Incident Assignment & Escalation Notification Models ----------
+# ---------- Evidence-Grounded Officer Copilot Models ----------
 
-class OfficerNotificationPreference(BaseModel):
-    email_enabled: bool = True
-    assignment_enabled: bool = True
-    reassignment_enabled: bool = True
-    escalation_enabled: bool = True
-    supervisor_review_enabled: bool = True
-    quiet_hours_enabled: bool = False
-    quiet_hours_start: str = "22:00"
-    quiet_hours_end: str = "07:00"
-    timezone: str = "Asia/Kolkata"
+class GroundedFact(BaseModel):
+    fact_id: str
+    fact_type: Literal["incident_field", "verified_graph_edge", "evidence_vault_record", "system_telemetry"]
+    statement: str
+    source_citation: str
+    is_verified: bool = True
 
 
-class OfficerDirectoryEntry(BaseModel):
-    officer_id: str
-    name: str
-    email: str
-    role: Literal["responder", "supervisor", "commander"]
-    jurisdiction_id: str
-    regions: list[str]
-    preferences: OfficerNotificationPreference = Field(default_factory=OfficerNotificationPreference)
+class UnverifiedClaim(BaseModel):
+    claim_id: str
+    claim_type: Literal["reporter_statement", "caller_assertion", "unconfirmed_lead"]
+    statement: str
+    reporting_party: str
+    verification_status: Literal["pending_corroboration", "contradicted", "unsubstantiated"]
+    corroboration_needed: str
 
 
-class IncidentNotificationPayload(BaseModel):
-    notification_id: str
-    incident_id: str
-    event_type: Literal["assignment", "reassignment", "escalation", "supervisor_review"]
+class SystemSignal(BaseModel):
+    signal_id: str
+    signal_name: str
+    value: Any
+    confidence: float
+    detector_model: str
+    interpretation: str
+
+
+class SourceReference(BaseModel):
+    ref_id: str
+    source_type: Literal["incident_record", "fraud_graph", "approved_sop", "telephony_sensor", "evidence_vault"]
+    citation_title: str
+    field_or_clause: str
+    exact_pointer: str
+
+
+class CopilotRecommendation(BaseModel):
+    rec_id: str
+    action_title: str
+    rationale: str
+    suggested_role: str
     priority: str
-    jurisdiction_id: str
-    region: str
-    recipient_id: str
-    recipient_email: str
-    recipient_role: str
-    recipient_name: str
-    subject: str
-    body_snippet: str
-    secure_dashboard_link: str
-    created_at: int
-    delivery_status: Literal[
-        "delivered",
-        "failed",
-        "retrying",
-        "suppressed_quiet_hours",
-        "suppressed_unsubscribed",
-        "unauthorized_jurisdiction",
-    ]
-    attempts: int = 1
-    last_attempt_at: int
-    error_message: Optional[str] = None
-    retry_history: list[dict[str, Any]] = Field(default_factory=list)
+    is_consequential: bool
+    requires_human_approval: bool
+    approval_status: Literal["not_required", "pending_approval", "approved", "rejected"] = "not_required"
+    approved_by: Optional[str] = None
+    approved_at: Optional[int] = None
+    source_references: list[SourceReference] = Field(default_factory=list)
+    officer_feedback: Optional[Literal["helpful", "incorrect", "unsupported"]] = None
+    feedback_notes: Optional[str] = None
+    feedback_submitted_by: Optional[str] = None
+    feedback_submitted_at: Optional[int] = None
 
 
-class SendNotificationRequest(BaseModel):
-    incident_id: str
-    event_type: Literal["assignment", "reassignment", "escalation", "supervisor_review"]
-    actor_id: Optional[str] = None
-    override_recipient_id: Optional[str] = None
+class EvidenceGroundedCopilotResponse(BaseModel):
+    case_or_incident_id: str
+    has_sufficient_evidence: bool
+    evidence_completeness_score: float
+    missing_records_summary: Optional[str] = None
+    priority: str
+    executive_summary: str
+    confirmed_facts: list[GroundedFact] = Field(default_factory=list)
+    unverified_claims: list[UnverifiedClaim] = Field(default_factory=list)
+    system_signals: list[SystemSignal] = Field(default_factory=list)
+    recommendations: list[CopilotRecommendation] = Field(default_factory=list)
+    retrieved_operating_procedures: list[dict[str, Any]] = Field(default_factory=list)
+    generated_at: int
+    model_version: str = "copilot-v2-evidence-grounded"
+
+
+class CopilotFeedbackRequest(BaseModel):
+    feedback: Literal["helpful", "incorrect", "unsupported"]
     notes: Optional[str] = None
+    officer_badge: str = "OFF-DUTY"
 
 
-class UpdateOfficerPreferencesRequest(BaseModel):
-    preferences: OfficerNotificationPreference
-
-
-class RetryNotificationResponse(BaseModel):
-    success: bool
-    notification: IncidentNotificationPayload
-    message: str
-
-
-class NotificationAuditResponse(BaseModel):
-    total: int
-    delivered: int
-    retrying: int
-    failed: int
-    suppressed: int
-    notifications: list[IncidentNotificationPayload]
+class CopilotApprovalRequest(BaseModel):
+    decision: Literal["approved", "rejected"]
+    officer_badge: str
+    approval_notes: Optional[str] = None

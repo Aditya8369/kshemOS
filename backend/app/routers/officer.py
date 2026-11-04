@@ -1,6 +1,17 @@
 from fastapi import APIRouter, HTTPException
 
-from app.models import CaseSummaryResponse
+from app.models import (
+    CaseSummaryResponse,
+    EvidenceGroundedCopilotResponse,
+    CopilotFeedbackRequest,
+    CopilotApprovalRequest,
+    CopilotRecommendation,
+)
+from app.services.officer_copilot import (
+    generate_grounded_copilot_analysis,
+    submit_feedback,
+    submit_approval,
+)
 from app.services.claude_client import ask_claude
 from app.services.fraud_graph import get_ring_info
 from app.services.store import get_report
@@ -19,7 +30,16 @@ SYSTEM_PROMPT = (
 def case_summary(report_id: str, account_id: str | None = None):
     report = get_report(report_id)
     if report is None:
-        raise HTTPException(status_code=404, detail="Report not found")
+        # Check if it's an incident ID or unindexed report with grounded analysis
+        grounded = generate_grounded_copilot_analysis(report_id, account_id)
+        if not grounded["has_sufficient_evidence"]:
+            raise HTTPException(status_code=404, detail="Report not found")
+        return {
+            "case_id": report_id,
+            "priority": grounded["priority"],
+            "summary": grounded["executive_summary"],
+            "suggested_next_steps": [r["action_title"] for r in grounded["recommendations"][:3]],
+        }
 
     graph_context = ""
     if account_id:
@@ -62,3 +82,52 @@ def case_summary(report_id: str, account_id: str | None = None):
         "summary": ai_output,
         "suggested_next_steps": next_steps[:3],
     }
+
+
+@router.get("/copilot/grounded/{identifier}", response_model=EvidenceGroundedCopilotResponse)
+def get_grounded_copilot_analysis(identifier: str, account_id: str | None = None):
+    """
+    Retrieves a 4-tier evidence-grounded copilot recommendation analysis citing:
+    1. Incident fields & verified facts
+    2. Unverified citizen claims needing corroboration
+    3. System signals (mule probabilities, network centrality)
+    4. Material model suggestions citing approved Standard Operating Procedures
+    """
+    result = generate_grounded_copilot_analysis(identifier, account_id)
+    return result
+
+
+@router.post("/copilot/recommendation/{rec_id}/feedback", response_model=CopilotRecommendation)
+def post_copilot_feedback(rec_id: str, request: CopilotFeedbackRequest):
+    """
+    Allows officers to flag recommendations as helpful, incorrect, or unsupported with optional notes.
+    """
+    try:
+        updated = submit_feedback(
+            rec_id=rec_id,
+            feedback=request.feedback,
+            notes=request.notes,
+            officer_badge=request.officer_badge,
+        )
+        return updated
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/copilot/recommendation/{rec_id}/approval", response_model=CopilotRecommendation)
+def post_copilot_approval(rec_id: str, request: CopilotApprovalRequest):
+    """
+    Enforces human approval guardrail for consequential actions (e.g. Section 91 CrPC freeze/notices).
+    """
+    try:
+        updated = submit_approval(
+            rec_id=rec_id,
+            decision=request.decision,
+            officer_badge=request.officer_badge,
+            notes=request.approval_notes,
+        )
+        return updated
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
