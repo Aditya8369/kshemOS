@@ -948,3 +948,85 @@ class LiveCallRiskUpdateResponse(BaseModel):
     actionable_safety_prompts: list[str]
     tactics_breakdown: dict[str, float]
     official_helpline_recommendations: list[dict[str, str]]
+
+
+# ---------- Evidence-Grounded Officer Copilot Models ----------
+
+class GroundedFact(BaseModel):
+    fact_id: str
+    fact_type: Literal["incident_field", "verified_graph_edge", "evidence_vault_record", "system_telemetry"]
+    statement: str
+    source_citation: str
+    is_verified: bool = True
+
+
+class UnverifiedClaim(BaseModel):
+    claim_id: str
+    claim_type: Literal["reporter_statement", "caller_assertion", "unconfirmed_lead"]
+    statement: str
+    reporting_party: str
+    verification_status: Literal["pending_corroboration", "contradicted", "unsubstantiated"]
+    corroboration_needed: str
+
+
+class SystemSignal(BaseModel):
+    signal_id: str
+    signal_name: str
+    value: Any
+    confidence: float
+    detector_model: str
+    interpretation: str
+
+
+class SourceReference(BaseModel):
+    ref_id: str
+    source_type: Literal["incident_record", "fraud_graph", "approved_sop", "telephony_sensor", "evidence_vault"]
+    citation_title: str
+    field_or_clause: str
+    exact_pointer: str
+
+
+class CopilotRecommendation(BaseModel):
+    rec_id: str
+    action_title: str
+    rationale: str
+    suggested_role: str
+    priority: str
+    is_consequential: bool
+    requires_human_approval: bool
+    approval_status: Literal["not_required", "pending_approval", "approved", "rejected"] = "not_required"
+    approved_by: Optional[str] = None
+    approved_at: Optional[int] = None
+    source_references: list[SourceReference] = Field(default_factory=list)
+    officer_feedback: Optional[Literal["helpful", "incorrect", "unsupported"]] = None
+    feedback_notes: Optional[str] = None
+    feedback_submitted_by: Optional[str] = None
+    feedback_submitted_at: Optional[int] = None
+
+
+class EvidenceGroundedCopilotResponse(BaseModel):
+    case_or_incident_id: str
+    has_sufficient_evidence: bool
+    evidence_completeness_score: float
+    missing_records_summary: Optional[str] = None
+    priority: str
+    executive_summary: str
+    confirmed_facts: list[GroundedFact] = Field(default_factory=list)
+    unverified_claims: list[UnverifiedClaim] = Field(default_factory=list)
+    system_signals: list[SystemSignal] = Field(default_factory=list)
+    recommendations: list[CopilotRecommendation] = Field(default_factory=list)
+    retrieved_operating_procedures: list[dict[str, Any]] = Field(default_factory=list)
+    generated_at: int
+    model_version: str = "copilot-v2-evidence-grounded"
+
+
+class CopilotFeedbackRequest(BaseModel):
+    feedback: Literal["helpful", "incorrect", "unsupported"]
+    notes: Optional[str] = None
+    officer_badge: str = "OFF-DUTY"
+
+
+class CopilotApprovalRequest(BaseModel):
+    decision: Literal["approved", "rejected"]
+    officer_badge: str
+    approval_notes: Optional[str] = None

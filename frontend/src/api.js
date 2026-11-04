@@ -487,3 +487,18 @@ export {
   SpatialIntelligenceStore,
   defaultSpatialStore,
 } from './spatialIntelligenceStore.js';
+
+// ======================================================
+// EVIDENCE-GROUNDED OFFICER COPILOT APIs
+// ======================================================
+
+export {
+  fetchGroundedCopilotAnalysisApi,
+  submitCopilotFeedbackApi,
+  submitCopilotApprovalApi,
+  APPROVED_OPERATING_PROCEDURES,
+  OfficerCopilotStore,
+  defaultOfficerCopilotStore,
+  COPILOT_STORAGE_KEY,
+  COPILOT_CHANGED_EVENT,
+} from './officerCopilotStore.js';
