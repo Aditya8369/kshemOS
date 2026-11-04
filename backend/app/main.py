@@ -62,3 +62,80 @@ def root():
         "status": "ok",
         "docs": "/docs",
     }
+
+
+# ============================================================
+# CENTRALIZED AUDIT LOGGING & COMPLIANCE
+# ============================================================
+
+import logging
+
+from fastapi import Request
+from app.routers.audit import router as audit_router
+from app.services import audit
+
+
+logger = logging.getLogger(__name__)
+
+
+@app.middleware("http")
+async def audit_api_requests(request: Request, call_next):
+    """Capture API request activity in the centralized audit service."""
+
+    path = request.url.path
+
+    # Prevent recursive logging of audit API requests.
+    if (
+        not path.startswith("/api/")
+        or path.startswith("/api/audit/")
+        or request.method == "OPTIONS"
+    ):
+        return await call_next(request)
+
+    parts = path.strip("/").split("/")
+    resource_type = parts[1] if len(parts) > 1 else "unknown"
+
+    def record_request(status_code, exception_type=None):
+        if status_code in (401, 403):
+            outcome = "denied"
+        elif status_code >= 400:
+            outcome = "failure"
+        else:
+            outcome = "success"
+
+        metadata = {
+            "method": request.method,
+            "path": path,
+            "http_status": status_code,
+        }
+
+        if exception_type:
+            metadata["exception_type"] = exception_type
+
+        try:
+            audit.record_event(
+                actor_id="anonymous",
+                actor_role="unknown",
+                action=f"HTTP_{request.method}",
+                resource_type=resource_type,
+                resource_id=path,
+                outcome=outcome,
+                metadata=metadata,
+                source="http_middleware",
+            )
+        except Exception:
+            logger.exception("Audit event recording failed")
+
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        record_request(500, type(exc).__name__)
+        raise
+
+    record_request(response.status_code)
+
+    return response
+
+
+# Register centralized audit API.
+app.include_router(audit_router)
