@@ -14,15 +14,75 @@ class ScamAnalyzeRequest(BaseModel):
     caller_claims_to_be: Optional[str] = Field(
         None, description="What the caller claims to be, e.g. 'CBI officer'"
     )
+    model_version: Optional[str] = None
+    context: Optional[Dict[str, Any]] = None
+
+
+class ScamBaselineComparison(BaseModel):
+    baseline_version: str
+    baseline_score: int
+    baseline_band: str
+    score_delta: int
+    divergence_rationale: str
 
 
 class ScamAnalyzeResponse(BaseModel):
     risk_score: int = Field(..., ge=0, le=100)
-    risk_band: str  # "low" | "medium" | "high" | "critical"
-    matched_patterns: list[str]
+    risk_band: Literal["low", "medium", "high", "critical", "inconclusive"]
+    matched_patterns: List[str]
     matched_known_scam_similarity: float
     recommendation: str
     explanation: str
+    model_version: str
+    confidence: float = Field(..., ge=0, le=1)
+    is_inconclusive: bool
+    inconclusive_reason: Optional[str] = None
+    contributing_signals: Dict[str, float] = Field(default_factory=dict)
+    baseline_comparison: Optional[ScamBaselineComparison] = None
+
+
+class ScamThresholdUpdate(BaseModel):
+    critical: Optional[int] = Field(None, ge=0, le=100)
+    high: Optional[int] = Field(None, ge=0, le=100)
+    medium: Optional[int] = Field(None, ge=0, le=100)
+    inconclusive_min_words: Optional[int] = Field(None, ge=1)
+    confidence_cutoff: Optional[float] = Field(None, ge=0, le=1)
+
+
+class ModelConfigUpdateRequest(BaseModel):
+    active_version: Optional[str] = None
+    thresholds: Optional[ScamThresholdUpdate] = None
+    fallback_enabled: Optional[bool] = None
+
+
+class ModelRollbackRequest(BaseModel):
+    target_version: str = "v1.0-legacy-rules"
+    reason: str = "Operator manual rollback"
+
+
+class BenchmarkCaseResult(BaseModel):
+    case_id: str
+    category: str
+    ground_truth_label: str
+    predicted_band: str
+    risk_score: int
+    confidence: float
+    is_correct: bool
+    model_version: str
+
+
+class BenchmarkEvaluationResponse(BaseModel):
+    model_version: str
+    total_cases: int
+    correct_predictions: int
+    accuracy: float
+    inconclusive_count: int
+    false_positives: int
+    false_negatives: int
+    baseline_accuracy_v1: float
+    improvement_over_baseline: float
+    cases: List[BenchmarkCaseResult]
+    evaluated_at: int
 
 
 # ---------- Counterfeit Currency Agent ----------
@@ -250,34 +310,6 @@ class IncidentFeedResponse(BaseModel):
     incidents: list[Incident]
 
 
-# ---------- Offline Sync Models ----------
-
-class SyncQueueItem(BaseModel):
-    queue_id: str
-    incident_id: str
-    action_type: str
-    changes: dict[str, Any]
-    queued_at: int
-    client_version: int
-    status: str
-    retry_count: int = 0
-    error_message: Optional[str] = None
-    applied_at: Optional[int] = None
-    server_incident_snapshot: Optional[dict[str, Any]] = None
-
-
-class SyncBatchRequest(BaseModel):
-    client_id: str
-    items: list[SyncQueueItem]
-
-
-class SyncBatchResponse(BaseModel):
-    processed: int
-    succeeded: int
-    conflicts: int
-    results: list[dict[str, Any]]
-
-
 # ---------- Geofencing & Alerts Models ----------
 
 class PointCoordinate(BaseModel):
@@ -298,15 +330,21 @@ class GeofenceBoundary(BaseModel):
 
 class GeofenceRule(BaseModel):
     id: str
-    boundary_id: str
-    event_type: Literal["entry", "exit", "dwell"]
-    dwell_threshold_seconds: Optional[int] = None
-    alert_severity: Literal["low", "medium", "high", "critical"] = "medium"
+    name: Optional[str] = None
+    boundary_id: Optional[str] = None
+    geofence_id: Optional[str] = None
+    team: Optional[str] = "*"
+    event_type: Optional[str] = None
+    event_types: Optional[list[str]] = Field(default_factory=lambda: ["entry"])
+    dwell_threshold_seconds: Optional[int] = 0
+    alert_severity: str = "medium"
     enabled: bool = True
 
 
 class LocationPingRequest(BaseModel):
-    unit_id: str
+    unit_id: Optional[str] = None
+    entity_id: Optional[str] = None
+    team: Optional[str] = None
     lat: float
     lng: float
     accuracy_m: Optional[float] = None
@@ -379,20 +417,107 @@ class IncidentTriageResponse(BaseModel):
     rationale: list[str]
 
 
-# ---------- Public Advisory Bulletin Composer ----------
+# ---------- Public Advisory & Geo-Targeted Emergency Broadcast ----------
+
+class SeniorCenterPOI(BaseModel):
+    name: str
+    lat: float
+    lng: float
+    capacity_beds: int
+    contact_phone: Optional[str] = None
+
+
+class PerimeterTargeting(BaseModel):
+    targeting_type: str = Field("service_area", description="service_area | custom_perimeter | all_regions")
+    service_area_id: Optional[str] = Field("SA-CENTRAL-01", description="Service Area ID from boundary registry")
+    service_area_name: Optional[str] = Field("Central Secretariat Cyber Command")
+    region: Optional[str] = Field("Central Zone")
+    center_lat: Optional[float] = Field(28.6139)
+    center_lng: Optional[float] = Field(77.2090)
+    radius_km: Optional[float] = Field(4.5)
+    postal_pincodes: List[str] = Field(default_factory=lambda: ["110001", "110002", "110005"])
+    estimated_citizens: int = Field(14500)
+    senior_centers_count: int = Field(6)
+    senior_centers: List[SeniorCenterPOI] = Field(default_factory=list)
+    merchant_nodes_count: int = Field(195)
+    bank_branches_count: int = Field(48)
+    primary_station: Optional[str] = Field("Central Cyber Cell Desk, Barakhamba Road")
+
+
+class ChannelConfig(BaseModel):
+    sms_gateway: bool = Field(True, description="CDAC/TRAI National Emergency SMS Pipeline")
+    whatsapp_emergency: bool = Field(True, description="Meta Verified Gov Emergency Broadcast")
+    push_notifications: bool = Field(True, description="KshemOS Priority Mobile APNS/FCM Push")
+    portal_header_banner: bool = Field(True, description="Citizen Portal & HQ Sticky Emergency Marquee")
+
+
+class DualAuthorization(BaseModel):
+    requires_dual_auth: bool = Field(True, description="True for critical/high severity or large audience")
+    authorizer_1_badge: Optional[str] = Field(None, description="Badge ID of first authorizing officer")
+    authorizer_1_name: Optional[str] = Field(None)
+    authorizer_1_role: Optional[str] = Field(None)
+    authorizer_1_timestamp: Optional[str] = Field(None)
+    authorizer_2_badge: Optional[str] = Field(None, description="Badge ID of second authorizing officer")
+    authorizer_2_name: Optional[str] = Field(None)
+    authorizer_2_role: Optional[str] = Field(None)
+    authorizer_2_timestamp: Optional[str] = Field(None)
+    is_fully_authorized: bool = Field(False)
+    rejection_reason: Optional[str] = Field(None)
+
+
+class ChannelTelemetryItem(BaseModel):
+    channel: str
+    channel_name: str
+    dispatched: int = 0
+    delivered: int = 0
+    read: int = 0
+    failed: int = 0
+    delivery_rate_pct: float = 0.0
+
+
+class DeliveryTelemetry(BaseModel):
+    dispatched: int = 0
+    delivered: int = 0
+    read: int = 0
+    failed: int = 0
+    linked_citizen_reports: int = 0
+    delivery_rate_pct: float = 0.0
+    read_rate_pct: float = 0.0
+    channels: Dict[str, ChannelTelemetryItem] = Field(default_factory=dict)
+
 
 class AdvisoryCreate(BaseModel):
     title: str = Field(..., description="Advisory bulletin title")
     description: str = Field(..., description="Detailed warning and safety guidance")
-    severity: str = Field(..., description="Severity level: low | medium | high | critical")
-    affected_location: str = Field(..., description="Impacted region or location")
-    target_audience: str = Field(..., description="Audience: citizens | banks | telecom | officers | all")
+    severity: str = Field("medium", description="Severity level: low | medium | high | critical")
+    affected_location: str = Field("Central Zone", description="Impacted region or location")
+    target_audience: str = Field("citizens", description="Audience: citizens | banks | telecom | officers | all")
     template_type: Optional[str] = Field(None, description="Optional emergency template ID used")
+    targeting: Optional[PerimeterTargeting] = Field(default_factory=PerimeterTargeting)
+    channels: Optional[ChannelConfig] = Field(default_factory=ChannelConfig)
+    created_by_badge: Optional[str] = Field("BADGE-CMD-701")
+    created_by_name: Optional[str] = Field("Commander Rajesh Varma")
 
 
 class AdvisoryStatusUpdate(BaseModel):
-    status: str = Field(..., description="Status: draft | pending_approval | approved | published | rejected")
+    status: str = Field(..., description="Status: draft | pending_approval | pending_second_authorization | approved | dispatched | published | rejected")
     reviewer_notes: Optional[str] = Field(None, description="Optional notes regarding approval/rejection")
+
+
+class AuthorizeBroadcastRequest(BaseModel):
+    authorizer_badge: str = Field(..., description="Badge ID of authorizing officer (e.g. BADGE-DCP-402)")
+    authorizer_name: str = Field(..., description="Name of authorizing officer")
+    authorizer_role: str = Field("Commanding Officer", description="Role / Designation")
+    decision: str = Field("approve", description="approve | reject")
+    reviewer_notes: Optional[str] = Field(None)
+
+
+class EstimateAudienceRequest(BaseModel):
+    targeting_type: str = Field("service_area", description="service_area | custom_perimeter")
+    service_area_id: Optional[str] = Field(None)
+    center_lat: Optional[float] = Field(None)
+    center_lng: Optional[float] = Field(None)
+    radius_km: Optional[float] = Field(None)
 
 
 class EvidenceCreateRequest(BaseModel):
@@ -431,14 +556,24 @@ class EvidenceExportRequest(BaseModel):
     export_reason: str = Field(..., description="legal_review | formal_audit | court_subpoena")
 
 
-class AdvisoryResponse(AdvisoryCreate):
+class AdvisoryResponse(BaseModel):
     id: str
-    status: str
+    title: str
+    description: str
+    severity: str
+    affected_location: str
+    target_audience: str
+    template_type: Optional[str] = None
+    status: str = "draft"
     created_at: str
     updated_at: str
+    targeting: PerimeterTargeting = Field(default_factory=PerimeterTargeting)
+    channels: ChannelConfig = Field(default_factory=ChannelConfig)
+    dual_auth: DualAuthorization = Field(default_factory=DualAuthorization)
     delivery_status: Dict[str, int] = Field(
         default_factory=lambda: {"sent": 0, "pending": 0, "failed": 0}
     )
+    telemetry: DeliveryTelemetry = Field(default_factory=DeliveryTelemetry)
     audit_trail: List[Dict[str, Any]] = Field(default_factory=list)
 
 
@@ -489,17 +624,26 @@ class EvidenceItem(BaseModel):
 
 
 class EvidenceIngestRequest(BaseModel):
-    case_number: str
+    case_number: Optional[str] = None
+    case_id: Optional[str] = None
     incident_id: Optional[str] = None
     title: str
     file_name: str
     mime_type: str = "application/octet-stream"
-    raw_payload_content: str
-    officer_badge_id: str
-    officer_name: str
+    raw_payload_content: Optional[str] = None
+    raw_content: Optional[str] = None
+    officer_badge_id: str = "OFFICER"
+    officer_name: str = "Officer"
     client_ip: str = "127.0.0.1"
-    crime_category: str = "digital_arrest"
+    crime_category: Optional[str] = "digital_arrest"
+    category: Optional[str] = None
+    evidence_type: Optional[str] = "document"
+    source: Optional[str] = "citizen_report"
+    legal_hold: bool = False
+    legal_hold_reason: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
     notes: Optional[str] = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class CustodialActionRequest(BaseModel):
@@ -514,6 +658,7 @@ class LegalHoldToggleRequest(BaseModel):
     legal_hold: bool
     reason: str
     officer_badge_id: str
+    officer_name: str = "Authorizing Officer"
 
 
 class ForensicExportBundle(BaseModel):
@@ -527,6 +672,111 @@ class ForensicExportBundle(BaseModel):
     retention_status: dict[str, Any]
     custodial_trail: list[CustodialLogEntry]
     raw_artifact_ref: str
+
+
+# ---------- Secure Evidence Upload Links ----------
+
+class CreateUploadLinkRequest(BaseModel):
+    report_id: str = Field(..., description="Target citizen report or case number")
+    incident_id: Optional[str] = None
+    title: str = Field(..., description="Title/purpose of requested evidence")
+    description: Optional[str] = None
+    allowed_file_types: list[str] = Field(
+        default_factory=lambda: [
+            "application/pdf",
+            "image/png",
+            "image/jpeg",
+            "audio/mpeg",
+            "audio/wav",
+            "video/mp4",
+        ],
+        description="Permitted MIME types"
+    )
+    max_file_size_bytes: int = Field(default=25 * 1024 * 1024, description="Max upload size in bytes (default 25MB)")
+    expiry_minutes: int = Field(default=60, description="Lifetime in minutes (default 60 mins)")
+    requires_passcode: bool = Field(default=False, description="Whether additional passcode verification is required")
+    passcode: Optional[str] = Field(default=None, description="Optional passcode required to complete upload")
+    created_by_badge: str = Field(default="OFF-DESK-01", description="Authorizing officer badge")
+    officer_name: str = Field(default="Investigating Officer", description="Authorizing officer name")
+    recipient_email: Optional[str] = Field(default=None, description="Citizen email")
+    recipient_phone: Optional[str] = Field(default=None, description="Citizen phone/SMS destination")
+
+
+class RevokeUploadLinkRequest(BaseModel):
+    revoked_by_badge: str = Field(..., description="Officer badge revoking the link")
+    officer_name: str = Field(default="Officer", description="Officer name")
+    revocation_reason: str = Field(..., description="Reason for invalidating/revoking link")
+
+
+class UploadEvidenceViaLinkRequest(BaseModel):
+    token: str = Field(..., description="Secure upload token")
+    passcode: Optional[str] = Field(default=None, description="Passcode if verification was enabled")
+    file_name: str
+    mime_type: str
+    raw_payload_content: str = Field(..., description="File content or base64 stream")
+    file_size_bytes: Optional[int] = None
+    uploader_name: Optional[str] = "Citizen Complainant"
+    uploader_notes: Optional[str] = None
+    client_ip: str = "127.0.0.1"
+    user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+
+
+class UploadReceipt(BaseModel):
+    receipt_id: str
+    link_id: str
+    report_id: str
+    evidence_id: str
+    file_name: str
+    mime_type: str
+    file_size_bytes: int
+    sha256_fingerprint: str
+    rfc3161_serial: str
+    uploaded_at: int
+    client_ip: str
+    vault_status: str = "ingested_and_sealed"
+    verification_token: str
+
+
+class SecureUploadLink(BaseModel):
+    link_id: str
+    token: str
+    upload_url: str
+    report_id: str
+    incident_id: Optional[str] = None
+    title: str
+    description: Optional[str] = None
+    allowed_file_types: list[str]
+    max_file_size_bytes: int
+    created_at: int
+    expires_at: int
+    is_expired: bool
+    status: Literal["active", "completed", "expired", "revoked"] = "active"
+    requires_passcode: bool = False
+    passcode_hint: Optional[str] = None
+    created_by_badge: str
+    officer_name: str
+    recipient_email: Optional[str] = None
+    recipient_phone: Optional[str] = None
+    revoked_at: Optional[int] = None
+    revoked_by_badge: Optional[str] = None
+    revocation_reason: Optional[str] = None
+    completed_at: Optional[int] = None
+    evidence_id: Optional[str] = None
+    receipt: Optional[UploadReceipt] = None
+
+
+class UploadLinkValidationResponse(BaseModel):
+    valid: bool
+    link_id: Optional[str] = None
+    report_id: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    allowed_file_types: list[str] = Field(default_factory=list)
+    max_file_size_bytes: Optional[int] = None
+    expires_at: Optional[int] = None
+    requires_passcode: bool = False
+    status: str
+    error: Optional[str] = None
 
 
 # ---------- Jurisdiction & Zone Configuration ----------
@@ -778,3 +1028,459 @@ class RebalanceEvaluationResponse(BaseModel):
     active_guest_delegations_count: int
     recommendations: list[RebalanceRecommendation]
     auto_declarations_triggered: list[MutualAidDeclaration]
+
+
+# ---------- Multilingual Speech Recognition & Regional-Language Confidence ----------
+
+ASRProviderType = Literal["bhashini", "whisper_local", "browser_speech", "mock_adapter"]
+# ---------- Consent-Based Live Scam-Call Transcription & Risk Alerts ----------
+
+class LiveCallConsent(BaseModel):
+    user_acknowledged: bool = Field(..., description="User explicitly acknowledged call safety monitoring")
+    mic_permission_granted: bool = Field(..., description="User granted live microphone audio stream access")
+    data_processing_accepted: bool = Field(..., description="User consented to real-time risk scoring and transcription")
+    no_auto_record_acknowledged: bool = Field(..., description="User acknowledged zero automatic recording policy")
+    timestamp: int = Field(..., description="Epoch millisecond timestamp when consent was granted")
+
+class WordConfidence(BaseModel):
+    word: str
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    start_ms: Optional[int] = None
+    end_ms: Optional[int] = None
+    language: Optional[str] = "hi"
+    is_low_confidence: bool = False
+    alternatives: list[str] = Field(default_factory=list)
+
+class SuspiciousPhrase(BaseModel):
+    phrase: str
+    category: Literal["threat", "urgency", "secrecy", "payment", "coercion"]
+    severity_weight: float
+    context_snippet: Optional[str] = None
+
+class CodeSwitchSegment(BaseModel):
+    text: str
+    language: str
+    confidence: float = 1.0
+
+
+class WordCorrection(BaseModel):
+    word_index: int
+    original_word: str
+    corrected_word: str
+    corrected_by: str = "citizen"
+    timestamp: int
+
+
+class SpeechTurn(BaseModel):
+    turn_id: str
+    speaker: Literal["caller", "citizen", "system"] = "caller"
+    timestamp_ms: int
+    original_text: str
+    corrected_text: str
+    words: list[WordConfidence] = Field(default_factory=list)
+    corrections: list[WordCorrection] = Field(default_factory=list)
+    is_citizen_corrected: bool = False
+    detected_language: str = "hi"
+    language_confidence: float = 0.95
+    code_switch_segments: list[CodeSwitchSegment] = Field(default_factory=list)
+    average_confidence: float = 1.0
+    provider: str = "bhashini"
+
+
+class ASRProviderInfo(BaseModel):
+    id: str
+    name: str
+    description: str
+    supported_languages: list[str]
+    supports_code_switching: bool
+    is_local: bool
+
+
+class ASRTranscribeRequest(BaseModel):
+    provider: ASRProviderType = "bhashini"
+    sample_id: Optional[str] = None
+    text_input: Optional[str] = None
+    audio_payload: Optional[str] = None
+    target_language: str = "hi"
+    speaker: Literal["caller", "citizen", "system"] = "caller"
+    enable_code_switching: bool = True
+    confidence_threshold: float = 0.70
+
+
+class ASRCorrectionRequest(BaseModel):
+    turn_id: str
+    word_corrections: list[WordCorrection] = Field(default_factory=list)
+    full_corrected_text: Optional[str] = None
+
+
+class MultilingualScamAnalyzeRequest(BaseModel):
+    turn_id: Optional[str] = None
+    text_to_analyze: str
+    original_asr_text: str
+    language: str = "hi"
+    caller_claims_to_be: Optional[str] = None
+
+
+class MultilingualScamAnalyzeResponse(BaseModel):
+    risk_score: float
+    risk_band: str
+    analyzed_text: str
+    original_asr_text: str
+    was_corrected: bool
+    detected_language: str
+    code_switch_ratio: float
+    matched_patterns: list[str]
+    recommendation: str
+    explanation: str
+
+class SpeechUtterance(BaseModel):
+    utterance_id: str
+    timestamp_ms: int
+    speaker: str = "caller"
+    text: str
+    suspicious_phrases: list[SuspiciousPhrase] = Field(default_factory=list)
+    incremental_risk: float = 0.0
+
+
+class LiveCallSession(BaseModel):
+    session_id: str
+    status: Literal["consent_pending", "active", "paused", "stopped", "purged"] = "active"
+    consent: LiveCallConsent
+    started_at: int
+    updated_at: int
+    stopped_at: Optional[int] = None
+    caller_label: Optional[str] = None
+    full_transcript: str = ""
+    utterances: list[SpeechUtterance] = Field(default_factory=list)
+    current_risk_score: float = 0.0
+    current_risk_band: Literal["low", "medium", "high", "critical"] = "low"
+    detected_categories: list[str] = Field(default_factory=list)
+    highlighted_phrases: list[SuspiciousPhrase] = Field(default_factory=list)
+    actionable_safety_prompts: list[str] = Field(default_factory=list)
+    official_helpline_recommendations: list[dict[str, str]] = Field(default_factory=list)
+    tactics_breakdown: dict[str, float] = Field(default_factory=dict)
+
+
+class CreateLiveCallSessionRequest(BaseModel):
+    consent: LiveCallConsent
+    caller_label: Optional[str] = "Incoming Suspected Call"
+
+
+class IngestSpeechChunkRequest(BaseModel):
+    text: str
+    speaker: str = "caller"
+    audio_duration_ms: Optional[int] = None
+    is_final: bool = True
+
+
+class LiveCallSessionActionRequest(BaseModel):
+    action: Literal["pause", "resume", "stop", "purge"]
+
+
+class LiveCallRiskUpdateResponse(BaseModel):
+    session_id: str
+    status: str
+    new_utterance: Optional[SpeechUtterance] = None
+    full_transcript: str
+    current_risk_score: float
+    current_risk_band: str
+    highlighted_phrases: list[SuspiciousPhrase]
+    actionable_safety_prompts: list[str]
+    tactics_breakdown: dict[str, float]
+    official_helpline_recommendations: list[dict[str, str]]
+
+# ---------- AI Telephony Honeypot & Call-Pattern Triangulation ----------
+
+class HoneypotPersona(BaseModel):
+    id: str = Field(..., description="Unique persona identifier")
+    name: str = Field(..., description="Persona name, e.g. Prof. Rameshwar Shastri")
+    age: int
+    profile: str = Field(..., description="Demographic and behavioral persona description")
+    prolongation_tactic: str = Field(..., description="Specific tactic to drag out call and extract mules")
+    primary_target_extraction: str = Field(..., description="Primary credentials targeted for harvesting")
+    voice_profile: str = Field("elderly_male_hindi_english")
+
+
+class AcousticFingerprint(BaseModel):
+    ambient_cross_talk_score: float = Field(0.0, description="0.0 - 1.0 probability of call-center background chatter")
+    voip_codec_jitter_ms: float = Field(0.0, description="VoIP latency and packet jitter in milliseconds")
+    background_noise_profile: str = Field("Clean Audio", description="Acoustic background characterization")
+    ivr_signature_match: Optional[str] = Field(None, description="Matched predictive dialer / PBX signature")
+    synthetic_voice_probability: float = Field(0.0, description="Probability of deepfake or TTS voice clone")
+
+
+class ScriptTriangulation(BaseModel):
+    matched_syndicate_id: Optional[str] = Field(None, description="Known syndicate ID e.g. SYND-MEWAT-08")
+    matched_syndicate_name: Optional[str] = Field(None, description="Name of syndicate ring")
+    script_similarity_pct: float = Field(0.0, description="Script match percentage against known corpus")
+    geographic_origin: Optional[str] = Field(None, description="Triangulated geographic origin or VoIP gateway")
+    confidence_score: float = Field(0.0, description="Overall triangulation confidence score 0.0 - 1.0")
+    matched_script_excerpts: List[str] = Field(default_factory=list)
+
+
+class HarvestedMuleCredential(BaseModel):
+    credential_id: str
+    credential_type: str = Field(..., description="bank_account | upi_vpa | payment_url")
+    value: str = Field(..., description="Account number, VPA, or URL")
+    bank_or_provider: str
+    beneficiary_name: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    extracted_at: str
+    confidence: float = 0.95
+    freeze_status: str = Field("recommended", description="recommended | freezing_initiated | frozen | pending_review")
+    freeze_warrant_id: Optional[str] = None
+
+
+class HoneypotCallSession(BaseModel):
+    session_id: str
+    caller_phone: str
+    caller_claims_to_be: str
+    forwarded_by_citizen_id: Optional[str] = None
+    persona: HoneypotPersona
+    call_status: str = Field("active", description="active | prolonging | completed | extracted")
+    call_duration_seconds: int = 0
+    transcript_turns: List[Dict[str, Any]] = Field(default_factory=list)
+    acoustic_fingerprint: AcousticFingerprint = Field(default_factory=AcousticFingerprint)
+    script_triangulation: ScriptTriangulation = Field(default_factory=ScriptTriangulation)
+    harvested_credentials: List[HarvestedMuleCredential] = Field(default_factory=list)
+    freeze_recommendations: List[Dict[str, Any]] = Field(default_factory=list)
+    created_at: str
+    updated_at: str
+
+
+class CallForwardRequest(BaseModel):
+    caller_phone: str = Field(..., description="Phone number of scam caller")
+    caller_claims_to_be: str = Field(..., description="Who caller claims to be e.g. CBI Officer")
+    citizen_name: Optional[str] = Field("Citizen User")
+    initial_transcript: Optional[str] = Field(None)
+    preferred_persona_id: Optional[str] = Field(None)
+
+
+class CallTurnRequest(BaseModel):
+    caller_utterance: str = Field(..., description="Incoming sentence from scam caller")
+
+
+class MuleFreezeRequest(BaseModel):
+    credential_id: str
+    officer_badge: str = Field("OFF-CYBER-901")
+    statutory_section: str = Field("Section 102 CrPC / Cyber Defense Act")
+    freeze_reason: Optional[str] = Field("Harvested active beneficiary account from live honeypot extortion call.")
+# ---------- Real-Time Threat Heatmap & Predictive Spatial Intelligence ----------
+
+class FinancialPOI(BaseModel):
+    id: str
+    name: str
+    poi_type: Literal["atm", "bank_branch", "money_exchange", "fintech_hub"]
+    bank_name: str
+    lat: float
+    lng: float
+    region: str
+    vulnerability_score: float = 0.5
+
+
+class SpatialIncident(BaseModel):
+    id: str
+    title: str
+    category: str
+    severity: Literal["low", "medium", "high", "critical"]
+    lat: float
+    lng: float
+    timestamp: int
+    region: str
+    nearby_poi_id: Optional[str] = None
+
+
+class ThreatCluster(BaseModel):
+    cluster_id: str
+    name: str
+    center_lat: float
+    center_lng: float
+    radius_meters: float
+    incident_count: int
+    severity_density: float
+    threat_level: Literal["critical", "high", "moderate", "low"]
+    primary_category: str
+    surrounding_poi_count: int
+    nearby_atms: list[str] = Field(default_factory=list)
+    region: str
+    service_area_id: Optional[str] = None
+
+
+class MigrationVector(BaseModel):
+    cluster_id: str
+    trend: Literal["expanding", "dissipating", "migrating", "stationary"]
+    heading_degrees: float
+    heading_cardinal: str
+    velocity_km_per_day: float
+    growth_rate_pct: float
+    target_service_area_id: Optional[str] = None
+    target_region: Optional[str] = None
+    risk_narrative: str
+
+
+class PatrolDispatchRecommendation(BaseModel):
+    recommendation_id: str
+    cluster_id: str
+    waypoint_name: str
+    lat: float
+    lng: float
+    suggested_priority: Literal["urgent_deterrence", "preventative_check", "surveillance_stakeout"]
+    assigned_team_code: str
+    suggested_unit_code: Optional[str] = None
+    target_infrastructure: str
+    action_checklist: list[str]
+    valid_duration_minutes: int = 120
+    generated_at: int
+
+
+class CitizenMicroAdvisoryRequest(BaseModel):
+    lat: float
+    lng: float
+    user_identifier: Optional[str] = None
+
+
+class CitizenMicroAdvisoryResponse(BaseModel):
+    proximity_meters: float
+    nearest_cluster_id: Optional[str] = None
+    nearest_cluster_name: Optional[str] = None
+    threat_level: Literal["critical", "high", "moderate", "low"]
+    localized_risk_score: int
+    active_incident_count_nearby: int
+    migration_trend: Optional[str] = None
+    safety_guidance: list[str] = Field(default_factory=list)
+    nearest_safe_precinct: str
+    timestamp: int
+
+
+class ThreatHeatmapResponse(BaseModel):
+    timestamp: int
+    clusters: list[ThreatCluster]
+    migration_vectors: list[MigrationVector]
+    patrol_recommendations: list[PatrolDispatchRecommendation]
+    financial_pois: list[FinancialPOI]
+    total_clusters: int
+    highest_threat_region: str
+
+# ---------- Evidence-Grounded Officer Copilot ----------
+
+class CopilotFeedbackRequest(BaseModel):
+    feedback: Literal["helpful", "incorrect", "unsupported"]
+    notes: Optional[str] = None
+    officer_badge: str = "OFF-DUTY"
+
+
+class CopilotApprovalRequest(BaseModel):
+    decision: Literal["approved", "rejected"]
+    officer_badge: str
+    approval_notes: Optional[str] = None
+
+
+class CopilotRecommendation(BaseModel):
+    rec_id: str
+    action_title: str
+    rationale: Optional[str] = None
+    suggested_role: Optional[str] = None
+    priority: Optional[str] = None
+    is_consequential: Optional[bool] = None
+    requires_human_approval: Optional[bool] = None
+    approval_status: Optional[str] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[int] = None
+    source_references: List[Dict[str, Any]] = Field(default_factory=list)
+    officer_feedback: Optional[Literal["helpful", "incorrect", "unsupported"]] = None
+    feedback_notes: Optional[str] = None
+    feedback_submitted_by: Optional[str] = None
+    feedback_submitted_at: Optional[int] = None
+
+
+class EvidenceGroundedCopilotResponse(BaseModel):
+    case_or_incident_id: str
+    has_sufficient_evidence: bool
+    evidence_completeness_score: float
+    missing_records_summary: Optional[str] = None
+    priority: str
+    executive_summary: str
+    confirmed_facts: List[Dict[str, Any]] = Field(default_factory=list)
+    unverified_claims: List[Dict[str, Any]] = Field(default_factory=list)
+    system_signals: List[Dict[str, Any]] = Field(default_factory=list)
+    recommendations: List[CopilotRecommendation] = Field(default_factory=list)
+    retrieved_operating_procedures: List[Dict[str, Any]] = Field(default_factory=list)
+    generated_at: int
+    model_version: str
+
+
+# ---------- Role-Aware Incident Notifications ----------
+
+class OfficerNotificationPreferences(BaseModel):
+    email_enabled: Optional[bool] = None
+    assignment_enabled: Optional[bool] = None
+    reassignment_enabled: Optional[bool] = None
+    escalation_enabled: Optional[bool] = None
+    supervisor_review_enabled: Optional[bool] = None
+    quiet_hours_enabled: Optional[bool] = None
+    quiet_hours_start: Optional[str] = Field(
+        None, pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$"
+    )
+    quiet_hours_end: Optional[str] = Field(
+        None, pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$"
+    )
+    timezone: Optional[str] = None
+
+
+class UpdateOfficerPreferencesRequest(BaseModel):
+    preferences: OfficerNotificationPreferences
+
+
+class OfficerDirectoryEntry(BaseModel):
+    officer_id: str
+    name: str
+    email: str
+    role: str
+    jurisdiction_id: str
+    regions: List[str]
+    preferences: Dict[str, Any] = Field(default_factory=dict)
+
+
+class SendNotificationRequest(BaseModel):
+    incident_id: str
+    event_type: Literal[
+        "assignment", "reassignment", "escalation", "supervisor_review"
+    ]
+    actor_id: Optional[str] = None
+
+
+class IncidentNotificationPayload(BaseModel):
+    notification_id: str
+    incident_id: Optional[str] = None
+    event_type: str
+    priority: str
+    jurisdiction_id: str
+    region: str
+    recipient_id: str
+    recipient_email: str
+    recipient_role: str
+    recipient_name: str
+    subject: str
+    body_snippet: str
+    secure_dashboard_link: str
+    created_at: int
+    delivery_status: str
+    attempts: int
+    last_attempt_at: int
+    error_message: Optional[str] = None
+    retry_history: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class NotificationAuditResponse(BaseModel):
+    total: int
+    delivered: int
+    retrying: int
+    failed: int
+    suppressed: int
+    notifications: List[IncidentNotificationPayload] = Field(default_factory=list)
+
+
+class RetryNotificationResponse(BaseModel):
+    success: bool
+    notification: IncidentNotificationPayload
+    message: str

@@ -74,16 +74,29 @@ import PersonalCyberHygieneView from './components/PersonalCyberHygieneView';
 import ScamResilienceAssessmentView from './components/ScamResilienceAssessmentView';
 import CyberPreparednessReportView from './components/CyberPreparednessReportView';
 import EvidenceVaultView from './components/EvidenceVaultView';
+import CitizenEvidenceUploadPortal from './components/evidence/CitizenEvidenceUploadPortal';
 import AlertDispatchView from './components/AlertDispatchView';
 import DigitalTrustScoreView from './components/DigitalTrustScoreView';
 import OnlineReputationSafetyView from './components/OnlineReputationSafetyView';
 import PublicAdvisoryComposer from './components/PublicAdvisoryComposer';
+import TelephonyHoneypotView from './components/telephony/TelephonyHoneypotView';
 import JurisdictionConfigView from './components/jurisdiction/JurisdictionConfigView';
+import MultilingualSpeechSafetyView from './components/speech/MultilingualSpeechSafetyView';
+import LiveCallSafetyView from './components/livecall/LiveCallSafetyView';
+import IncidentNotificationConsole from './components/incidentDashboard/IncidentNotificationConsole';
 import MeetPage from './components/MeetPage';
 
 export default function App() {
   const [portal, setPortal] = useState('citizen');
-  const [activeView, setActiveView] = useState('home');
+  const [activeView, setActiveView] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('token') || params.get('view') === 'evidence-upload') {
+        return 'evidence-upload';
+      }
+    }
+    return 'home';
+  });
 
   function renderContent() {
     if (activeView === 'home') return <HomePage setActiveView={setActiveView} />;
@@ -160,16 +173,17 @@ export default function App() {
     if (activeView === 'cyber-preparedness-report') return <CyberPreparednessReportView />;
     if (activeView === 'digital-trust-score') return <DigitalTrustScoreView />;
     if (activeView === 'advisory') return <PublicAdvisoryComposer />;
-
-
-
+    if (activeView === 'multilingual-speech') return <MultilingualSpeechSafetyView />;
+    if (activeView === 'live-call-safety') return <LiveCallSafetyView />;
+    if (activeView === 'incident-notifications') return <IncidentNotificationConsole />;
     if (activeView === 'evidence') return <EvidenceVaultView/>;
-
+    if (activeView === 'evidence-upload') return <CitizenEvidenceUploadPortal setActiveView={setActiveView} />;
+    if (activeView === 'alerts') return <AlertDispatchView />;
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
     if (activeView === 'portal') {
-      return portal === 'citizen' ? <CitizenPortal /> : <OfficerCommandCenter />;
+      return portal === 'citizen' ? <CitizenPortal setActiveView={setActiveView} /> : <OfficerCommandCenter />;
     }
     return <HomePage setActiveView={setActiveView} />;
   }

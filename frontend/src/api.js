@@ -510,3 +510,221 @@ export {
   getSunsetAuditLogApi,
   defaultMutualAidStore,
 } from './mutualAidStore.js';
+
+
+// ======================================================
+// MULTILINGUAL SPEECH RECOGNITION & REGIONAL ASR APIs
+// ======================================================
+
+export {
+  fetchAsrProviders,
+  fetchAsrSamples,
+  transcribeSpeechApi,
+  correctTurnApi,
+  analyzeMultilingualScamApi,
+  detectCodeSwitching,
+  localMultilingualASRManager,
+  ASR_PROVIDERS,
+  REGIONAL_LANGUAGES,
+  MULTILINGUAL_SAMPLES,
+  MULTILINGUAL_SCAM_LEXICON,
+} from './multilingualSpeechStore.js';
+// CONSENT-BASED LIVE SCAM-CALL TRANSCRIPTION & RISK ALERTS
+// ======================================================
+
+export {
+  createLiveCallSession,
+  ingestLiveCallChunk,
+  pauseLiveCallSession,
+  resumeLiveCallSession,
+  stopLiveCallSession,
+  purgeLiveCallSession,
+  detectSuspiciousPhrases,
+  calculateRiskAssessment,
+  localLiveCallManager,
+  SCAM_LEXICON,
+  OFFICIAL_HELPLINES,
+  SAMPLE_CALL_SIMULATIONS,
+} from './liveCallSafetyStore.js';
+// ======================================================
+// PUBLIC ADVISORY & EMERGENCY BROADCAST APIs
+// ======================================================
+
+export {
+  fetchAdvisoriesApi,
+  createBroadcastApi,
+  authorizeBroadcastApi,
+  dispatchBroadcastApi,
+  advanceTelemetryApi,
+  estimateAudienceApi,
+  fetchAdvisoryTemplatesApi,
+  fetchActiveBannerApi,
+  SERVICE_AREAS_DEMOGRAPHICS,
+  EMERGENCY_TEMPLATES,
+  BROADCAST_CHANGED_EVENT,
+  BROADCAST_STORAGE_KEY,
+  DEFAULT_SEED_BROADCASTS,
+  AdvisoryBroadcastStore,
+  defaultBroadcastStore,
+} from './advisoryBroadcastStore.js';
+// ======================================================
+// AI TELEPHONY HONEYPOT & CALL-PATTERN TRIANGULATION APIs
+// ======================================================
+
+export {
+  fetchHoneypotPersonasApi,
+  fetchHoneypotSessionsApi,
+  forwardCallApi,
+  processCallTurnApi,
+  freezeMuleAccountApi,
+  defaultHoneypotStore,
+  TelephonyHoneypotStore,
+  HONEYPOT_STORAGE_KEY,
+  HONEYPOT_CHANGED_EVENT,
+  HONEYPOT_PERSONAS,
+  KNOWN_SYNDICATES_DB,
+  DEFAULT_SEED_SESSIONS,
+} from './telephonyHoneypotStore.js';
+// ======================================================
+// PREDICTIVE SPATIAL INTELLIGENCE & THREAT HEATMAP APIs
+// ======================================================
+
+export {
+  fetchThreatHeatmapDataApi,
+  fetchCitizenMicroAdvisoryApi,
+  addSpatialIncidentApi,
+  SPATIAL_INCIDENTS_KEY,
+  FINANCIAL_POIS_KEY,
+  PATROL_RECS_KEY,
+  SPATIAL_CHANGED_EVENT,
+  SEVERITY_WEIGHTS,
+  DEFAULT_FINANCIAL_POIS,
+  DEFAULT_SPATIAL_INCIDENTS,
+  CITIZEN_LOCATION_PRESETS,
+  haversineDistance,
+  calculateHeading,
+  SpatialIntelligenceStore,
+  defaultSpatialStore,
+} from './spatialIntelligenceStore.js';
+
+// ======================================================
+// DIGITAL EVIDENCE VAULT & SECURE UPLOAD LINK APIs
+// ======================================================
+
+export {
+  fetchEvidenceItems,
+  fetchEvidenceItem,
+  ingestEvidenceApi,
+  fetchCustodialLedgerApi,
+  logCustodialActionApi,
+  toggleLegalHoldApi,
+  verifyEvidenceIntegrityApi,
+  generateForensicBundleApi,
+  fetchRetentionPoliciesApi,
+  fetchUploadLinksApi,
+  createUploadLinkApi,
+  getUploadLinkApi,
+  revokeUploadLinkApi,
+  validateUploadTokenApi,
+  fulfillEvidenceUploadApi,
+  createLocalEvidenceStore,
+  defaultEvidenceStore,
+  sha256Sync,
+  generateRfc3161Token,
+  computeLogHash,
+  EVIDENCE_CHANGED_EVENT,
+  EVIDENCE_STORE_KEY,
+  CUSTODIAL_LEDGER_KEY,
+  EVIDENCE_UPLOAD_LINKS_KEY,
+  DEFAULT_SAMPLE_UPLOAD_LINKS,
+} from './evidenceStore.js';
+// ======================================================
+// INCIDENT NOTIFICATION & OFFICER ESCALATION APIs
+// ======================================================
+
+export {
+  IncidentNotificationStore,
+  defaultIncidentNotificationStore,
+  INITIAL_OFFICER_DIRECTORY,
+  JURISDICTION_REGION_MAP,
+} from './incidentNotificationStore.js';
+
+// Fetch notification audit history and delivery statistics
+export async function fetchIncidentNotificationsApi() {
+  const state = defaultIncidentNotificationStore.getState();
+
+  return {
+    notifications: state.notifications,
+    ...state.stats,
+  };
+}
+
+// Fetch the officer directory
+export async function fetchNotificationDirectoryApi() {
+  return defaultIncidentNotificationStore.getState().officers;
+}
+
+// Update an officer's notification preferences
+export async function updateOfficerPreferencesApi(officerId, preferences) {
+  return defaultIncidentNotificationStore.updateOfficerPreferences(
+    officerId,
+    preferences
+  );
+}
+
+// Retry a failed or pending notification
+export async function retryIncidentNotificationApi(notificationId) {
+  try {
+    const notification =
+      defaultIncidentNotificationStore.retryNotification(notificationId);
+
+    return {
+      success: notification.delivery_status === 'delivered',
+      notification,
+      message: notification.delivery_status,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error.message,
+    };
+  }
+}
+
+// Dispatch incident notifications
+export async function dispatchIncidentNotificationApi(
+  incident,
+  eventType,
+  previousAssignedTo = null,
+  actorId = null,
+  nowMs = Date.now()
+) {
+  const notifications =
+    defaultIncidentNotificationStore.dispatchNotifications(
+      incident,
+      eventType,
+      previousAssignedTo,
+      actorId,
+      nowMs
+    );
+
+  return {
+    success: true,
+    notifications,
+    count: notifications.length,
+  };
+}
+// ======================================================
+// EVIDENCE-GROUNDED OFFICER COPILOT APIs
+// ======================================================
+
+export {
+  OfficerCopilotStore,
+  defaultOfficerCopilotStore,
+  COPILOT_STORAGE_KEY,
+  COPILOT_CHANGED_EVENT,
+  APPROVED_OPERATING_PROCEDURES,
+  fetchGroundedCopilotAnalysisApi,
+  submitCopilotFeedbackApi,
+  submitCopilotApprovalApi,
+} from './officerCopilotStore.js';

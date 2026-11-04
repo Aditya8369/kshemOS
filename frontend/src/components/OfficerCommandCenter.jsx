@@ -2,7 +2,8 @@ import { useState } from 'react';
 import FraudGraphView from './FraudGraphView';
 import IncidentDashboardView from './IncidentDashboardView';
 import JurisdictionConfigView from './jurisdiction/JurisdictionConfigView';
-import EvidenceVaultView from './evidence/EvidenceVaultView';
+import EvidenceGroundedCopilotView from './officer/EvidenceGroundedCopilotView';
+
 import {
   lookupFraudRing,
   getCaseSummary,
@@ -250,16 +251,17 @@ function GraphPanel() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-4">
-        {SAMPLE_ACCOUNTS.map((a) => (
+      <div className="flex flex-wrap items-center gap-1.5 mb-4 text-xs text-[var(--mist)]">
+        <span>Try:</span>
+          {SAMPLE_ACCOUNTS.map((acc) => (
           <button
-            key={a}
-            onClick={() => run(a)}
-            className="text-xs font-mono px-2 py-1 rounded-full border border-[var(--navy-line)] text-[var(--mist)] hover:border-[var(--saffron)] hover:text-white"
+            key={acc}
+            onClick={() => run(acc)}
+            className="font-mono text-white/80 hover:text-white bg-[var(--ink)] px-2 py-0.5 rounded border border-[var(--navy-line)]"
           >
-            {a}
+            {acc}
           </button>
-        ))}
+          ))}
       </div>
 
       {error && (
@@ -275,24 +277,70 @@ function GraphPanel() {
         flagged={ring?.is_flagged}
         selectedEdgeId={selectedEdgeId}
         onSelectEdge={selectEdge}
+        harvestedByHoneypot={ring?.harvested_by_honeypot || false}
+        onSelectNode={run}
       />
 
       {ring && (
-        <div className="grid grid-cols-3 gap-3 mt-4 text-center">
-          <Stat
-            label="Mule probability"
-            value={`${Math.round(ring.mule_probability * 100)}%`}
-          />
-          <Stat
-            label="Ring ID"
-            value={ring.ring_id || '—'}
-          />
-          <Stat
-            label="Flagged"
-            value={ring.is_flagged ? 'Yes' : 'No'}
-          />
+  <div className="space-y-4 mt-4">
+    {/* Account statistics */}
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+      <Stat
+        label="Mule probability"
+        value={`${(ring.mule_probability * 100).toFixed(0)}%`}
+      />
+
+      <Stat
+        label="Ring ID"
+        value={ring.ring_id || '—'}
+      />
+
+      <Stat
+        label="Flagged"
+        value={ring.is_flagged ? 'Yes' : 'No'}
+      />
+
+      <Stat
+        label="Connected"
+        value={ring.connected_accounts.length}
+      />
+    </div>
+
+    {/* Connected accounts */}
+    <div>
+      <div className="text-xs font-mono uppercase text-[var(--mist)] mb-1">
+        Connected accounts
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {ring.connected_accounts.map((account) => (
+          <button
+            key={account}
+            onClick={() => run(account)}
+            className="font-mono text-xs text-white bg-[var(--ink)] px-2.5 py-1 rounded-full border border-[var(--navy-line)] hover:border-[var(--saffron)]"
+          >
+            {account}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {/* Shared signals */}
+    {ring.shared_signals?.length > 0 && (
+      <div>
+        <div className="text-xs font-mono uppercase text-[var(--mist)] mb-1">
+          Shared signals
         </div>
-      )}
+
+        <ul className="text-xs text-[var(--mist)] list-disc list-inside space-y-0.5">
+          {ring.shared_signals.map((signal) => (
+            <li key={signal}>{signal}</li>
+          ))}
+        </ul>
+      </div>
+    )}
+  </div>
+)}
 
       {/* Analyst review panel */}
       <section className="mt-6 border-t border-[var(--navy-line)] pt-5 space-y-4">
@@ -592,7 +640,7 @@ function CaseSummaryPanel() {
           disabled={loading}
           className="bg-[var(--saffron)] text-white rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-40"
         >
-          {loading ? '…' : 'Summarize'}
+          {loading ? 'ΓÇª' : 'Summarize'}
         </button>
       </div>
       {error && <p className="text-sm text-[var(--alert)]">{error}</p>}
@@ -616,6 +664,7 @@ function CaseSummaryPanel() {
 const TABS = [
   { key: 'incidents', label: 'Incident dashboard' },
   { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
+  { key: 'copilot', label: 'Officer Copilot (Grounded)' },
   { key: 'evidence', label: 'Evidence Vault' },
   { key: 'tools', label: 'Investigation tools' },
 ];
@@ -625,7 +674,7 @@ export default function OfficerCommandCenter() {
 
   return (
     <div className="min-h-full bg-[var(--ink)] px-4 py-8">
-      <div className={`${tab === 'incidents' || tab === 'jurisdiction' || tab === 'evidence' ? 'max-w-6xl' : 'max-w-3xl'} mx-auto space-y-6`}>
+      <div className={`${tab === 'incidents' || tab === 'jurisdiction' || tab === 'evidence' || tab === 'copilot' ? 'max-w-6xl' : 'max-w-4xl'} mx-auto space-y-6`}>
         <div>
           <p className="font-mono text-xs uppercase tracking-widest text-[var(--saffron)] mb-2">
             Officer Command Center
@@ -635,10 +684,14 @@ export default function OfficerCommandCenter() {
           </h1>
           <p className="text-[var(--mist)] mt-1">
             {tab === 'incidents'
-              ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
-              : tab === 'jurisdiction'
-              ? 'Operational zone boundaries, service areas, automated dispatch routing, and multi-officer change review.'
-              : 'Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.'}
+  ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
+  : tab === 'jurisdiction'
+  ? 'Operational zone boundaries, service areas, automated dispatch routing, and multi-officer change review.'
+  : tab === 'copilot'
+  ? 'Evidence-grounded investigative next steps with 4-tier separation, source citations, and human approval guardrails.'
+  : tab === 'evidence'
+  ? 'Immutable chain of custody, Section 65B forensic bundles, and legal hold verification.'
+  : 'Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.'}
           </p>
         </div>
         <div
@@ -663,17 +716,20 @@ export default function OfficerCommandCenter() {
         </div>
 
         {tab === 'incidents' ? (
-          <IncidentDashboardView />
-        ) : tab === 'jurisdiction' ? (
-          <JurisdictionConfigView />
-        ) : tab === 'evidence' ? (
-          <EvidenceVaultView />
-        ) : (
-          <>
-            <GraphPanel />
-            <CaseSummaryPanel />
-          </>
-        )}
+  <IncidentDashboardView />
+) : tab === 'jurisdiction' ? (
+  <JurisdictionConfigView />
+) : tab === 'copilot' ? (
+  <EvidenceGroundedCopilotView />
+) : tab === 'evidence' ? (
+  <EvidenceVaultView />
+) : (
+  <div className="space-y-6">
+    <EvidenceGroundedCopilotView />
+    <GraphPanel />
+    <CaseSummaryPanel />
+  </div>
+)}
       </div>
     </div>
   );
