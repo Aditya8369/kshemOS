@@ -487,3 +487,90 @@ export {
   SpatialIntelligenceStore,
   defaultSpatialStore,
 } from './spatialIntelligenceStore.js';
+
+
+// ======================================================
+// CALIBRATED MULTI-SIGNAL RISK MODEL & BENCHMARK APIs
+// ======================================================
+
+export {
+  CalibratedRiskStore,
+  defaultCalibratedRiskStore,
+  BENCHMARK_CORPUS,
+} from './calibratedRiskStore.js';
+
+export async function fetchRiskModelConfigApi() {
+  try {
+    const res = await fetch('/api/scam/models');
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // offline/mock fallback
+  }
+  const { defaultCalibratedRiskStore } = await import('./calibratedRiskStore.js');
+  return defaultCalibratedRiskStore.getConfig();
+}
+
+export async function updateRiskModelConfigApi(updates) {
+  try {
+    const res = await fetch('/api/scam/models/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // offline/mock fallback
+  }
+  const { defaultCalibratedRiskStore } = await import('./calibratedRiskStore.js');
+  return defaultCalibratedRiskStore.updateConfig(updates);
+}
+
+export async function rollbackRiskModelApi(targetVersion = 'v1.0-legacy-rules', reason = 'Operator manual rollback') {
+  try {
+    const res = await fetch('/api/scam/models/rollback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target_version: targetVersion, reason }),
+    });
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // offline/mock fallback
+  }
+  const { defaultCalibratedRiskStore } = await import('./calibratedRiskStore.js');
+  return defaultCalibratedRiskStore.rollbackModel(targetVersion, reason);
+}
+
+export async function runRiskModelBenchmarkApi(modelVersion = null) {
+  try {
+    const res = await fetch('/api/scam/benchmark', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(modelVersion ? { model_version: modelVersion } : {}),
+    });
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // offline/mock fallback
+  }
+  const { defaultCalibratedRiskStore } = await import('./calibratedRiskStore.js');
+  return defaultCalibratedRiskStore.runBenchmarkLocally(modelVersion);
+}
+
+export async function analyzeCalibratedRiskApi({ transcript, callerClaimsToBe, modelVersion, context }) {
+  try {
+    const res = await fetch('/api/scam/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        transcript,
+        caller_claims_to_be: callerClaimsToBe,
+        model_version: modelVersion,
+        context,
+      }),
+    });
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // offline/mock fallback
+  }
+  const { defaultCalibratedRiskStore } = await import('./calibratedRiskStore.js');
+  return defaultCalibratedRiskStore.evaluateTranscriptLocally(transcript, callerClaimsToBe, modelVersion, context);
+}
