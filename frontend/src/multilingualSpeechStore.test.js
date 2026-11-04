@@ -134,4 +134,3 @@ describe('MultilingualSpeechStore & Regional ASR Logic', () => {
     assert.equal(turn.is_citizen_corrected, false);
   });
 });
-

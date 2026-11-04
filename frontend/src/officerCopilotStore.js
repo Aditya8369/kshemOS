@@ -553,4 +553,3 @@ export async function submitCopilotApprovalApi(recId, decision, badge, notes = n
   }
   return defaultOfficerCopilotStore.submitApproval(recId, decision, badge, notes);
 }
-

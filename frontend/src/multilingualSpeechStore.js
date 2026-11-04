@@ -1,6 +1,6 @@
 /**
  * Multilingual Speech Recognition & Regional-Language Confidence Store
- * 
+ *
  * Supports:
  * - Configurable ASR Providers (Bhashini Indic AI, Local Whisper, Browser Web Speech, Mock Indic)
  * - Regional Indian languages (Hindi, Tamil, Telugu, Bengali, Marathi, etc.)

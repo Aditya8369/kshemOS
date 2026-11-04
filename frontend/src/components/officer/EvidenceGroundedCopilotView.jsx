@@ -803,4 +803,3 @@ export default function EvidenceGroundedCopilotView({ initialIdentifier = 'RPT-0
     </div>
   );
 }
-

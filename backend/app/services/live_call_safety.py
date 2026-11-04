@@ -129,7 +129,7 @@ def create_session(consent: LiveCallConsent, caller_label: Optional[str] = None)
     """
     Initializes a new live call safety session once user consent is verified.
     """
-    if not (consent.user_acknowledged and consent.mic_permission_granted and 
+    if not (consent.user_acknowledged and consent.mic_permission_granted and
             consent.data_processing_accepted and consent.no_auto_record_acknowledged):
         raise ValueError("Cannot initialize live call safety session: All consent permissions must be explicitly granted.")
 
@@ -177,7 +177,7 @@ def detect_suspicious_phrases(text: str) -> List[SuspiciousPhrase]:
     for phrase, category, weight in SCAM_LEXICON:
         if phrase in seen:
             continue
-        
+
         # Word boundary match for single words, substring for multi-word phrases
         matched = False
         if " " in phrase:
@@ -194,7 +194,7 @@ def detect_suspicious_phrases(text: str) -> List[SuspiciousPhrase]:
             start = max(0, idx - 25)
             end = min(len(text), idx + len(phrase) + 25)
             snippet = ("..." if start > 0 else "") + text[start:end].strip() + ("..." if end < len(text) else "")
-            
+
             matches.append(
                 SuspiciousPhrase(
                     phrase=phrase,
@@ -213,7 +213,7 @@ def compute_risk_assessment(session: LiveCallSession) -> Tuple[float, str, List[
     and category breakdowns from all detected phrases across the session.
     """
     all_phrases = session.highlighted_phrases
-    
+
     tactic_totals = {
         "threat": 0.0,
         "urgency": 0.0,
@@ -243,7 +243,7 @@ def compute_risk_assessment(session: LiveCallSession) -> Tuple[float, str, List[
     coercion_component = min(15.0, tactic_totals["coercion"] * 0.8)
 
     raw_score = threat_component + payment_component + secrecy_component + urgency_component + coercion_component
-    
+
     # Synergy bonus if caller combines multiple scam pillars (e.g. Threat + Payment + Secrecy = Digital Arrest)
     active_pillars = sum(1 for c, count in category_counts.items() if count > 0)
     if active_pillars >= 3:
@@ -449,4 +449,3 @@ def get_session(session_id: str) -> LiveCallSession:
     if session_id not in _LIVE_SESSIONS:
         raise KeyError(f"Session {session_id} not found.")
     return _LIVE_SESSIONS[session_id]
-

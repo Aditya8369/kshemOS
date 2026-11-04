@@ -5,7 +5,6 @@ import {
   scanCurrencyImageLocally,
   askCitizenAssistantLocally,
   submitCitizenReportLocally,
-  lookupFraudRingLocally,
   getCaseSummaryLocally,
   getRuleLibrarySamplesLocally,
 } from './ruleEngine.js';
@@ -127,9 +126,129 @@ export async function scanCurrencyImage(file) {
 }
 
 export async function lookupFraudRing(accountId) {
-  return lookupFraudRingLocally(accountId);
+  const normalizedAccountId = String(accountId ?? '').trim();
+
+  if (!normalizedAccountId) {
+    throw new Error('Account ID is required');
+  }
+
+  const response = await fetch(
+    `${BASE_URL.replace(/\/+$/, '')}/api/graph/ring/${encodeURIComponent(normalizedAccountId)}`
+  );
+
+  return handle(response);
 }
 
+// ======================================================
+// FRAUD GRAPH ANALYST REVIEW APIs
+// ======================================================
+
+async function graphReviewRequest(path, analystToken, options = {}) {
+  const token = String(analystToken ?? '').trim();
+
+  if (!token) {
+    throw new Error('Analyst token is required');
+  }
+
+  const headers = {
+    ...(options.headers || {}),
+    Authorization: `Bearer ${token}`,
+  };
+
+  if (options.body) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const response = await fetch(
+    `${BASE_URL.replace(/\/+$/, '')}/api/graph${path}`,
+    {
+      ...options,
+      headers,
+    }
+  );
+
+  return handle(response);
+}
+
+export async function submitFraudGraphReview(
+  edgeId,
+  { decision, reason },
+  analystToken
+) {
+  const id = String(edgeId ?? '').trim();
+
+  if (!id) {
+    throw new Error('Edge ID is required');
+  }
+
+  return graphReviewRequest(
+    `/edges/${encodeURIComponent(id)}/reviews`,
+    analystToken,
+    {
+      method: 'POST',
+      body: JSON.stringify({ decision, reason }),
+    }
+  );
+}
+
+export async function getFraudGraphReviewHistory(
+  edgeId,
+  analystToken
+) {
+  const id = String(edgeId ?? '').trim();
+
+  if (!id) {
+    throw new Error('Edge ID is required');
+  }
+
+  return graphReviewRequest(
+    `/edges/${encodeURIComponent(id)}/reviews`,
+    analystToken
+  );
+}
+
+export async function reverseFraudGraphReview(
+  edgeId,
+  eventId,
+  reason,
+  analystToken
+) {
+  const id = String(edgeId ?? '').trim();
+  const event = String(eventId ?? '').trim();
+
+  if (!id || !event) {
+    throw new Error('Edge ID and review event ID are required');
+  }
+
+  return graphReviewRequest(
+    `/edges/${encodeURIComponent(id)}/reviews/${encodeURIComponent(event)}/reverse`,
+    analystToken,
+    {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }
+  );
+}
+
+export async function verifyFraudGraphReviewIntegrity(
+  edgeId,
+  analystToken
+) {
+  const id = String(edgeId ?? '').trim();
+
+  if (!id) {
+    throw new Error('Edge ID is required');
+  }
+
+  return graphReviewRequest(
+    `/edges/${encodeURIComponent(id)}/reviews/integrity`,
+    analystToken
+  );
+}
+
+export async function exportFraudGraphReviews(analystToken) {
+  return graphReviewRequest('/reviews/export', analystToken);
+}
 export async function askCitizenAssistant({ question, language }) {
   return {
     answer: askCitizenAssistantLocally(question, language),

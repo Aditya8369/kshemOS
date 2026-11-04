@@ -225,4 +225,3 @@ describe('IncidentNotificationStore & Role-Aware Notification Routing', () => {
     assert.equal(retried.retry_history.length, 2);
   });
 });
-

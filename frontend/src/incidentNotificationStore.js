@@ -587,4 +587,3 @@ export class IncidentNotificationStore {
 }
 
 export const defaultIncidentNotificationStore = new IncidentNotificationStore();
-

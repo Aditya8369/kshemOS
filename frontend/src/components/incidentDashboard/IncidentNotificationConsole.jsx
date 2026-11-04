@@ -906,4 +906,3 @@ export default function IncidentNotificationConsole({ onClose }) {
     </div>
   );
 }
-

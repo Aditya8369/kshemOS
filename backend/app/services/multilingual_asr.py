@@ -321,7 +321,7 @@ def transcribe_speech(
             # Check script / token type for code switching simulation
             is_devanagari = bool(re.search(r"[\u0900-\u097F]", tok))
             tok_lang = "hi" if is_devanagari else target_language
-            
+
             # If word is a short acronym, simulate realistic ASR ambiguity if needed
             is_acronym = tok.isupper() and len(tok) >= 2
             conf = 0.95 if not is_acronym else 0.88

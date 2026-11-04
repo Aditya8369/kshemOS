@@ -151,4 +151,3 @@ describe('AdvisoryBroadcastStore & Emergency Broadcast Logic', () => {
     assert.ok(banner.marquee_text.includes('ADVISORY'));
   });
 });
-

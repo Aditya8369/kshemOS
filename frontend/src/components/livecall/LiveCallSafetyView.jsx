@@ -998,4 +998,3 @@ export default function LiveCallSafetyView() {
     </div>
   );
 }
-

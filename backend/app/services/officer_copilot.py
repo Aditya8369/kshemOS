@@ -493,4 +493,3 @@ def submit_approval(
 
         _RECOMMENDATION_REGISTRY[rec_id] = rec
         return dict(rec)
-

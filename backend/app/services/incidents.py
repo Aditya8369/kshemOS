@@ -113,7 +113,8 @@ def create_incident(
 
     now = now if now is not None else _now_ms()
 
-    severity = analyze_transcript(description)["risk_band"]
+    risk_band = analyze_transcript(description)["risk_band"]
+    severity = risk_band if risk_band in SEVERITIES else "low"
 
 
 
@@ -576,4 +577,3 @@ def reset() -> None:
         _staffing.update({region: 0 for region in REGIONS})
 
         _incident_id_counter = itertools.count(1)
-

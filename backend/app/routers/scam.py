@@ -4,7 +4,6 @@ from fastapi import APIRouter, HTTPException
 from app.models import (
     ScamAnalyzeRequest,
     ScamAnalyzeResponse,
-    ModelRegistryConfig,
     ModelConfigUpdateRequest,
     ModelRollbackRequest,
     BenchmarkEvaluationResponse,
@@ -41,7 +40,7 @@ def get_models():
 def update_configuration(payload: ModelConfigUpdateRequest):
     """Update active model version, detection thresholds, or fallback behavior."""
     try:
-        thresh = payload.thresholds.model_dump() if payload.thresholds else None
+        thresh = (payload.thresholds.model_dump(exclude_unset=True, exclude_none=True) if payload.thresholds else None)
         return update_model_config(
             active_version=payload.active_version,
             thresholds=thresh,

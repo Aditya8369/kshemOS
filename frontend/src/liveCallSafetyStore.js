@@ -1,6 +1,6 @@
 /**
  * Consent-Based Live Scam-Call Transcription & Risk Alerts Store
- * 
+ *
  * Ethical Public Safety Principles:
  * 1. Opt-in only: User explicitly authorizes microphone/stream and data processing.
  * 2. Zero auto-recording: Audio is transcribed ephemerally; raw audio files are never saved to disk.

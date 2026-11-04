@@ -94,4 +94,3 @@ def get_turn(turn_id: str):
         return multilingual_asr.get_turn(turn_id)
     except KeyError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
-

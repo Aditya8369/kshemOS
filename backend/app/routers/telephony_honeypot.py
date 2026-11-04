@@ -80,4 +80,3 @@ def get_all_harvested_mules():
                 all_mules.append(mule)
                 seen.add(mule.credential_id)
     return all_mules
-

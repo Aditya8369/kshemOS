@@ -70,7 +70,7 @@ def update_preferences(officer_id: str, payload: UpdateOfficerPreferencesRequest
     """Update officer email notification triggers and quiet hours windows."""
     try:
         updated = incident_notifications.update_officer_preferences(
-            officer_id, payload.preferences.model_dump()
+            officer_id, payload.preferences.model_dump(exclude_unset=True, exclude_none=True),
         )
         return updated
     except ValueError as err:
@@ -106,4 +106,3 @@ def manual_dispatch(payload: SendNotificationRequest):
         actor_id=payload.actor_id,
     )
     return {"incident_id": payload.incident_id, "dispatched_count": len(dispatched), "outcomes": dispatched}
-

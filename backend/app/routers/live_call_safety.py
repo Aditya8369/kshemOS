@@ -106,4 +106,3 @@ def get_helplines():
     Lists official Indian law enforcement and financial fraud emergency verification helplines.
     """
     return {"helplines": live_call_safety.OFFICIAL_HELPLINES}
-

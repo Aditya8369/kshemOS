@@ -103,4 +103,3 @@ describe('TelephonyHoneypotStore & Deflection Engine Logic', () => {
     assert.equal(frozen.freeze_status, 'frozen');
   });
 });
-

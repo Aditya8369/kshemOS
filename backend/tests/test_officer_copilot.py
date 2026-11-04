@@ -289,4 +289,3 @@ def test_officer_router_endpoints():
         app_res = officer_router.post_copilot_approval(consequential_rec["rec_id"], app_req)
         assert app_res["approval_status"] == "approved"
         assert app_res["approved_by"] == "COMM-VERMA-01"
-

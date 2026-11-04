@@ -3,8 +3,8 @@ Pydantic models shared across KshemOS backend routers.
 """
 from __future__ import annotations
 from typing import Any, Dict, List, Literal, Optional
-from pydantic import BaseModel, Field
-
+from pydantic import BaseModel, Field, field_validator
+from datetime import datetime
 
 # ---------- Scam / Digital Arrest Agent ----------
 
@@ -14,15 +14,75 @@ class ScamAnalyzeRequest(BaseModel):
     caller_claims_to_be: Optional[str] = Field(
         None, description="What the caller claims to be, e.g. 'CBI officer'"
     )
+    model_version: Optional[str] = None
+    context: Optional[Dict[str, Any]] = None
+
+
+class ScamBaselineComparison(BaseModel):
+    baseline_version: str
+    baseline_score: int
+    baseline_band: str
+    score_delta: int
+    divergence_rationale: str
 
 
 class ScamAnalyzeResponse(BaseModel):
     risk_score: int = Field(..., ge=0, le=100)
-    risk_band: str  # "low" | "medium" | "high" | "critical"
-    matched_patterns: list[str]
+    risk_band: Literal["low", "medium", "high", "critical", "inconclusive"]
+    matched_patterns: List[str]
     matched_known_scam_similarity: float
     recommendation: str
     explanation: str
+    model_version: str
+    confidence: float = Field(..., ge=0, le=1)
+    is_inconclusive: bool
+    inconclusive_reason: Optional[str] = None
+    contributing_signals: Dict[str, float] = Field(default_factory=dict)
+    baseline_comparison: Optional[ScamBaselineComparison] = None
+
+
+class ScamThresholdUpdate(BaseModel):
+    critical: Optional[int] = Field(None, ge=0, le=100)
+    high: Optional[int] = Field(None, ge=0, le=100)
+    medium: Optional[int] = Field(None, ge=0, le=100)
+    inconclusive_min_words: Optional[int] = Field(None, ge=1)
+    confidence_cutoff: Optional[float] = Field(None, ge=0, le=1)
+
+
+class ModelConfigUpdateRequest(BaseModel):
+    active_version: Optional[str] = None
+    thresholds: Optional[ScamThresholdUpdate] = None
+    fallback_enabled: Optional[bool] = None
+
+
+class ModelRollbackRequest(BaseModel):
+    target_version: str = "v1.0-legacy-rules"
+    reason: str = "Operator manual rollback"
+
+
+class BenchmarkCaseResult(BaseModel):
+    case_id: str
+    category: str
+    ground_truth_label: str
+    predicted_band: str
+    risk_score: int
+    confidence: float
+    is_correct: bool
+    model_version: str
+
+
+class BenchmarkEvaluationResponse(BaseModel):
+    model_version: str
+    total_cases: int
+    correct_predictions: int
+    accuracy: float
+    inconclusive_count: int
+    false_positives: int
+    false_negatives: int
+    baseline_accuracy_v1: float
+    improvement_over_baseline: float
+    cases: List[BenchmarkCaseResult]
+    evaluated_at: int
 
 
 # ---------- Counterfeit Currency Agent ----------
@@ -34,7 +94,28 @@ class CurrencyScanResponse(BaseModel):
     signals: dict
 
 
+
 # ---------- Fraud Graph Agent ----------
+
+class GraphEdgeExplanation(BaseModel):
+    edge_id: str
+    source: str
+    target: str
+    relationship_type: str
+    source_signal: str = Field(..., min_length=1)
+    observed_at: datetime
+    confidence: float = Field(..., ge=0, le=1)
+    provenance: Literal["verified", "inferred", "synthetic"]
+    annotation: str = Field(..., min_length=1)
+
+
+class GraphPathExplanation(BaseModel):
+    accounts: list[str]
+    edge_ids: list[str]
+    edge_explanations: list[GraphEdgeExplanation] = Field(
+        default_factory=list
+    )
+
 
 class RingLookupResponse(BaseModel):
     account_id: str
@@ -44,6 +125,78 @@ class RingLookupResponse(BaseModel):
     connected_accounts: list[str]
     shared_signals: list[str]
 
+    edges: list[GraphEdgeExplanation] = Field(
+        default_factory=list
+    )
+
+    paths: list[GraphPathExplanation] = Field(
+        default_factory=list
+    )
+
+# ---------- Fraud Graph Analyst Reviews ----------
+
+ReviewDecision = Literal["confirm", "dispute", "reject"]
+
+
+class GraphReviewRequest(BaseModel):
+    decision: ReviewDecision
+    reason: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("A review reason is required")
+        return value
+
+
+class GraphReviewReversalRequest(BaseModel):
+    reason: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("A reversal reason is required")
+        return value
+
+
+class GraphReviewEvent(BaseModel):
+    event_id: str
+    edge_id: str
+    event_type: Literal["decision", "reversal"]
+    decision: Optional[ReviewDecision] = None
+    reason: str
+    analyst_id: str
+    created_at: datetime
+    reverses_event_id: Optional[str] = None
+    previous_hash: str
+    integrity_hash: str
+
+
+class GraphReviewHistoryResponse(BaseModel):
+    edge_id: str
+    events: list[GraphReviewEvent]
+    current_decision: Optional[ReviewDecision] = None
+
+
+class GraphReviewEvaluationRecord(BaseModel):
+    edge_id: str
+    review_event_id: str
+    relationship_type: str
+    provenance: Literal["verified", "inferred", "synthetic"]
+    decision: ReviewDecision
+    evaluation_label: Optional[Literal["positive", "negative"]] = None
+    eligible_for_binary_evaluation: bool
+    reviewed_at: datetime
+
+
+class GraphReviewEvaluationExport(BaseModel):
+    generated_at: datetime
+    total: int
+    records: list[GraphReviewEvaluationRecord]
 
 # ---------- Citizen Assistant Agent ----------
 
@@ -155,34 +308,6 @@ class IncidentFeedResponse(BaseModel):
     regions: list[str]
     staffing: list[RegionStaffing]
     incidents: list[Incident]
-
-
-# ---------- Offline Sync Models ----------
-
-class SyncQueueItem(BaseModel):
-    queue_id: str
-    incident_id: str
-    action_type: str
-    changes: dict[str, Any]
-    queued_at: int
-    client_version: int
-    status: str
-    retry_count: int = 0
-    error_message: Optional[str] = None
-    applied_at: Optional[int] = None
-    server_incident_snapshot: Optional[dict[str, Any]] = None
-
-
-class SyncBatchRequest(BaseModel):
-    client_id: str
-    items: list[SyncQueueItem]
-
-
-class SyncBatchResponse(BaseModel):
-    processed: int
-    succeeded: int
-    conflicts: int
-    results: list[dict[str, Any]]
 
 
 # ---------- Geofencing & Alerts Models ----------
@@ -1235,3 +1360,127 @@ class ThreatHeatmapResponse(BaseModel):
     financial_pois: list[FinancialPOI]
     total_clusters: int
     highest_threat_region: str
+
+# ---------- Evidence-Grounded Officer Copilot ----------
+
+class CopilotFeedbackRequest(BaseModel):
+    feedback: Literal["helpful", "incorrect", "unsupported"]
+    notes: Optional[str] = None
+    officer_badge: str = "OFF-DUTY"
+
+
+class CopilotApprovalRequest(BaseModel):
+    decision: Literal["approved", "rejected"]
+    officer_badge: str
+    approval_notes: Optional[str] = None
+
+
+class CopilotRecommendation(BaseModel):
+    rec_id: str
+    action_title: str
+    rationale: Optional[str] = None
+    suggested_role: Optional[str] = None
+    priority: Optional[str] = None
+    is_consequential: Optional[bool] = None
+    requires_human_approval: Optional[bool] = None
+    approval_status: Optional[str] = None
+    approved_by: Optional[str] = None
+    approved_at: Optional[int] = None
+    source_references: List[Dict[str, Any]] = Field(default_factory=list)
+    officer_feedback: Optional[Literal["helpful", "incorrect", "unsupported"]] = None
+    feedback_notes: Optional[str] = None
+    feedback_submitted_by: Optional[str] = None
+    feedback_submitted_at: Optional[int] = None
+
+
+class EvidenceGroundedCopilotResponse(BaseModel):
+    case_or_incident_id: str
+    has_sufficient_evidence: bool
+    evidence_completeness_score: float
+    missing_records_summary: Optional[str] = None
+    priority: str
+    executive_summary: str
+    confirmed_facts: List[Dict[str, Any]] = Field(default_factory=list)
+    unverified_claims: List[Dict[str, Any]] = Field(default_factory=list)
+    system_signals: List[Dict[str, Any]] = Field(default_factory=list)
+    recommendations: List[CopilotRecommendation] = Field(default_factory=list)
+    retrieved_operating_procedures: List[Dict[str, Any]] = Field(default_factory=list)
+    generated_at: int
+    model_version: str
+
+
+# ---------- Role-Aware Incident Notifications ----------
+
+class OfficerNotificationPreferences(BaseModel):
+    email_enabled: Optional[bool] = None
+    assignment_enabled: Optional[bool] = None
+    reassignment_enabled: Optional[bool] = None
+    escalation_enabled: Optional[bool] = None
+    supervisor_review_enabled: Optional[bool] = None
+    quiet_hours_enabled: Optional[bool] = None
+    quiet_hours_start: Optional[str] = Field(
+        None, pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$"
+    )
+    quiet_hours_end: Optional[str] = Field(
+        None, pattern=r"^(?:[01]\d|2[0-3]):[0-5]\d$"
+    )
+    timezone: Optional[str] = None
+
+
+class UpdateOfficerPreferencesRequest(BaseModel):
+    preferences: OfficerNotificationPreferences
+
+
+class OfficerDirectoryEntry(BaseModel):
+    officer_id: str
+    name: str
+    email: str
+    role: str
+    jurisdiction_id: str
+    regions: List[str]
+    preferences: Dict[str, Any] = Field(default_factory=dict)
+
+
+class SendNotificationRequest(BaseModel):
+    incident_id: str
+    event_type: Literal[
+        "assignment", "reassignment", "escalation", "supervisor_review"
+    ]
+    actor_id: Optional[str] = None
+
+
+class IncidentNotificationPayload(BaseModel):
+    notification_id: str
+    incident_id: Optional[str] = None
+    event_type: str
+    priority: str
+    jurisdiction_id: str
+    region: str
+    recipient_id: str
+    recipient_email: str
+    recipient_role: str
+    recipient_name: str
+    subject: str
+    body_snippet: str
+    secure_dashboard_link: str
+    created_at: int
+    delivery_status: str
+    attempts: int
+    last_attempt_at: int
+    error_message: Optional[str] = None
+    retry_history: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class NotificationAuditResponse(BaseModel):
+    total: int
+    delivered: int
+    retrying: int
+    failed: int
+    suppressed: int
+    notifications: List[IncidentNotificationPayload] = Field(default_factory=list)
+
+
+class RetryNotificationResponse(BaseModel):
+    success: bool
+    notification: IncidentNotificationPayload
+    message: str
