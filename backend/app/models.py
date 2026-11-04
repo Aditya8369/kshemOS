@@ -499,17 +499,26 @@ class EvidenceItem(BaseModel):
 
 
 class EvidenceIngestRequest(BaseModel):
-    case_number: str
+    case_number: Optional[str] = None
+    case_id: Optional[str] = None
     incident_id: Optional[str] = None
     title: str
     file_name: str
     mime_type: str = "application/octet-stream"
-    raw_payload_content: str
-    officer_badge_id: str
-    officer_name: str
+    raw_payload_content: Optional[str] = None
+    raw_content: Optional[str] = None
+    officer_badge_id: str = "OFFICER"
+    officer_name: str = "Officer"
     client_ip: str = "127.0.0.1"
-    crime_category: str = "digital_arrest"
+    crime_category: Optional[str] = "digital_arrest"
+    category: Optional[str] = None
+    evidence_type: Optional[str] = "document"
+    source: Optional[str] = "citizen_report"
+    legal_hold: bool = False
+    legal_hold_reason: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
     notes: Optional[str] = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class CustodialActionRequest(BaseModel):
@@ -524,6 +533,7 @@ class LegalHoldToggleRequest(BaseModel):
     legal_hold: bool
     reason: str
     officer_badge_id: str
+    officer_name: str = "Authorizing Officer"
 
 
 class ForensicExportBundle(BaseModel):
@@ -537,6 +547,111 @@ class ForensicExportBundle(BaseModel):
     retention_status: dict[str, Any]
     custodial_trail: list[CustodialLogEntry]
     raw_artifact_ref: str
+
+
+# ---------- Secure Evidence Upload Links ----------
+
+class CreateUploadLinkRequest(BaseModel):
+    report_id: str = Field(..., description="Target citizen report or case number")
+    incident_id: Optional[str] = None
+    title: str = Field(..., description="Title/purpose of requested evidence")
+    description: Optional[str] = None
+    allowed_file_types: list[str] = Field(
+        default_factory=lambda: [
+            "application/pdf",
+            "image/png",
+            "image/jpeg",
+            "audio/mpeg",
+            "audio/wav",
+            "video/mp4",
+        ],
+        description="Permitted MIME types"
+    )
+    max_file_size_bytes: int = Field(default=25 * 1024 * 1024, description="Max upload size in bytes (default 25MB)")
+    expiry_minutes: int = Field(default=60, description="Lifetime in minutes (default 60 mins)")
+    requires_passcode: bool = Field(default=False, description="Whether additional passcode verification is required")
+    passcode: Optional[str] = Field(default=None, description="Optional passcode required to complete upload")
+    created_by_badge: str = Field(default="OFF-DESK-01", description="Authorizing officer badge")
+    officer_name: str = Field(default="Investigating Officer", description="Authorizing officer name")
+    recipient_email: Optional[str] = Field(default=None, description="Citizen email")
+    recipient_phone: Optional[str] = Field(default=None, description="Citizen phone/SMS destination")
+
+
+class RevokeUploadLinkRequest(BaseModel):
+    revoked_by_badge: str = Field(..., description="Officer badge revoking the link")
+    officer_name: str = Field(default="Officer", description="Officer name")
+    revocation_reason: str = Field(..., description="Reason for invalidating/revoking link")
+
+
+class UploadEvidenceViaLinkRequest(BaseModel):
+    token: str = Field(..., description="Secure upload token")
+    passcode: Optional[str] = Field(default=None, description="Passcode if verification was enabled")
+    file_name: str
+    mime_type: str
+    raw_payload_content: str = Field(..., description="File content or base64 stream")
+    file_size_bytes: Optional[int] = None
+    uploader_name: Optional[str] = "Citizen Complainant"
+    uploader_notes: Optional[str] = None
+    client_ip: str = "127.0.0.1"
+    user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+
+
+class UploadReceipt(BaseModel):
+    receipt_id: str
+    link_id: str
+    report_id: str
+    evidence_id: str
+    file_name: str
+    mime_type: str
+    file_size_bytes: int
+    sha256_fingerprint: str
+    rfc3161_serial: str
+    uploaded_at: int
+    client_ip: str
+    vault_status: str = "ingested_and_sealed"
+    verification_token: str
+
+
+class SecureUploadLink(BaseModel):
+    link_id: str
+    token: str
+    upload_url: str
+    report_id: str
+    incident_id: Optional[str] = None
+    title: str
+    description: Optional[str] = None
+    allowed_file_types: list[str]
+    max_file_size_bytes: int
+    created_at: int
+    expires_at: int
+    is_expired: bool
+    status: Literal["active", "completed", "expired", "revoked"] = "active"
+    requires_passcode: bool = False
+    passcode_hint: Optional[str] = None
+    created_by_badge: str
+    officer_name: str
+    recipient_email: Optional[str] = None
+    recipient_phone: Optional[str] = None
+    revoked_at: Optional[int] = None
+    revoked_by_badge: Optional[str] = None
+    revocation_reason: Optional[str] = None
+    completed_at: Optional[int] = None
+    evidence_id: Optional[str] = None
+    receipt: Optional[UploadReceipt] = None
+
+
+class UploadLinkValidationResponse(BaseModel):
+    valid: bool
+    link_id: Optional[str] = None
+    report_id: Optional[str] = None
+    title: Optional[str] = None
+    description: Optional[str] = None
+    allowed_file_types: list[str] = Field(default_factory=list)
+    max_file_size_bytes: Optional[int] = None
+    expires_at: Optional[int] = None
+    requires_passcode: bool = False
+    status: str
+    error: Optional[str] = None
 
 
 # ---------- Jurisdiction & Zone Configuration ----------
@@ -948,3 +1063,175 @@ class LiveCallRiskUpdateResponse(BaseModel):
     actionable_safety_prompts: list[str]
     tactics_breakdown: dict[str, float]
     official_helpline_recommendations: list[dict[str, str]]
+
+# ---------- AI Telephony Honeypot & Call-Pattern Triangulation ----------
+
+class HoneypotPersona(BaseModel):
+    id: str = Field(..., description="Unique persona identifier")
+    name: str = Field(..., description="Persona name, e.g. Prof. Rameshwar Shastri")
+    age: int
+    profile: str = Field(..., description="Demographic and behavioral persona description")
+    prolongation_tactic: str = Field(..., description="Specific tactic to drag out call and extract mules")
+    primary_target_extraction: str = Field(..., description="Primary credentials targeted for harvesting")
+    voice_profile: str = Field("elderly_male_hindi_english")
+
+
+class AcousticFingerprint(BaseModel):
+    ambient_cross_talk_score: float = Field(0.0, description="0.0 - 1.0 probability of call-center background chatter")
+    voip_codec_jitter_ms: float = Field(0.0, description="VoIP latency and packet jitter in milliseconds")
+    background_noise_profile: str = Field("Clean Audio", description="Acoustic background characterization")
+    ivr_signature_match: Optional[str] = Field(None, description="Matched predictive dialer / PBX signature")
+    synthetic_voice_probability: float = Field(0.0, description="Probability of deepfake or TTS voice clone")
+
+
+class ScriptTriangulation(BaseModel):
+    matched_syndicate_id: Optional[str] = Field(None, description="Known syndicate ID e.g. SYND-MEWAT-08")
+    matched_syndicate_name: Optional[str] = Field(None, description="Name of syndicate ring")
+    script_similarity_pct: float = Field(0.0, description="Script match percentage against known corpus")
+    geographic_origin: Optional[str] = Field(None, description="Triangulated geographic origin or VoIP gateway")
+    confidence_score: float = Field(0.0, description="Overall triangulation confidence score 0.0 - 1.0")
+    matched_script_excerpts: List[str] = Field(default_factory=list)
+
+
+class HarvestedMuleCredential(BaseModel):
+    credential_id: str
+    credential_type: str = Field(..., description="bank_account | upi_vpa | payment_url")
+    value: str = Field(..., description="Account number, VPA, or URL")
+    bank_or_provider: str
+    beneficiary_name: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    extracted_at: str
+    confidence: float = 0.95
+    freeze_status: str = Field("recommended", description="recommended | freezing_initiated | frozen | pending_review")
+    freeze_warrant_id: Optional[str] = None
+
+
+class HoneypotCallSession(BaseModel):
+    session_id: str
+    caller_phone: str
+    caller_claims_to_be: str
+    forwarded_by_citizen_id: Optional[str] = None
+    persona: HoneypotPersona
+    call_status: str = Field("active", description="active | prolonging | completed | extracted")
+    call_duration_seconds: int = 0
+    transcript_turns: List[Dict[str, Any]] = Field(default_factory=list)
+    acoustic_fingerprint: AcousticFingerprint = Field(default_factory=AcousticFingerprint)
+    script_triangulation: ScriptTriangulation = Field(default_factory=ScriptTriangulation)
+    harvested_credentials: List[HarvestedMuleCredential] = Field(default_factory=list)
+    freeze_recommendations: List[Dict[str, Any]] = Field(default_factory=list)
+    created_at: str
+    updated_at: str
+
+
+class CallForwardRequest(BaseModel):
+    caller_phone: str = Field(..., description="Phone number of scam caller")
+    caller_claims_to_be: str = Field(..., description="Who caller claims to be e.g. CBI Officer")
+    citizen_name: Optional[str] = Field("Citizen User")
+    initial_transcript: Optional[str] = Field(None)
+    preferred_persona_id: Optional[str] = Field(None)
+
+
+class CallTurnRequest(BaseModel):
+    caller_utterance: str = Field(..., description="Incoming sentence from scam caller")
+
+
+class MuleFreezeRequest(BaseModel):
+    credential_id: str
+    officer_badge: str = Field("OFF-CYBER-901")
+    statutory_section: str = Field("Section 102 CrPC / Cyber Defense Act")
+    freeze_reason: Optional[str] = Field("Harvested active beneficiary account from live honeypot extortion call.")
+# ---------- Real-Time Threat Heatmap & Predictive Spatial Intelligence ----------
+
+class FinancialPOI(BaseModel):
+    id: str
+    name: str
+    poi_type: Literal["atm", "bank_branch", "money_exchange", "fintech_hub"]
+    bank_name: str
+    lat: float
+    lng: float
+    region: str
+    vulnerability_score: float = 0.5
+
+
+class SpatialIncident(BaseModel):
+    id: str
+    title: str
+    category: str
+    severity: Literal["low", "medium", "high", "critical"]
+    lat: float
+    lng: float
+    timestamp: int
+    region: str
+    nearby_poi_id: Optional[str] = None
+
+
+class ThreatCluster(BaseModel):
+    cluster_id: str
+    name: str
+    center_lat: float
+    center_lng: float
+    radius_meters: float
+    incident_count: int
+    severity_density: float
+    threat_level: Literal["critical", "high", "moderate", "low"]
+    primary_category: str
+    surrounding_poi_count: int
+    nearby_atms: list[str] = Field(default_factory=list)
+    region: str
+    service_area_id: Optional[str] = None
+
+
+class MigrationVector(BaseModel):
+    cluster_id: str
+    trend: Literal["expanding", "dissipating", "migrating", "stationary"]
+    heading_degrees: float
+    heading_cardinal: str
+    velocity_km_per_day: float
+    growth_rate_pct: float
+    target_service_area_id: Optional[str] = None
+    target_region: Optional[str] = None
+    risk_narrative: str
+
+
+class PatrolDispatchRecommendation(BaseModel):
+    recommendation_id: str
+    cluster_id: str
+    waypoint_name: str
+    lat: float
+    lng: float
+    suggested_priority: Literal["urgent_deterrence", "preventative_check", "surveillance_stakeout"]
+    assigned_team_code: str
+    suggested_unit_code: Optional[str] = None
+    target_infrastructure: str
+    action_checklist: list[str]
+    valid_duration_minutes: int = 120
+    generated_at: int
+
+
+class CitizenMicroAdvisoryRequest(BaseModel):
+    lat: float
+    lng: float
+    user_identifier: Optional[str] = None
+
+
+class CitizenMicroAdvisoryResponse(BaseModel):
+    proximity_meters: float
+    nearest_cluster_id: Optional[str] = None
+    nearest_cluster_name: Optional[str] = None
+    threat_level: Literal["critical", "high", "moderate", "low"]
+    localized_risk_score: int
+    active_incident_count_nearby: int
+    migration_trend: Optional[str] = None
+    safety_guidance: list[str] = Field(default_factory=list)
+    nearest_safe_precinct: str
+    timestamp: int
+
+
+class ThreatHeatmapResponse(BaseModel):
+    timestamp: int
+    clusters: list[ThreatCluster]
+    migration_vectors: list[MigrationVector]
+    patrol_recommendations: list[PatrolDispatchRecommendation]
+    financial_pois: list[FinancialPOI]
+    total_clusters: int
+    highest_threat_region: str

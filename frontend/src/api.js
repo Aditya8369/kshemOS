@@ -487,3 +487,35 @@ export {
   SpatialIntelligenceStore,
   defaultSpatialStore,
 } from './spatialIntelligenceStore.js';
+
+// ======================================================
+// DIGITAL EVIDENCE VAULT & SECURE UPLOAD LINK APIs
+// ======================================================
+
+export {
+  fetchEvidenceItems,
+  fetchEvidenceItem,
+  ingestEvidenceApi,
+  fetchCustodialLedgerApi,
+  logCustodialActionApi,
+  toggleLegalHoldApi,
+  verifyEvidenceIntegrityApi,
+  generateForensicBundleApi,
+  fetchRetentionPoliciesApi,
+  fetchUploadLinksApi,
+  createUploadLinkApi,
+  getUploadLinkApi,
+  revokeUploadLinkApi,
+  validateUploadTokenApi,
+  fulfillEvidenceUploadApi,
+  createLocalEvidenceStore,
+  defaultEvidenceStore,
+  sha256Sync,
+  generateRfc3161Token,
+  computeLogHash,
+  EVIDENCE_CHANGED_EVENT,
+  EVIDENCE_STORE_KEY,
+  CUSTODIAL_LEDGER_KEY,
+  EVIDENCE_UPLOAD_LINKS_KEY,
+  DEFAULT_SAMPLE_UPLOAD_LINKS,
+} from './evidenceStore.js';

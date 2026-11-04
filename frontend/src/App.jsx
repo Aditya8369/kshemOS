@@ -74,6 +74,7 @@ import PersonalCyberHygieneView from './components/PersonalCyberHygieneView';
 import ScamResilienceAssessmentView from './components/ScamResilienceAssessmentView';
 import CyberPreparednessReportView from './components/CyberPreparednessReportView';
 import EvidenceVaultView from './components/EvidenceVaultView';
+import CitizenEvidenceUploadPortal from './components/evidence/CitizenEvidenceUploadPortal';
 import AlertDispatchView from './components/AlertDispatchView';
 import DigitalTrustScoreView from './components/DigitalTrustScoreView';
 import OnlineReputationSafetyView from './components/OnlineReputationSafetyView';
@@ -86,7 +87,15 @@ import MeetPage from './components/MeetPage';
 
 export default function App() {
   const [portal, setPortal] = useState('citizen');
-  const [activeView, setActiveView] = useState('home');
+  const [activeView, setActiveView] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('token') || params.get('view') === 'evidence-upload') {
+        return 'evidence-upload';
+      }
+    }
+    return 'home';
+  });
 
   function renderContent() {
     if (activeView === 'home') return <HomePage setActiveView={setActiveView} />;
@@ -166,6 +175,7 @@ export default function App() {
     if (activeView === 'multilingual-speech') return <MultilingualSpeechSafetyView />;
     if (activeView === 'live-call-safety') return <LiveCallSafetyView />;
     if (activeView === 'evidence') return <EvidenceVaultView/>;
+    if (activeView === 'evidence-upload') return <CitizenEvidenceUploadPortal setActiveView={setActiveView} />;
     if (activeView === 'alerts') return <AlertDispatchView />;
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;

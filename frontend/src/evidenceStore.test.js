@@ -194,3 +194,140 @@ test('forensic export bundle generates court-admissible certificate and manifest
   }
 });
 
+
+
+test('generates secure case-scoped upload links bound to report and allowed types', () => {
+  const store = createLocalEvidenceStore(null);
+  const link = store.createUploadLink({
+    report_id: 'RPT-0001',
+    incident_id: 'INC-001',
+    title: 'Extortion Call Recording',
+    allowed_file_types: ['audio/wav', 'video/mp4'],
+    max_file_size_bytes: 20 * 1024 * 1024,
+    expiry_minutes: 45,
+    requires_passcode: false,
+    created_by_badge: 'INSP-SHARMA-01',
+  });
+
+  assert.ok(link.link_id.startsWith('UPL-'));
+  assert.ok(link.token.startsWith('tok_'));
+  assert.equal(link.report_id, 'RPT-0001');
+  assert.equal(link.status, 'active');
+  assert.equal(link.is_expired, false);
+  assert.deepEqual(link.allowed_file_types, ['audio/wav', 'video/mp4']);
+  assert.equal(link.max_file_size_bytes, 20 * 1024 * 1024);
+  assert.ok(link.expires_at > Date.now());
+});
+
+test('enforces short-lived token expiry and optional passcode verification', () => {
+  const store = createLocalEvidenceStore(null);
+  const link = store.createUploadLink({
+    report_id: 'CASE-2026-DELHI-01',
+    title: 'Debit Slip',
+    requires_passcode: true,
+    passcode: '9021',
+    expiry_minutes: 60,
+  });
+
+  // Missing passcode
+  const val1 = store.validateUploadToken(link.token);
+  assert.equal(val1.valid, false);
+  assert.equal(val1.status, 'passcode_required');
+
+  // Wrong passcode
+  const val2 = store.validateUploadToken(link.token, '1234');
+  assert.equal(val2.valid, false);
+  assert.equal(val2.status, 'invalid_passcode');
+
+  // Correct passcode
+  const val3 = store.validateUploadToken(link.token, '9021');
+  assert.equal(val3.valid, true);
+  assert.equal(val3.status, 'active');
+
+  // Simulate expiration
+  store._setLinkExpiry(link.link_id, Date.now() - 1000);
+  const valExpired = store.validateUploadToken(link.token, '9021');
+  assert.equal(valExpired.valid, false);
+  assert.equal(valExpired.status, 'expired');
+});
+
+test('fulfills evidence upload, logs chain of custody, and generates immutable receipt', () => {
+  const store = createLocalEvidenceStore(null);
+  const link = store.createUploadLink({
+    report_id: 'RPT-0001',
+    title: 'Victim Audio',
+    allowed_file_types: ['audio/wav'],
+    max_file_size_bytes: 10 * 1024 * 1024,
+  });
+
+  const uploadResult = store.uploadEvidenceViaLink(link.token, {
+    file_name: 'extortion_voice_clip.wav',
+    mime_type: 'audio/wav',
+    raw_payload_content: 'RAW-AUDIO-BYTES-TIMESTAMPED-LEGAL-EVIDENCE',
+    uploader_name: 'Pooja Verma',
+    uploader_notes: 'Uploaded from Android recorder',
+    client_ip: '192.168.1.50',
+  });
+
+  assert.equal(uploadResult.success, true);
+  assert.ok(uploadResult.evidence_id);
+  const receipt = uploadResult.receipt;
+  assert.ok(receipt.receipt_id.startsWith('RCPT-'));
+  assert.equal(receipt.report_id, 'RPT-0001');
+  assert.equal(receipt.file_name, 'extortion_voice_clip.wav');
+  assert.equal(receipt.sha256_fingerprint.length, 64);
+  assert.equal(receipt.vault_status, 'ingested_and_sealed');
+  assert.ok(receipt.verification_token.startsWith('VTOK-'));
+
+  // Custody ledger check
+  const ledger = store.getCustodialLedger(uploadResult.evidence_id);
+  const uploadLog = ledger.find((e) => e.action === 'CITIZEN_SECURE_LINK_UPLOAD');
+  assert.ok(uploadLog);
+  assert.ok(uploadLog.details.includes('RPT-0001'));
+  assert.equal(uploadLog.client_ip, '192.168.1.50');
+
+  // Single-use check: Link becomes completed and cannot be re-used
+  assert.throws(
+    () =>
+      store.uploadEvidenceViaLink(link.token, {
+        file_name: 'second.wav',
+        mime_type: 'audio/wav',
+        raw_payload_content: 'ANOTHER-PAYLOAD',
+      }),
+    /already been fulfilled/
+  );
+});
+
+test('allows authorised staff to revoke links and blocks uploads on revoked links', () => {
+  const store = createLocalEvidenceStore(null);
+  const link = store.createUploadLink({
+    report_id: 'RPT-0004',
+    title: 'Bank Statement',
+  });
+
+  const revoked = store.revokeUploadLink(link.link_id, {
+    revokedByBadge: 'INSP-GUPTA-99',
+    officerName: 'Inspector Gupta',
+    revocationReason: 'Complainant reported accidental report creation',
+  });
+
+  assert.equal(revoked.status, 'revoked');
+  assert.equal(revoked.revoked_by_badge, 'INSP-GUPTA-99');
+  assert.equal(revoked.revocation_reason, 'Complainant reported accidental report creation');
+
+  // Validation must report revoked
+  const val = store.validateUploadToken(link.token);
+  assert.equal(val.valid, false);
+  assert.equal(val.status, 'revoked');
+
+  // Upload attempt must throw
+  assert.throws(
+    () =>
+      store.uploadEvidenceViaLink(link.token, {
+        file_name: 'statement.pdf',
+        mime_type: 'application/pdf',
+        raw_payload_content: 'PDF-DATA',
+      }),
+    /revoked/
+  );
+});

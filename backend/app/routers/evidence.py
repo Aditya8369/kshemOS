@@ -1,5 +1,6 @@
 """
-FastAPI Router for Automated Chain of Custody & Digital Evidence Vault.
+FastAPI Router for Automated Chain of Custody, Digital Evidence Vault,
+and Secure Evidence Upload Links with Expiry & Custodial Metadata.
 """
 from __future__ import annotations
 
@@ -12,8 +13,15 @@ from app.models import (
     EvidenceItem,
     ForensicExportBundle,
     LegalHoldToggleRequest,
+    CreateUploadLinkRequest,
+    RevokeUploadLinkRequest,
+    UploadEvidenceViaLinkRequest,
+    UploadReceipt,
+    SecureUploadLink,
+    UploadLinkValidationResponse,
 )
 from app.services import evidence as evidence_service
+from app.services import evidence_upload_link as upload_link_service
 
 router = APIRouter(prefix="/api/evidence", tags=["Digital Evidence Vault & Custody"])
 
@@ -117,3 +125,81 @@ def generate_forensic_bundle(
 @router.get("/retention-policies")
 def list_retention_policies():
     return evidence_service.list_retention_policies()
+
+
+# ======================================================
+# SECURE EVIDENCE UPLOAD LINKS ENDPOINTS
+# ======================================================
+
+@router.post("/upload-links", response_model=SecureUploadLink, status_code=201)
+def create_upload_link(payload: CreateUploadLinkRequest):
+    """
+    Generates a single-purpose, case-scoped evidence upload link with expiry
+    bound to specific allowed MIME types.
+    """
+    return upload_link_service.create_upload_link(payload.model_dump())
+
+
+@router.get("/upload-links", response_model=list[SecureUploadLink])
+def list_upload_links(
+    report_id: Optional[str] = None,
+    status: Optional[str] = None,
+):
+    """Lists upload links filtered by report/incident ID or status."""
+    r_id = report_id if isinstance(report_id, str) else None
+    st = status if isinstance(status, str) else None
+    return upload_link_service.list_upload_links(report_id=r_id, status=st)
+
+
+@router.get("/upload-links/{link_id}", response_model=SecureUploadLink)
+def get_upload_link(link_id: str):
+    """Retrieves upload link details."""
+    link = upload_link_service.get_upload_link(link_id)
+    if not link:
+        raise HTTPException(status_code=404, detail="Upload link not found")
+    return link
+
+
+@router.post("/upload-links/{link_id}/revoke", response_model=SecureUploadLink)
+def revoke_upload_link(link_id: str, payload: RevokeUploadLinkRequest):
+    """Allows authorised officers to revoke active upload links."""
+    try:
+        return upload_link_service.revoke_upload_link(
+            link_id=link_id,
+            revoked_by_badge=payload.revoked_by_badge,
+            officer_name=payload.officer_name,
+            revocation_reason=payload.revocation_reason,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/upload/validate", response_model=UploadLinkValidationResponse)
+def validate_upload_token(token: str, passcode: Optional[str] = None):
+    """
+    Public validation endpoint for citizens accessing an upload link.
+    Validates token, expiry, and optional verification passcode.
+    """
+    p_code = passcode if isinstance(passcode, str) else None
+    res = upload_link_service.validate_upload_token(token=token, passcode=p_code)
+    return res
+
+
+@router.post("/upload/fulfill")
+def fulfill_evidence_upload(payload: UploadEvidenceViaLinkRequest):
+    """
+    Citizen upload fulfillment:
+    Ingests file into Evidence Vault, computes SHA-256 fingerprint,
+    appends chain-of-custody ledger entry, seals the single-purpose link,
+    and returns an immutable digital receipt.
+    """
+    try:
+        result = upload_link_service.upload_evidence_via_link(
+            token=payload.token,
+            upload_data=payload.model_dump(),
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
