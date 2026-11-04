@@ -487,3 +487,105 @@ export {
   SpatialIntelligenceStore,
   defaultSpatialStore,
 } from './spatialIntelligenceStore.js';
+
+
+// ======================================================
+// ROLE-AWARE INCIDENT NOTIFICATION APIS
+// ======================================================
+
+export {
+  IncidentNotificationStore,
+  defaultIncidentNotificationStore,
+  JURISDICTION_REGION_MAP,
+  INITIAL_OFFICER_DIRECTORY,
+} from './incidentNotificationStore.js';
+
+export async function fetchIncidentNotificationsApi(filters = {}) {
+  try {
+    const params = new URLSearchParams();
+    if (filters.incident_id) params.set('incident_id', filters.incident_id);
+    if (filters.recipient_id) params.set('recipient_id', filters.recipient_id);
+    if (filters.role) params.set('role', filters.role);
+    if (filters.event_type) params.set('event_type', filters.event_type);
+    if (filters.status) params.set('status', filters.status);
+    if (filters.limit) params.set('limit', String(filters.limit));
+
+    const res = await fetch(`/api/incident-notifications?${params.toString()}`);
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // offline/mock fallback
+  }
+  const { defaultIncidentNotificationStore } = await import('./incidentNotificationStore.js');
+  const state = defaultIncidentNotificationStore.getState();
+  return {
+    total: state.stats.total,
+    delivered: state.stats.delivered,
+    retrying: state.stats.retrying,
+    failed: state.stats.failed,
+    suppressed: state.stats.suppressed,
+    notifications: state.notifications,
+  };
+}
+
+export async function fetchNotificationDirectoryApi() {
+  try {
+    const res = await fetch('/api/incident-notifications/directory');
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // offline fallback
+  }
+  const { defaultIncidentNotificationStore } = await import('./incidentNotificationStore.js');
+  return defaultIncidentNotificationStore.getState().officers;
+}
+
+export async function updateOfficerPreferencesApi(officerId, preferences) {
+  try {
+    const res = await fetch(`/api/incident-notifications/preferences/${officerId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preferences }),
+    });
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // offline fallback
+  }
+  const { defaultIncidentNotificationStore } = await import('./incidentNotificationStore.js');
+  return defaultIncidentNotificationStore.updateOfficerPreferences(officerId, preferences);
+}
+
+export async function retryIncidentNotificationApi(notificationId) {
+  try {
+    const res = await fetch(`/api/incident-notifications/retry/${notificationId}`, {
+      method: 'POST',
+    });
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // offline fallback
+  }
+  const { defaultIncidentNotificationStore } = await import('./incidentNotificationStore.js');
+  const retried = defaultIncidentNotificationStore.retryNotification(notificationId, true);
+  return {
+    success: retried.delivery_status === 'delivered',
+    notification: retried,
+    message: 'Retry applied locally.',
+  };
+}
+
+export async function dispatchIncidentNotificationApi(payload) {
+  try {
+    const res = await fetch('/api/incident-notifications/dispatch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return await res.json();
+  } catch (e) {
+    // offline fallback
+  }
+  const { defaultIncidentNotificationStore } = await import('./incidentNotificationStore.js');
+  const outcomes = defaultIncidentNotificationStore.dispatchNotifications(
+    { id: payload.incident_id, severity: 'high', region: 'Central Zone' },
+    payload.event_type
+  );
+  return { incident_id: payload.incident_id, dispatched_count: outcomes.length, outcomes };
+}

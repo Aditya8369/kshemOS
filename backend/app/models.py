@@ -948,3 +948,83 @@ class LiveCallRiskUpdateResponse(BaseModel):
     actionable_safety_prompts: list[str]
     tactics_breakdown: dict[str, float]
     official_helpline_recommendations: list[dict[str, str]]
+
+
+# ---------- Role-Aware Incident Assignment & Escalation Notification Models ----------
+
+class OfficerNotificationPreference(BaseModel):
+    email_enabled: bool = True
+    assignment_enabled: bool = True
+    reassignment_enabled: bool = True
+    escalation_enabled: bool = True
+    supervisor_review_enabled: bool = True
+    quiet_hours_enabled: bool = False
+    quiet_hours_start: str = "22:00"
+    quiet_hours_end: str = "07:00"
+    timezone: str = "Asia/Kolkata"
+
+
+class OfficerDirectoryEntry(BaseModel):
+    officer_id: str
+    name: str
+    email: str
+    role: Literal["responder", "supervisor", "commander"]
+    jurisdiction_id: str
+    regions: list[str]
+    preferences: OfficerNotificationPreference = Field(default_factory=OfficerNotificationPreference)
+
+
+class IncidentNotificationPayload(BaseModel):
+    notification_id: str
+    incident_id: str
+    event_type: Literal["assignment", "reassignment", "escalation", "supervisor_review"]
+    priority: str
+    jurisdiction_id: str
+    region: str
+    recipient_id: str
+    recipient_email: str
+    recipient_role: str
+    recipient_name: str
+    subject: str
+    body_snippet: str
+    secure_dashboard_link: str
+    created_at: int
+    delivery_status: Literal[
+        "delivered",
+        "failed",
+        "retrying",
+        "suppressed_quiet_hours",
+        "suppressed_unsubscribed",
+        "unauthorized_jurisdiction",
+    ]
+    attempts: int = 1
+    last_attempt_at: int
+    error_message: Optional[str] = None
+    retry_history: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class SendNotificationRequest(BaseModel):
+    incident_id: str
+    event_type: Literal["assignment", "reassignment", "escalation", "supervisor_review"]
+    actor_id: Optional[str] = None
+    override_recipient_id: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class UpdateOfficerPreferencesRequest(BaseModel):
+    preferences: OfficerNotificationPreference
+
+
+class RetryNotificationResponse(BaseModel):
+    success: bool
+    notification: IncidentNotificationPayload
+    message: str
+
+
+class NotificationAuditResponse(BaseModel):
+    total: int
+    delivered: int
+    retrying: int
+    failed: int
+    suppressed: int
+    notifications: list[IncidentNotificationPayload]
