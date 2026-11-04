@@ -55,7 +55,9 @@ def create_incident(
     now: int | None = None,
 ) -> dict[str, Any]:
     now = now if now is not None else _now_ms()
-    severity = analyze_transcript(description)["risk_band"]
+    severity = analyze_transcript(description)["risk_band"]
+    if severity not in SEVERITIES:
+        severity = "low"
 
     with _lock:
         incident_id = f"INC-{next(_incident_id_counter):04d}"
