@@ -16,6 +16,94 @@ export const CUSTODIAL_LEDGER_KEY = 'kshemos.custody_ledger.v1';
 export const EVIDENCE_PAYLOADS_KEY = 'kshemos.evidence_payloads.v1';
 
 export const EVIDENCE_CHANGED_EVENT = 'kshemos:evidence-changed';
+export const EVIDENCE_UPLOAD_LINKS_KEY = 'kshemos.evidence_upload_links.v1';
+
+export const DEFAULT_SAMPLE_UPLOAD_LINKS = [
+  {
+    link_id: 'UPL-2026-0001',
+    token: 'kshem_tok_active_rpt0001',
+    upload_url: '/evidence/upload?token=kshem_tok_active_rpt0001',
+    report_id: 'RPT-0001',
+    incident_id: 'INC-001',
+    title: 'Digital Arrest Extortion Video Call Recording',
+    description: 'Please upload the screen recording or audio of the WhatsApp call from caller claiming to be CBI.',
+    allowed_file_types: ['video/mp4', 'audio/mpeg', 'audio/wav', 'image/png', 'application/pdf'],
+    max_file_size_bytes: 50 * 1024 * 1024,
+    created_at: 1770000000000,
+    expires_at: 1770000000000 + 3600000,
+    is_expired: false,
+    status: 'active',
+    requires_passcode: false,
+    passcode: null,
+    passcode_hint: null,
+    created_by_badge: 'INSP-KUMAR-771',
+    officer_name: 'Inspector R. Kumar',
+    recipient_email: 'citizen.victim@example.com',
+    recipient_phone: '+91-98710-00101',
+    revoked_at: null,
+    revoked_by_badge: null,
+    revocation_reason: null,
+    completed_at: null,
+    evidence_id: null,
+    receipt: null,
+  },
+  {
+    link_id: 'UPL-2026-0002',
+    token: 'kshem_tok_passcode_delhi01',
+    upload_url: '/evidence/upload?token=kshem_tok_passcode_delhi01',
+    report_id: 'CASE-2026-DELHI-01',
+    incident_id: 'INC-002',
+    title: 'Bank Debit Advice & Mule Transfer Proof',
+    description: 'Upload official stamped bank statement showing RTGS transfer to ACC-1002.',
+    allowed_file_types: ['application/pdf', 'image/png', 'image/jpeg'],
+    max_file_size_bytes: 25 * 1024 * 1024,
+    created_at: 1770000000000,
+    expires_at: 1770000000000 + 1800000,
+    is_expired: false,
+    status: 'active',
+    requires_passcode: true,
+    passcode: '7492',
+    passcode_hint: 'Passcode required (last 2 digits: ••92)',
+    created_by_badge: 'DSP-VERMA-1011',
+    officer_name: 'DSP Ananya Verma',
+    recipient_email: 'complainant.delhi@example.org',
+    recipient_phone: '+91-98110-22334',
+    revoked_at: null,
+    revoked_by_badge: null,
+    revocation_reason: null,
+    completed_at: null,
+    evidence_id: null,
+    receipt: null,
+  },
+  {
+    link_id: 'UPL-2026-0003',
+    token: 'kshem_tok_revoked_demo',
+    upload_url: '/evidence/upload?token=kshem_tok_revoked_demo',
+    report_id: 'RPT-0003',
+    incident_id: null,
+    title: 'Suspected Counterfeit Note Photo',
+    description: 'High resolution scan of banknote watermark.',
+    allowed_file_types: ['image/png', 'image/jpeg'],
+    max_file_size_bytes: 10 * 1024 * 1024,
+    created_at: 1770000000000 - 3600000,
+    expires_at: 1770000000000 + 7200000,
+    is_expired: false,
+    status: 'revoked',
+    requires_passcode: false,
+    passcode: null,
+    passcode_hint: null,
+    created_by_badge: 'INSP-RAWAT-09',
+    officer_name: 'Inspector Rawat',
+    recipient_email: null,
+    recipient_phone: null,
+    revoked_at: 1770000000000 - 1800000,
+    revoked_by_badge: 'DSP-VERMA-1011',
+    revocation_reason: 'Complainant attended station in person; physical note seized under Section 102 CrPC.',
+    completed_at: null,
+    evidence_id: null,
+    receipt: null,
+  },
+];
 
 export const GENESIS_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
 
@@ -359,6 +447,10 @@ export function createLocalEvidenceStore(storage = safeLocalStorage(), { notify 
       write(CUSTODIAL_LEDGER_KEY, ledgers);
       write(EVIDENCE_PAYLOADS_KEY, payloads);
     }
+
+    if (!read(EVIDENCE_UPLOAD_LINKS_KEY, null)) {
+      write(EVIDENCE_UPLOAD_LINKS_KEY, DEFAULT_SAMPLE_UPLOAD_LINKS);
+    }
   }
 
   initDefaults();
@@ -599,8 +691,273 @@ export function createLocalEvidenceStore(storage = safeLocalStorage(), { notify 
     };
   }
 
+    function getUploadLinks({ reportId = null, status = null } = {}) {
+    let links = read(EVIDENCE_UPLOAD_LINKS_KEY, DEFAULT_SAMPLE_UPLOAD_LINKS);
+    const now = Date.now();
+    links = links.map((l) => ({
+      ...l,
+      is_expired: now > l.expires_at,
+      status: l.status === 'active' && now > l.expires_at ? 'expired' : l.status,
+    }));
+    if (reportId) links = links.filter((l) => l.report_id === reportId || l.incident_id === reportId);
+    if (status) links = links.filter((l) => l.status === status);
+    return links.sort((a, b) => b.created_at - a.created_at);
+  }
+
+  function getUploadLink(linkId) {
+    const links = getUploadLinks();
+    return links.find((l) => l.link_id === linkId) || null;
+  }
+
+  function createUploadLink(data) {
+    const links = read(EVIDENCE_UPLOAD_LINKS_KEY, DEFAULT_SAMPLE_UPLOAD_LINKS);
+    const now = Date.now();
+    const expiryMinutes = Number(data.expiry_minutes || 60);
+    const expiresAt = now + expiryMinutes * 60 * 1000;
+    const token = 'tok_' + sha256Sync(Math.random() + ':' + now).slice(0, 24);
+    const linkId = `UPL-${new Date(now).toISOString().slice(0, 10).replace(/-/g, '')}-${links.length + 1001}`;
+
+    let passcode = data.passcode ? String(data.passcode).trim() : null;
+    const requiresPasscode = Boolean(data.requires_passcode || passcode);
+    if (requiresPasscode && !passcode) {
+      passcode = String(Math.floor(100000 + Math.random() * 900000));
+    }
+
+    const newLink = {
+      link_id: linkId,
+      token,
+      upload_url: `/evidence/upload?token=${token}`,
+      report_id: data.report_id,
+      incident_id: data.incident_id || null,
+      title: data.title,
+      description: data.description || 'Please securely upload requested digital evidence.',
+      allowed_file_types: data.allowed_file_types || [
+        'application/pdf',
+        'image/png',
+        'image/jpeg',
+        'audio/mpeg',
+        'audio/wav',
+        'video/mp4',
+      ],
+      max_file_size_bytes: Number(data.max_file_size_bytes || 25 * 1024 * 1024),
+      created_at: now,
+      expires_at: expiresAt,
+      is_expired: false,
+      status: 'active',
+      requires_passcode: requiresPasscode,
+      passcode,
+      passcode_hint: passcode ? `Passcode required (last 2 digits: ••${passcode.slice(-2)})` : null,
+      created_by_badge: data.created_by_badge || 'OFF-DESK-01',
+      officer_name: data.officer_name || 'Investigating Officer',
+      recipient_email: data.recipient_email || null,
+      recipient_phone: data.recipient_phone || null,
+      revoked_at: null,
+      revoked_by_badge: null,
+      revocation_reason: null,
+      completed_at: null,
+      evidence_id: null,
+      receipt: null,
+    };
+
+    links.unshift(newLink);
+    write(EVIDENCE_UPLOAD_LINKS_KEY, links);
+    notify();
+    return JSON.parse(JSON.stringify(newLink));
+  }
+
+  function validateUploadToken(token, passcode = null) {
+    const links = read(EVIDENCE_UPLOAD_LINKS_KEY, DEFAULT_SAMPLE_UPLOAD_LINKS);
+    const link = links.find((l) => l.token === token);
+    if (!link) {
+      return { valid: false, status: 'not_found', error: 'Upload link token is invalid or does not exist.' };
+    }
+    const now = Date.now();
+    if (link.status === 'revoked') {
+      return {
+        valid: false,
+        link_id: link.link_id,
+        status: 'revoked',
+        error: `Upload link was revoked by officer ${link.revoked_by_badge}. Reason: ${link.revocation_reason}`,
+      };
+    }
+    if (link.status === 'completed') {
+      return {
+        valid: false,
+        link_id: link.link_id,
+        status: 'completed',
+        error: 'This upload link has already been fulfilled and is single-use.',
+      };
+    }
+    if (now > link.expires_at) {
+      link.status = 'expired';
+      link.is_expired = true;
+      write(EVIDENCE_UPLOAD_LINKS_KEY, links);
+      return {
+        valid: false,
+        link_id: link.link_id,
+        status: 'expired',
+        error: 'This secure upload link has expired. Request a new link from the investigating desk.',
+      };
+    }
+    if (link.requires_passcode) {
+      if (!passcode) {
+        return {
+          valid: false,
+          link_id: link.link_id,
+          status: 'passcode_required',
+          requires_passcode: true,
+          passcode_hint: link.passcode_hint,
+          error: 'Verification passcode required to access this upload channel.',
+        };
+      }
+      if (String(passcode).trim() !== String(link.passcode).trim()) {
+        return {
+          valid: false,
+          link_id: link.link_id,
+          status: 'invalid_passcode',
+          requires_passcode: true,
+          error: 'Incorrect verification passcode.',
+        };
+      }
+    }
+    return {
+      valid: true,
+      link_id: link.link_id,
+      report_id: link.report_id,
+      incident_id: link.incident_id,
+      title: link.title,
+      description: link.description,
+      allowed_file_types: link.allowed_file_types,
+      max_file_size_bytes: link.max_file_size_bytes,
+      expires_at: link.expires_at,
+      requires_passcode: link.requires_passcode,
+      status: link.status,
+      error: null,
+    };
+  }
+
+  function uploadEvidenceViaLink(token, uploadData) {
+    const val = validateUploadToken(token, uploadData.passcode);
+    if (!val.valid) {
+      throw new Error(val.error);
+    }
+    const links = read(EVIDENCE_UPLOAD_LINKS_KEY, DEFAULT_SAMPLE_UPLOAD_LINKS);
+    const link = links.find((l) => l.token === token);
+
+    const fileName = (uploadData.file_name || 'uploaded_evidence.dat').trim();
+    const mimeType = (uploadData.mime_type || 'application/octet-stream').trim().toLowerCase();
+    const allowed = (link.allowed_file_types || []).map((t) => t.toLowerCase());
+
+    if (allowed.length && !allowed.includes(mimeType) && !allowed.some((a) => mimeType.includes(a))) {
+      throw new Error(`File type '${mimeType}' is not allowed. Permitted types: ${link.allowed_file_types.join(', ')}`);
+    }
+
+    const rawContent = uploadData.raw_payload_content || '';
+    const actualBytes = uploadData.file_size_bytes || rawContent.length;
+    if (actualBytes > link.max_file_size_bytes) {
+      const maxMb = (link.max_file_size_bytes / (1024 * 1024)).toFixed(1);
+      throw new Error(`File size (${actualBytes} bytes) exceeds limit of ${maxMb} MB.`);
+    }
+
+    const now = Date.now();
+    const clientIp = uploadData.client_ip || '127.0.0.1';
+    const uploaderName = uploadData.uploader_name || 'Citizen Complainant';
+    const uploaderNotes = uploadData.uploader_notes || '';
+
+    // Ingest into Vault
+    const evItem = ingestEvidenceItem({
+      case_id: link.report_id,
+      incident_id: link.incident_id,
+      title: `${link.title} (Citizen Upload via Link)`,
+      description: `Uploaded by ${uploaderName}. ${uploaderNotes}`.trim(),
+      file_name: fileName,
+      mime_type: mimeType,
+      raw_content: rawContent,
+      file_size_bytes: actualBytes,
+      source: 'citizen_upload_link',
+      category: 'digital_arrest',
+      officer_badge_id: `CITIZEN-${link.link_id}`,
+      officer_name: uploaderName,
+      metadata: {
+        link_id: link.link_id,
+        report_id: link.report_id,
+        uploader_client_ip: clientIp,
+        uploader_notes: uploaderNotes,
+      },
+    });
+
+    // Append custodial entry
+    logCustodialAction(evItem.id, {
+      action: 'CITIZEN_SECURE_LINK_UPLOAD',
+      officerBadgeId: `LINK-${link.link_id}`,
+      officerName: uploaderName,
+      clientIp,
+      details: `Citizen secure upload fulfilled via link ${link.link_id} for report ${link.report_id}. File: ${fileName} (${actualBytes} bytes, ${mimeType}). Private transmission verified (out-of-email).`,
+    });
+
+    const receiptId = `RCPT-${new Date(now).toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const verificationToken = `VTOK-${sha256Sync(Math.random() + ':' + token).slice(0, 16).toUpperCase()}`;
+
+    const receipt = {
+      receipt_id: receiptId,
+      link_id: link.link_id,
+      report_id: link.report_id,
+      evidence_id: evItem.id,
+      file_name: fileName,
+      mime_type: mimeType,
+      file_size_bytes: actualBytes,
+      sha256_fingerprint: evItem.sha256_hash,
+      rfc3161_serial: evItem.rfc3161_token.serial_number,
+      uploaded_at: now,
+      client_ip: clientIp,
+      vault_status: 'ingested_and_sealed',
+      verification_token: verificationToken,
+    };
+
+    link.status = 'completed';
+    link.completed_at = now;
+    link.evidence_id = evItem.id;
+    link.receipt = receipt;
+
+    write(EVIDENCE_UPLOAD_LINKS_KEY, links);
+    notify();
+
+    return {
+      success: true,
+      receipt,
+      evidence_id: evItem.id,
+      message: 'Evidence successfully ingested into KshemOS Vault with cryptographic timestamping.',
+    };
+  }
+
+  function revokeUploadLink(linkId, { revokedByBadge, officerName = 'Officer', revocationReason = 'Administrative revocation' } = {}) {
+    const links = read(EVIDENCE_UPLOAD_LINKS_KEY, DEFAULT_SAMPLE_UPLOAD_LINKS);
+    const link = links.find((l) => l.link_id === linkId);
+    if (!link) {
+      throw new Error(`Upload link '${linkId}' not found.`);
+    }
+    if (link.status === 'completed') {
+      throw new Error(`Cannot revoke upload link '${linkId}' because it has already been fulfilled.`);
+    }
+    link.status = 'revoked';
+    link.revoked_at = Date.now();
+    link.revoked_by_badge = revokedByBadge;
+    link.officer_name = officerName;
+    link.revocation_reason = revocationReason;
+
+    write(EVIDENCE_UPLOAD_LINKS_KEY, links);
+    notify();
+    return JSON.parse(JSON.stringify(link));
+  }
+
   return {
     getEvidenceItems,
+    getUploadLinks,
+    getUploadLink,
+    createUploadLink,
+    validateUploadToken,
+    uploadEvidenceViaLink,
+    revokeUploadLink,
     getEvidenceItem,
     ingestEvidenceItem,
     getCustodialLedger,
@@ -614,6 +971,14 @@ export function createLocalEvidenceStore(storage = safeLocalStorage(), { notify 
       const payloads = read(EVIDENCE_PAYLOADS_KEY, {});
       payloads[id] = content;
       write(EVIDENCE_PAYLOADS_KEY, payloads);
+    },
+    _setLinkExpiry: (linkId, expiresAt) => {
+      const links = read(EVIDENCE_UPLOAD_LINKS_KEY, DEFAULT_SAMPLE_UPLOAD_LINKS);
+      const l = links.find((item) => item.link_id === linkId);
+      if (l) {
+        l.expires_at = expiresAt;
+        write(EVIDENCE_UPLOAD_LINKS_KEY, links);
+      }
     },
   };
 }
@@ -797,3 +1162,105 @@ export async function fetchRetentionPoliciesApi() {
   return defaultEvidenceStore.getRetentionPolicies();
 }
 
+
+
+// ======================================================
+// SECURE EVIDENCE UPLOAD LINK API METHODS
+// ======================================================
+
+export async function fetchUploadLinksApi({ reportId = null, status = null } = {}) {
+  if (Date.now() >= backendDownUntil) {
+    try {
+      const params = new URLSearchParams();
+      if (reportId) params.set('report_id', reportId);
+      if (status) params.set('status', status);
+      const query = params.toString() ? `?${params.toString()}` : '';
+      const links = await requestBackend(`/api/evidence/upload-links${query}`);
+      backendDownUntil = 0;
+      return links;
+    } catch {
+      backendDownUntil = Date.now() + BACKEND_RETRY_MS;
+    }
+  }
+  return defaultEvidenceStore.getUploadLinks({ reportId, status });
+}
+
+export async function createUploadLinkApi(data) {
+  if (Date.now() >= backendDownUntil) {
+    try {
+      const link = await requestBackend('/api/evidence/upload-links', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      backendDownUntil = 0;
+      return link;
+    } catch {
+      backendDownUntil = Date.now() + BACKEND_RETRY_MS;
+    }
+  }
+  return defaultEvidenceStore.createUploadLink(data);
+}
+
+export async function getUploadLinkApi(linkId) {
+  if (Date.now() >= backendDownUntil) {
+    try {
+      const link = await requestBackend(`/api/evidence/upload-links/${linkId}`);
+      backendDownUntil = 0;
+      return link;
+    } catch {
+      backendDownUntil = Date.now() + BACKEND_RETRY_MS;
+    }
+  }
+  return defaultEvidenceStore.getUploadLink(linkId);
+}
+
+export async function revokeUploadLinkApi(linkId, { revokedByBadge, officerName, revocationReason }) {
+  if (Date.now() >= backendDownUntil) {
+    try {
+      const link = await requestBackend(`/api/evidence/upload-links/${linkId}/revoke`, {
+        method: 'POST',
+        body: JSON.stringify({
+          revoked_by_badge: revokedByBadge,
+          officer_name: officerName,
+          revocation_reason: revocationReason,
+        }),
+      });
+      backendDownUntil = 0;
+      return link;
+    } catch {
+      backendDownUntil = Date.now() + BACKEND_RETRY_MS;
+    }
+  }
+  return defaultEvidenceStore.revokeUploadLink(linkId, { revokedByBadge, officerName, revocationReason });
+}
+
+export async function validateUploadTokenApi(token, passcode = null) {
+  if (Date.now() >= backendDownUntil) {
+    try {
+      const params = new URLSearchParams({ token });
+      if (passcode) params.set('passcode', passcode);
+      const res = await requestBackend(`/api/evidence/upload/validate?${params.toString()}`);
+      backendDownUntil = 0;
+      return res;
+    } catch {
+      backendDownUntil = Date.now() + BACKEND_RETRY_MS;
+    }
+  }
+  return defaultEvidenceStore.validateUploadToken(token, passcode);
+}
+
+export async function fulfillEvidenceUploadApi(payload) {
+  if (Date.now() >= backendDownUntil) {
+    try {
+      const res = await requestBackend('/api/evidence/upload/fulfill', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      backendDownUntil = 0;
+      return res;
+    } catch {
+      backendDownUntil = Date.now() + BACKEND_RETRY_MS;
+    }
+  }
+  return defaultEvidenceStore.uploadEvidenceViaLink(payload.token, payload);
+}
