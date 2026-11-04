@@ -595,3 +595,17 @@ export async function dispatchIncidentNotificationApi(
     count: notifications.length,
   };
 }
+// ======================================================
+// EVIDENCE-GROUNDED OFFICER COPILOT APIs
+// ======================================================
+
+export {
+  OfficerCopilotStore,
+  defaultOfficerCopilotStore,
+  COPILOT_STORAGE_KEY,
+  COPILOT_CHANGED_EVENT,
+  APPROVED_OPERATING_PROCEDURES,
+  fetchGroundedCopilotAnalysisApi,
+  submitCopilotFeedbackApi,
+  submitCopilotApprovalApi,
+} from './officerCopilotStore.js';
