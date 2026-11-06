@@ -1,5 +1,6 @@
 
 import EmergencyPortalBanner from './EmergencyPortalBanner';
+import Footer from './Footer';
 
 function ShieldMark({ size = 28 }) {
   return (
@@ -218,10 +219,8 @@ export default function Shell({
         {children}
       </main>
 
-      {/* Footer */}
-      <footer className="w-full text-center text-xs text-[var(--ink-text)]/40 py-6 font-mono">
-        KshemOS — stopping fraud before the money moves
-      </footer>
+      {/* Global Footer */}
+      <Footer setActiveView={setActiveView} />
     </div>
   );
 }
