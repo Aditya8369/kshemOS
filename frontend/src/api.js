@@ -728,3 +728,23 @@ export {
   submitCopilotFeedbackApi,
   submitCopilotApprovalApi,
 } from './officerCopilotStore.js';
+
+// ======================================================
+// VERIFIED OFFICIAL EMERGENCY & CYBERCRIME CONTACTS API
+// ======================================================
+
+export async function fetchOfficialContactsApi(category = '') {
+  const params = new URLSearchParams();
+
+  if (category) {
+    params.set('category', category);
+  }
+
+  const query = params.toString();
+
+  const response = await fetch(
+    `${BASE_URL.replace(/\/+$/, '')}/api/official-contacts${query ? `?${query}` : ''}`
+  );
+
+  return handle(response);
+}
