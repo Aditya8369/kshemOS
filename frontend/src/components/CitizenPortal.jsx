@@ -79,6 +79,20 @@ function ScamCheck() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('kshemos_demo_prefill');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.transcript) setTranscript(parsed.transcript);
+        if (parsed.claim) setClaim(parsed.claim);
+        sessionStorage.removeItem('kshemos_demo_prefill');
+      }
+    } catch {
+      // Ignore storage access errors
+    }
+  }, []);
+
   async function run() {
     setLoading(true);
     setError(null);
@@ -732,11 +746,11 @@ export default function CitizenPortal({ setActiveView }) {
           Citizen Portal
         </p>
 
-        <h1 className="font-display text-3xl font-semibold leading-tight">
+        <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-[var(--ink)] leading-tight">
           Verify before you trust it.
         </h1>
 
-        <p className="text-[var(--ink-text)]/70 mt-1">
+        <p className="text-sm sm:text-base text-[var(--ink-text)]/75 mt-1 max-w-2xl leading-relaxed">
           Check a call, a note, or a payment request — before you act on it,
           not after.
         </p>

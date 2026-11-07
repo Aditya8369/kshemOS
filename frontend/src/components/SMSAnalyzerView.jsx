@@ -8,11 +8,11 @@ export default function SMSAnalyzerView() {
   const [result, setResult] = useState(null);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6">
-        <div className="text-xs font-mono uppercase tracking-[0.3em] text-[var(--saffron)]">SMS Analyzer</div>
-        <h2 className="font-display text-3xl font-semibold text-[var(--ink)]">Message scam detection</h2>
-        <p className="mt-2 max-w-2xl text-sm text-[var(--ink-text)]/70">Review SMS content for links, urgency, payment requests, and legal threats.</p>
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-10 space-y-6 sm:space-y-8 w-full">
+      <div className="space-y-2">
+        <div className="text-xs font-mono uppercase tracking-[0.25em] font-semibold text-[var(--saffron)]">SMS Analyzer</div>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--ink)]">Message scam detection</h1>
+        <p className="max-w-2xl text-xs sm:text-sm text-[var(--ink-text)]/70 leading-relaxed">Review SMS content for links, urgency, payment requests, and legal threats.</p>
       </div>
       <CyberFeatureCard eyebrow="Message check" title="Analyze a suspicious SMS" description="This screens for classic scam wording and pressure tactics.">
         <input value={sender} onChange={(e) => setSender(e.target.value)} className="w-full rounded-2xl border border-[var(--paper-line)] p-3 text-sm" placeholder="Sender" />

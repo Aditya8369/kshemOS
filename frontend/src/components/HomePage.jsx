@@ -1,6 +1,6 @@
 export default function HomePage({ setActiveView }) {
   return (
-    <div className="relative min-h-[calc(100vh-140px)] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(255,198,77,0.25),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(24,41,75,0.15),_transparent_24%),linear-gradient(135deg,_#ffffff_0%,_#f7f7f3_100%)] px-4 py-8 sm:py-10">
+    <div className="relative min-h-[calc(100vh-140px)] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(255,198,77,0.25),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(24,41,75,0.15),_transparent_24%),linear-gradient(135deg,_#ffffff_0%,_#f7f7f3_100%)] px-4 sm:px-6 lg:px-8 py-8 sm:py-12 w-full">
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute left-[-8%] top-[-10%] h-40 w-40 rounded-full bg-[var(--saffron)]/20 blur-3xl animate-float-soft" />
         <div className="absolute bottom-[-8%] right-[5%] h-56 w-56 rounded-full bg-[var(--navy)]/10 blur-3xl animate-drift-slow" />
@@ -8,7 +8,7 @@ export default function HomePage({ setActiveView }) {
         <div className="absolute right-[15%] top-[25%] h-3 w-3 rounded-full bg-[var(--navy)]/70 animate-glow-pulse delay-150" />
       </div>
 
-      <div className="relative mx-auto grid max-w-6xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+      <div className="relative mx-auto grid max-w-7xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <div className="space-y-6 animate-fade-up">
           <div className="inline-flex items-center rounded-full border border-[var(--saffron)]/30 bg-[var(--saffron)]/10 px-3 py-1 text-xs font-mono uppercase tracking-[0.25em] text-[var(--saffron)]">
             Trusted digital safety for every citizen

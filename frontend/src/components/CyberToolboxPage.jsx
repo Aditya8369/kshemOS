@@ -109,11 +109,11 @@ export default function CyberToolboxPage({ setActiveView }) {
   }, [search]);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 sm:py-10">
-      <div className="mb-8">
-        <div className="text-xs font-mono uppercase tracking-[0.3em] text-[var(--saffron)]">Cyber Toolbox</div>
-        <h2 className="font-display text-3xl font-semibold text-[var(--ink)]">All protection tools in one place</h2>
-        <p className="mt-2 max-w-2xl text-sm text-[var(--ink-text)]/70">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8 w-full">
+      <div className="space-y-2">
+        <div className="text-xs font-mono uppercase tracking-[0.25em] font-semibold text-[var(--saffron)]">Cyber Toolbox</div>
+        <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-[var(--ink)] leading-tight">All protection tools in one place</h1>
+        <p className="mt-2 max-w-2xl text-sm sm:text-base text-[var(--ink-text)]/75 leading-relaxed">
           Pick the scenario that matches what you need to check and open the relevant safety tool.
         </p>
 
