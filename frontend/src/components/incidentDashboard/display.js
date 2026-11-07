@@ -4,9 +4,26 @@ import { CircleCheck, Gauge, TriangleAlert } from 'lucide-react';
 export const SEVERITY_COLOR = { low: '#bf5546', medium: '#da6d5d', high: '#f68675', critical: '#ffa390' };
 
 export const COVERAGE_STYLE = {
-  overloaded: { label: 'Over capacity', color: 'var(--alert)', Icon: TriangleAlert },
-  stretched: { label: 'Stretched', color: 'var(--caution)', Icon: Gauge },
-  covered: { label: 'Covered', color: 'var(--safe)', Icon: CircleCheck },
+  overloaded: {
+    label: 'Over capacity',
+    description: 'Workload exceeds 100% of available officer capacity.',
+    color: 'var(--alert)',
+    Icon: TriangleAlert,
+  },
+
+  stretched: {
+    label: 'Stretched',
+    description: 'Workload is between 80% and 100% of available officer capacity.',
+    color: 'var(--caution)',
+    Icon: Gauge,
+  },
+
+  covered: {
+    label: 'Covered',
+    description: 'Workload is below 80% of available officer capacity.',
+    color: 'var(--safe)',
+    Icon: CircleCheck,
+  },
 };
 
 export const STATUS_LABEL = {
