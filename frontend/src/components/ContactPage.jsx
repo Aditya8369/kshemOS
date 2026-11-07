@@ -110,7 +110,7 @@ export default function ContactPage({ setActiveView }) {
     contact.contact_type === 'phone';
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 sm:py-10 space-y-6 sm:space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8 sm:space-y-10 w-full">
 
       {/* Header */}
       <header className="rounded-[2rem] border border-[var(--paper-line)] bg-white p-6 sm:p-8 shadow-xs">
@@ -497,7 +497,7 @@ export default function ContactPage({ setActiveView }) {
           <button
             type="button"
             onClick={() => handleCategoryChange('')}
-            className="mt-4 rounded-full bg-[var(--ink)] px-5 py-2.5 text-sm font-semibold text-white"
+            className="mt-4 rounded-full bg-[var(--ink)] px-5 py-2.5 text-sm font-semibold text-white min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
           >
             View all contacts
           </button>

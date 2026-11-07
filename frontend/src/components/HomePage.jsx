@@ -26,21 +26,23 @@ export default function HomePage({ setActiveView }) {
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => setActiveView('portal')}
-              className="rounded-full bg-[var(--ink)] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[var(--ink)]/15 transition duration-200 hover:-translate-y-0.5 animate-float-soft"
+              className="rounded-full bg-[var(--ink)] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[var(--ink)]/15 transition duration-200 hover:-translate-y-0.5 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
             >
               Try the verification demo
             </button>
             <button
               onClick={() => setActiveView('awareness')}
-              className="rounded-full border border-[var(--paper-line)] bg-white/90 px-5 py-3 text-sm font-semibold text-[var(--ink)] shadow-sm transition duration-200 hover:-translate-y-0.5"
+              className="rounded-full border border-[var(--paper-line)] bg-white/90 px-5 py-3 text-sm font-semibold text-[var(--ink)] shadow-sm transition duration-200 hover:-translate-y-0.5 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
             >
               Learn the warning signs
-            </button>            <button
+            </button>
+            <button
               onClick={() => setActiveView('rule-library')}
-              className="rounded-full border border-[var(--paper-line)] bg-white/90 px-5 py-3 text-sm font-semibold text-[var(--ink-text)] shadow-sm transition duration-200 hover:-translate-y-0.5"
+              className="rounded-full border border-[var(--paper-line)] bg-white/90 px-5 py-3 text-sm font-semibold text-[var(--ink-text)] shadow-sm transition duration-200 hover:-translate-y-0.5 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
             >
               Explore rule library
-            </button>          </div>
+            </button>
+          </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
             {[
@@ -61,15 +63,30 @@ export default function HomePage({ setActiveView }) {
           <div className="relative rounded-[2rem] border border-[var(--paper-line)] bg-[var(--navy)] p-6 text-white shadow-2xl shadow-[var(--navy)]/25 animate-fade-up">
             <div className="absolute right-4 top-4 h-12 w-12 rounded-full border border-white/10 bg-white/10" />
             <div className="rounded-2xl border border-white/10 bg-white/10 p-5 backdrop-blur">
-              <p className="font-mono text-[10px] uppercase tracking-[0.35em] text-[var(--saffron)]">Live protection checklist</p>
+              <h2 className="font-mono text-xs uppercase tracking-[0.25em] text-[var(--saffron)] font-semibold">Live protection checklist</h2>
               <ul className="mt-4 space-y-3 text-sm text-[var(--mist)]">
-                <li className="flex items-start gap-2"><span className="mt-1 text-[var(--saffron)]">●</span>Pause before sharing OTPs, Aadhaar, or payment details.</li>
-                <li className="flex items-start gap-2"><span className="mt-1 text-[var(--saffron)]">●</span>Verify calls through an official number or trusted channel.</li>
-                <li className="flex items-start gap-2"><span className="mt-1 text-[var(--saffron)]">●</span>Report suspicious activity early to reduce harm.</li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--saffron)] text-[var(--ink)]" aria-hidden="true">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                  <span>Pause before sharing OTPs, Aadhaar, or payment details.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--saffron)] text-[var(--ink)]" aria-hidden="true">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                  <span>Verify calls through an official number or trusted channel.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--saffron)] text-[var(--ink)]" aria-hidden="true">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                  <span>Report suspicious activity early to reduce harm.</span>
+                </li>
               </ul>
-              <div className="mt-5 rounded-2xl border border-white/10 bg-gradient-to-br from-white/20 to-white/5 p-4">
-                <div className="text-xl font-semibold">“A calm check can save a life, a livelihood, and a family’s peace.”</div>
-              </div>
+              <blockquote className="mt-5 rounded-2xl border border-white/10 bg-gradient-to-br from-white/20 to-white/5 p-4">
+                <p className="text-xl font-semibold">“A calm check can save a life, a livelihood, and a family’s peace.”</p>
+              </blockquote>
             </div>
           </div>
         </div>

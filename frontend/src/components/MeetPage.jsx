@@ -203,9 +203,9 @@ export default function MeetPage() {
             key={label}
             className="rounded-3xl border border-[var(--paper-line)] bg-white p-8 text-center shadow-sm"
           >
-            <h2 className="font-display text-4xl font-bold text-[var(--safe)]">
+            <div className="font-display text-4xl font-bold text-[var(--safe)]" aria-hidden="true">
               {number}
-            </h2>
+            </div>
 
             <p className="mt-2 text-sm text-[var(--ink-text)]/60">
               {label}
@@ -216,7 +216,9 @@ export default function MeetPage() {
 
       {/* Team */}
 
-      <div className="mt-20 grid gap-8 md:grid-cols-2">
+      <section aria-label="Core Team" className="mt-20">
+        <h2 className="sr-only">Core Research and Engineering Team</h2>
+        <div className="grid gap-8 md:grid-cols-2">
 
         {TEAM.map((member) => (
           <div
@@ -233,9 +235,9 @@ export default function MeetPage() {
               {member.initials}
             </div>
 
-            <h2 className="font-display text-2xl font-bold text-[var(--ink)]">
+            <h3 className="font-display text-2xl font-bold text-[var(--ink)]">
               {member.name}
-            </h2>
+            </h3>
 
             <p
               className="mt-2 text-xs font-mono uppercase tracking-[0.25em]"
@@ -271,7 +273,8 @@ export default function MeetPage() {
             </div>
           </div>
         ))}
-      </div>
+        </div>
+      </section>
 
       {/* First-Time Contributor Pathways (Issue #60) */}
       <section

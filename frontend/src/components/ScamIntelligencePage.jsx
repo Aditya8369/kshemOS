@@ -42,19 +42,19 @@ export default function ScamIntelligencePage({ setActiveView }) {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10 space-y-8">
-      <div className="rounded-[2rem] border border-[var(--paper-line)] bg-white p-8 shadow-sm">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8 sm:space-y-10 w-full">
+      <div className="rounded-[2rem] border border-[var(--paper-line)] bg-white p-6 sm:p-8 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="font-mono text-xs uppercase tracking-[0.3em] text-[var(--saffron)]">Scam intelligence</p>
-            <h1 className="font-display text-3xl font-semibold mt-3">Analyze the intent behind suspicious calls and messages.</h1>
-            <p className="mt-3 text-[var(--ink-text)]/70 max-w-3xl">
+            <p className="font-mono text-xs uppercase tracking-[0.25em] text-[var(--saffron)] font-semibold">Scam intelligence</p>
+            <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight mt-2 text-[var(--ink)]">Analyze the intent behind suspicious calls and messages.</h1>
+            <p className="mt-2 text-[var(--ink-text)]/70 max-w-3xl text-sm sm:text-base leading-relaxed">
               This page uses transparent rule-based logic to classify scam scripts, detect the likely motive, and explain why the interaction is risky.
             </p>
           </div>
           <button
             onClick={() => setActiveView('rule-library')}
-            className="rounded-full bg-[var(--ink)] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[var(--ink)]/15 transition duration-200 hover:-translate-y-0.5"
+            className="rounded-full bg-[var(--ink)] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[var(--ink)]/15 transition duration-200 hover:-translate-y-0.5 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)] shrink-0"
           >
             Open the rule library
           </button>
@@ -64,30 +64,33 @@ export default function ScamIntelligencePage({ setActiveView }) {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {featureCards.map((card) => (
           <div key={card.title} className="rounded-3xl border border-[var(--paper-line)] bg-[var(--paper)] p-6 shadow-sm">
-            <h2 className="font-display text-lg font-semibold mb-3">{card.title}</h2>
-            <p className="text-sm text-[var(--ink-text)]/80">{card.description}</p>
+            <h2 className="font-display text-lg font-semibold mb-3 text-[var(--ink)]">{card.title}</h2>
+            <p className="text-sm text-[var(--ink-text)]/80 leading-relaxed">{card.description}</p>
           </div>
         ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <div className="rounded-[2rem] border border-[var(--paper-line)] bg-white p-6 shadow-sm">
-          <div className="text-xs font-mono uppercase tracking-[0.25em] text-[var(--saffron)] mb-3">Try it live</div>
+          <h2 className="text-xs font-mono uppercase tracking-[0.25em] text-[var(--saffron)] mb-3 font-semibold">Try it live</h2>
           <textarea
+            aria-label="Suspicious call or message transcript"
             value={transcript}
             onChange={(e) => setTranscript(e.target.value)}
             className="w-full min-h-[180px] rounded-3xl border border-[var(--paper-line)] p-4 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--saffron)]"
           />
           <input
+            aria-label="Caller claimed identity or organization"
             value={claim}
             onChange={(e) => setClaim(e.target.value)}
-            className="mt-4 w-full rounded-3xl border border-[var(--paper-line)] p-3 text-sm"
+            className="mt-4 w-full rounded-3xl border border-[var(--paper-line)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
             placeholder="Caller claims to be (e.g. CBI officer)"
           />
           <button
             onClick={runAnalysis}
             disabled={loading || !transcript.trim()}
-            className="mt-4 rounded-full bg-[var(--ink)] px-5 py-3 text-sm font-semibold text-white disabled:opacity-40"
+            aria-label={loading ? 'Analyzing scam intelligence...' : 'Run scam intelligence'}
+            className="mt-4 rounded-full bg-[var(--ink)] px-5 py-3 text-sm font-semibold text-white disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
           >
             {loading ? 'Analyzing…' : 'Run scam intelligence'}
           </button>
@@ -95,7 +98,7 @@ export default function ScamIntelligencePage({ setActiveView }) {
         </div>
 
         <div className="rounded-[2rem] border border-[var(--paper-line)] bg-[var(--paper)] p-6 shadow-sm">
-          <div className="text-xs font-mono uppercase tracking-[0.25em] text-[var(--ink-text)]/70 mb-3">Results</div>
+          <h2 className="text-xs font-mono uppercase tracking-[0.25em] text-[var(--ink-text)]/70 mb-3 font-semibold">Intelligence Results</h2>
           {result ? (
             <div className="space-y-4">
               <div className="rounded-3xl bg-white p-4">
