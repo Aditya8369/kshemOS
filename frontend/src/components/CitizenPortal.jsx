@@ -79,6 +79,20 @@ function ScamCheck() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('kshemos_demo_prefill');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.transcript) setTranscript(parsed.transcript);
+        if (parsed.claim) setClaim(parsed.claim);
+        sessionStorage.removeItem('kshemos_demo_prefill');
+      }
+    } catch {
+      // Ignore storage access errors
+    }
+  }, []);
+
   async function run() {
     setLoading(true);
     setError(null);
