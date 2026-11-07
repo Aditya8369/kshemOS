@@ -127,13 +127,14 @@ function ScamCheck() {
           <button
             key={sample.id}
             type="button"
+            aria-pressed={transcript === sample.transcript}
             onClick={() => {
               setTranscript(sample.transcript);
               setClaim(sample.claim);
               setResult(null);
               setError(null);
             }}
-            className="rounded-full border border-[var(--paper-line)] px-3 py-1 text-xs font-semibold text-[var(--ink)] hover:border-[var(--saffron)]"
+            className="rounded-full border border-[var(--paper-line)] px-3 py-1.5 text-xs font-semibold text-[var(--ink)] hover:border-[var(--saffron)] min-h-[36px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
           >
             {sample.label}
           </button>
@@ -141,6 +142,8 @@ function ScamCheck() {
       </div>
 
       <textarea
+        id="citizen-call-transcript"
+        aria-label="Paste the suspicious call transcript"
         className="w-full h-28 rounded-lg border border-[var(--paper-line)] p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--saffron)]"
         value={transcript}
         onChange={(e) => setTranscript(e.target.value)}
@@ -148,7 +151,9 @@ function ScamCheck() {
       />
 
       <input
-        className="w-full mt-2 rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+        id="citizen-caller-claim"
+        aria-label="Caller claimed identity"
+        className="w-full mt-2 rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)]"
         placeholder="Caller claims to be (e.g. CBI officer)"
         value={claim}
         onChange={(e) => setClaim(e.target.value)}
@@ -158,7 +163,8 @@ function ScamCheck() {
         type="button"
         onClick={run}
         disabled={loading || !transcript.trim()}
-        className="mt-3 bg-[var(--ink)] text-white rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-40"
+        aria-label={loading ? 'Analyzing call transcript...' : 'Check this call'}
+        className="mt-3 bg-[var(--ink)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
       >
         {loading ? 'Analyzing…' : 'Check this call'}
       </button>
@@ -311,6 +317,7 @@ function CurrencyScanner() {
           <input
             type="file"
             accept="image/*"
+            aria-label="Upload currency note image to scan"
             className="hidden"
             onChange={onFile}
           />
@@ -321,7 +328,8 @@ function CurrencyScanner() {
             type="button"
             onClick={run}
             disabled={!file || loading}
-            className="bg-[var(--ink)] text-white rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-40"
+            aria-label={loading ? 'Scanning currency note...' : 'Scan note'}
+            className="bg-[var(--ink)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
           >
             {loading ? 'Scanning…' : 'Scan note'}
           </button>
@@ -394,7 +402,8 @@ function Assistant() {
         <select
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+          aria-label="Select assistant language"
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
         >
           {LANGUAGES.map((l) => (
             <option key={l} value={l}>
@@ -404,8 +413,9 @@ function Assistant() {
         </select>
 
         <input
-          className="flex-1 rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+          className="flex-1 rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
           placeholder="e.g. Is a video call from 'income tax department' normal?"
+          aria-label="Question for citizen assistant"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
         />
@@ -414,9 +424,10 @@ function Assistant() {
           type="button"
           onClick={run}
           disabled={loading || !question.trim()}
-          className="bg-[var(--ink)] text-white rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-40"
+          aria-label={loading ? 'Submitting question to assistant...' : 'Ask citizen assistant'}
+          className="bg-[var(--ink)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
         >
-          {loading ? '…' : 'Ask'}
+          {loading ? 'Asking…' : 'Ask'}
         </button>
       </div>
 
@@ -526,15 +537,17 @@ function ReportForm({ addReport }) {
     >
       <div className="grid sm:grid-cols-2 gap-3 mb-2">
         <input
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
           placeholder="Your name"
+          aria-label="Your full name"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
 
         <input
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
           placeholder="Your email for confirmation"
+          aria-label="Your email address for confirmation"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -545,7 +558,8 @@ function ReportForm({ addReport }) {
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+          aria-label="Incident category"
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
         >
           <option value="scam_call">Digital arrest / scam call</option>
           <option value="counterfeit">Counterfeit currency</option>
@@ -556,7 +570,7 @@ function ReportForm({ addReport }) {
         <select
           value={region}
           onChange={(e) => setRegion(e.target.value)}
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
           aria-label="Your region"
         >
           <option value="">Select your region</option>
@@ -570,8 +584,9 @@ function ReportForm({ addReport }) {
       </div>
 
       <textarea
-        className="w-full h-20 rounded-lg border border-[var(--paper-line)] p-3 text-sm"
+        className="w-full h-20 rounded-lg border border-[var(--paper-line)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)]"
         placeholder="What happened?"
+        aria-label="Describe what happened"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
       />
@@ -580,7 +595,8 @@ function ReportForm({ addReport }) {
         type="button"
         onClick={submit}
         disabled={loading}
-        className="mt-2 bg-[var(--saffron)] text-white rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-40"
+        aria-label={loading ? 'Submitting citizen report...' : 'Submit citizen report'}
+        className="mt-2 bg-[var(--saffron)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
       >
         {loading ? 'Submitting…' : 'Submit report'}
       </button>
@@ -725,8 +741,8 @@ export default function CitizenPortal({ setActiveView }) {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-6 sm:space-y-8 w-full">
-      <div className="space-y-1">
-        <p className="font-mono text-xs uppercase tracking-[0.25em] font-semibold text-[var(--saffron)] mb-2">
+      <div>
+        <p className="font-mono text-xs uppercase tracking-widest text-[var(--saffron)] mb-2">
           Citizen Portal
         </p>
 

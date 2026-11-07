@@ -497,7 +497,7 @@ export default function ContactPage({ setActiveView }) {
           <button
             type="button"
             onClick={() => handleCategoryChange('')}
-            className="mt-4 rounded-full bg-[var(--ink)] px-5 py-2.5 text-sm font-semibold text-white"
+            className="mt-4 rounded-full bg-[var(--ink)] px-5 py-2.5 text-sm font-semibold text-white min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
           >
             View all contacts
           </button>

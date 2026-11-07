@@ -160,6 +160,14 @@ export default function Shell({
 
   return (
     <div className="min-h-screen flex flex-col w-full overflow-x-hidden">
+      {/* Skip to Main Content Link for Keyboard & Screen Reader Users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--ink)] focus:text-white focus:rounded-full focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] font-semibold text-xs"
+      >
+        Skip to main content
+      </a>
+
       {/* Emergency Banner */}
       <EmergencyPortalBanner
         onOpenAdvisory={() => navigateTo('advisory')}
@@ -287,7 +295,7 @@ export default function Shell({
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 w-full overflow-x-hidden">
+      <main id="main-content" tabIndex="-1" className="flex-1 focus:outline-none w-full overflow-x-hidden">
         {children}
       </main>
 

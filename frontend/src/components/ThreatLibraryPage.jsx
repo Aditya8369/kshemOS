@@ -41,19 +41,19 @@ export default function ThreatLibraryPage({ setActiveView }) {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8 sm:space-y-10 w-full">
-      <div className="rounded-3xl border border-[var(--paper-line)] bg-white p-6 sm:p-10 shadow-xs relative overflow-hidden space-y-2">
-        <p className="font-mono text-xs uppercase tracking-[0.25em] font-semibold text-[var(--saffron)]">Rule library</p>
-        <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-[var(--ink)] leading-tight">Explore the rule-based scam patterns behind the demo.</h1>
-        <p className="text-sm sm:text-base text-[var(--ink-text)]/75 max-w-2xl leading-relaxed">
+      <div className="rounded-[2rem] border border-[var(--paper-line)] bg-white p-6 sm:p-8 shadow-sm">
+        <p className="font-mono text-xs uppercase tracking-[0.25em] text-[var(--saffron)] font-semibold">Rule library</p>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight mt-2 text-[var(--ink)]">Explore the rule-based scam patterns behind the demo.</h1>
+        <p className="mt-2 text-[var(--ink-text)]/70 max-w-2xl text-sm sm:text-base leading-relaxed">
           KshemOS generates and evaluates hundreds of suspicious patterns using authority, urgency, secrecy, and payment signals. The rule library shows how these cases are built and detected.
         </p>
       </div>
 
       {library ? (
-        <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="space-y-4">
-            <div className="rounded-3xl border border-[var(--paper-line)] bg-[var(--paper)] p-6">
-              <div className="text-[var(--mist)] uppercase tracking-[0.24em] text-xs font-mono mb-3">Summary</div>
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-[var(--paper-line)] bg-[var(--paper)] p-6 shadow-sm">
+              <h2 className="text-[var(--mist)] uppercase tracking-[0.25em] text-xs font-mono font-semibold mb-3">Summary</h2>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="rounded-2xl bg-white p-4 shadow-sm">
                   <div className="text-4xl font-display font-semibold text-[var(--ink)]">{library.total_examples}</div>
@@ -70,23 +70,23 @@ export default function ThreatLibraryPage({ setActiveView }) {
               </div>
             </div>
 
-            <div className="rounded-3xl border border-[var(--paper-line)] bg-[var(--navy)] p-6 text-white">
+            <div className="rounded-3xl border border-[var(--paper-line)] bg-[var(--navy)] p-6 text-white shadow-sm">
               <h2 className="font-display text-2xl font-semibold">Why this matters</h2>
-              <p className="mt-3 text-[var(--mist)]">
+              <p className="mt-3 text-[var(--mist)] leading-relaxed text-sm sm:text-base">
                 Seeing the patterns helps people understand that scams are not random. They follow rules, and the same signals repeat in different forms.
               </p>
               <button
                 onClick={() => setActiveView('portal')}
-                className="mt-5 rounded-full bg-[var(--saffron)] px-5 py-2 text-sm font-semibold"
+                className="mt-5 rounded-full bg-[var(--saffron)] px-5 py-2.5 text-sm font-semibold text-white min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-white"
               >
                 Try the scam detector
               </button>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="rounded-3xl border border-[var(--paper-line)] bg-white p-6">
-              <div className="text-[var(--mist)] uppercase tracking-[0.24em] text-xs font-mono mb-3">Sample cases</div>
+          <div className="space-y-6">
+            <div className="rounded-3xl border border-[var(--paper-line)] bg-white p-6 shadow-sm">
+              <h2 className="text-[var(--mist)] uppercase tracking-[0.25em] text-xs font-mono font-semibold mb-3">Sample cases</h2>
               <div className="mb-4">
                 <label
                   htmlFor="threat-search"
@@ -137,7 +137,7 @@ export default function ThreatLibraryPage({ setActiveView }) {
                   setSearchTerm('');
                   setSelectedCategory('all');
                 }}
-                className="mb-4 rounded-full border border-[var(--paper-line)] px-4 py-2 text-sm font-semibold text-[var(--ink)] hover:bg-[var(--paper)]"
+                className="mb-4 rounded-full border border-[var(--paper-line)] px-4 py-2 text-sm font-semibold text-[var(--ink)] hover:bg-[var(--paper)] min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
               >
                 Clear filters
               </button>
@@ -180,8 +180,8 @@ export default function ThreatLibraryPage({ setActiveView }) {
             </div>
 
             <div className="rounded-3xl border border-[var(--paper-line)] bg-[var(--paper)] p-6">
-              <div className="text-[var(--mist)] uppercase tracking-[0.24em] text-xs font-mono mb-3">Library note</div>
-              <p className="text-sm text-[var(--ink-text)]/80">These examples are generated from a broad library of rule-based inputs. They show how the same warning signs repeat across different scam scripts.</p>
+              <h2 className="text-[var(--mist)] uppercase tracking-[0.25em] text-xs font-mono font-semibold mb-3">Library note</h2>
+              <p className="text-sm text-[var(--ink-text)]/80 leading-relaxed">These examples are generated from a broad library of rule-based inputs. They show how the same warning signs repeat across different scam scripts.</p>
             </div>
           </div>
         </div>
