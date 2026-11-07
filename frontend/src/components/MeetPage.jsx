@@ -163,26 +163,26 @@ function ShieldMark({ size = 34 }) {
 
 export default function MeetPage() {
   return (
-    <div className="mx-auto max-w-7xl px-6 py-20">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-12 w-full space-y-12">
 
       {/* Hero */}
-      <div className="text-center">
+      <div className="text-center space-y-4">
 
-        <div className="inline-flex items-center gap-3 rounded-full border border-[var(--paper-line)] bg-white px-5 py-2 shadow-sm">
+        <div className="inline-flex items-center gap-2.5 rounded-full border border-[var(--paper-line)] bg-white px-4 py-1.5 shadow-2xs">
           <div className="text-[var(--safe)]">
-            <ShieldMark />
+            <ShieldMark size={20} />
           </div>
 
-          <span className="font-mono text-xs uppercase tracking-[0.3em] text-[var(--safe)]">
+          <span className="font-mono text-xs uppercase tracking-[0.25em] font-semibold text-[var(--safe)]">
             Meet the Team
           </span>
         </div>
 
-        <h1 className="mt-8 font-display text-5xl font-bold text-[var(--ink)]">
+        <h1 className="font-display text-3xl sm:text-5xl font-bold tracking-tight text-[var(--ink)] leading-tight">
           Building Safer Digital Experiences
         </h1>
 
-        <p className="mx-auto mt-6 max-w-3xl text-lg leading-relaxed text-[var(--ink-text)]/70">
+        <p className="mx-auto max-w-3xl text-sm sm:text-base leading-relaxed text-[var(--ink-text)]/75">
           KshemOS is built by passionate developers and cybersecurity
           researchers dedicated to protecting users from scams,
           impersonation, phishing, and online financial fraud through

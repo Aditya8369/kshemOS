@@ -724,17 +724,17 @@ export default function CitizenPortal({ setActiveView }) {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-      <div>
-        <p className="font-mono text-xs uppercase tracking-widest text-[var(--saffron)] mb-2">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-6 sm:space-y-8 w-full">
+      <div className="space-y-1">
+        <p className="font-mono text-xs uppercase tracking-[0.25em] font-semibold text-[var(--saffron)] mb-2">
           Citizen Portal
         </p>
 
-        <h1 className="font-display text-3xl font-semibold leading-tight">
+        <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-[var(--ink)] leading-tight">
           Verify before you trust it.
         </h1>
 
-        <p className="text-[var(--ink-text)]/70 mt-1">
+        <p className="text-sm sm:text-base text-[var(--ink-text)]/75 mt-1 max-w-2xl leading-relaxed">
           Check a call, a note, or a payment request — before you act on it,
           not after.
         </p>

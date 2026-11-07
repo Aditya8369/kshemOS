@@ -40,11 +40,11 @@ export default function ThreatLibraryPage({ setActiveView }) {
   });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10 space-y-6">
-      <div className="rounded-[2rem] border border-[var(--paper-line)] bg-white p-8 shadow-sm">
-        <p className="font-mono text-xs uppercase tracking-[0.3em] text-[var(--saffron)]">Rule library</p>
-        <h1 className="font-display text-3xl font-semibold mt-2">Explore the rule-based scam patterns behind the demo.</h1>
-        <p className="mt-3 text-[var(--ink-text)]/70 max-w-2xl">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8 sm:space-y-10 w-full">
+      <div className="rounded-3xl border border-[var(--paper-line)] bg-white p-6 sm:p-10 shadow-xs relative overflow-hidden space-y-2">
+        <p className="font-mono text-xs uppercase tracking-[0.25em] font-semibold text-[var(--saffron)]">Rule library</p>
+        <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-[var(--ink)] leading-tight">Explore the rule-based scam patterns behind the demo.</h1>
+        <p className="text-sm sm:text-base text-[var(--ink-text)]/75 max-w-2xl leading-relaxed">
           KshemOS generates and evaluates hundreds of suspicious patterns using authority, urgency, secrecy, and payment signals. The rule library shows how these cases are built and detected.
         </p>
       </div>

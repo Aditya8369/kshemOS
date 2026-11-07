@@ -673,16 +673,16 @@ export default function OfficerCommandCenter() {
   const [tab, setTab] = useState('incidents');
 
   return (
-    <div className="min-h-full bg-[var(--ink)] px-4 py-8">
-      <div className={`${tab === 'incidents' || tab === 'jurisdiction' || tab === 'evidence' || tab === 'copilot' ? 'max-w-6xl' : 'max-w-4xl'} mx-auto space-y-6`}>
+    <div className="min-h-full bg-[var(--ink)] w-full overflow-x-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 w-full text-white">
         <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-[var(--saffron)] mb-2">
+          <p className="font-mono text-xs uppercase tracking-[0.25em] font-semibold text-[var(--saffron)] mb-2">
             Officer Command Center
           </p>
-          <h1 className="font-display text-3xl font-semibold text-white leading-tight">
+          <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-white leading-tight">
             One console, every signal.
           </h1>
-          <p className="text-[var(--mist)] mt-1">
+          <p className="text-sm text-[var(--mist)] mt-1 max-w-2xl leading-relaxed">
             {tab === 'incidents'
   ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
   : tab === 'jurisdiction'

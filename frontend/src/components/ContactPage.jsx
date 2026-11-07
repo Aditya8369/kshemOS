@@ -110,20 +110,20 @@ export default function ContactPage({ setActiveView }) {
     contact.contact_type === 'phone';
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 sm:py-10 space-y-6 sm:space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8 sm:space-y-10 w-full">
 
       {/* Header */}
-      <header className="rounded-[2rem] border border-[var(--paper-line)] bg-white p-6 sm:p-8 shadow-xs">
+      <header className="rounded-3xl border border-[var(--paper-line)] bg-white p-6 sm:p-10 shadow-xs relative overflow-hidden space-y-2">
 
-        <p className="font-mono text-xs uppercase tracking-[0.3em] text-[var(--saffron)] font-semibold">
+        <p className="font-mono text-xs uppercase tracking-[0.25em] text-[var(--saffron)] font-semibold">
           Official Emergency Contact Directory
         </p>
 
-        <h1 className="font-display text-2xl sm:text-3xl font-semibold mt-2 text-[var(--ink)]">
+        <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-[var(--ink)] leading-tight">
           Need help fast? Reach verified government channels.
         </h1>
 
-        <p className="mt-3 text-[var(--ink-text)]/70 max-w-2xl text-sm sm:text-base leading-relaxed">
+        <p className="mt-3 text-[var(--ink-text)]/75 max-w-2xl text-sm sm:text-base leading-relaxed">
           Access official Indian emergency response and cybercrime
           reporting contacts. Contact information is retrieved from
           the KSHEMOS backend rather than an unverified frontend list.
