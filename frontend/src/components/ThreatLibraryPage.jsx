@@ -3,16 +3,41 @@ import { getRuleLibrarySamples } from '../api';
 
 export default function ThreatLibraryPage({ setActiveView }) {
   const [library, setLibrary] = useState(null);
-
+  const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   useEffect(() => {
     let mounted = true;
-    getRuleLibrarySamples(16).then((data) => {
-      if (mounted) setLibrary(data);
-    });
+    getRuleLibrarySamples(2200)
+      .then((data) => {
+        if (mounted) setLibrary(data);
+      })
+      .catch(() => {
+        if (mounted) {
+          setError('Unable to load threat library. Please try again.');
+        }
+      });
     return () => {
       mounted = false;
     };
   }, []);
+
+  const filteredCases = (library?.sample_cases || []).filter((sample) => {
+    const searchText = searchTerm.toLowerCase().trim();
+
+    const matchesSearch = [
+      sample.phrase,
+      sample.authority,
+      sample.target,
+      sample.medium,
+      sample.issue,
+    ].some((value) => String(value || '').toLowerCase().includes(searchText));
+
+    const matchesCategory =
+      selectedCategory === 'all' || sample.target === selectedCategory;
+
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-10 space-y-6">
@@ -62,14 +87,95 @@ export default function ThreatLibraryPage({ setActiveView }) {
           <div className="space-y-4">
             <div className="rounded-3xl border border-[var(--paper-line)] bg-white p-6">
               <div className="text-[var(--mist)] uppercase tracking-[0.24em] text-xs font-mono mb-3">Sample cases</div>
+              <div className="mb-4">
+                <label
+                  htmlFor="threat-search"
+                  className="block text-sm font-semibold text-[var(--ink)] mb-2"
+                >
+                  Search threat cases
+                </label>
+
+                <input
+                  id="threat-search"
+                  type="search"
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search by phrase, authority, target, medium..."
+                  className="w-full rounded-xl border border-[var(--paper-line)] bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-[var(--saffron)]"
+                />
+              </div>
+              <div className="mb-4">
+                <label
+                  htmlFor="threat-category"
+                  className="block text-sm font-semibold text-[var(--ink)] mb-2"
+                >
+                  Filter by category
+                </label>
+
+                <select
+                  id="threat-category"
+                  value={selectedCategory}
+                  onChange={(event) => setSelectedCategory(event.target.value)}
+                  className="w-full rounded-xl border border-[var(--paper-line)] bg-white px-4 py-3 text-sm"
+                >
+                  <option value="all">All categories</option>
+
+                  {[...new Set(
+                    (library?.sample_cases || [])
+                      .map((sample) => sample.target)
+                      .filter(Boolean)
+                    )].sort().map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedCategory('all');
+                }}
+                className="mb-4 rounded-full border border-[var(--paper-line)] px-4 py-2 text-sm font-semibold text-[var(--ink)] hover:bg-[var(--paper)]"
+              >
+                Clear filters
+              </button>
+              {(searchTerm || selectedCategory !== 'all') && (
+                <div className="mb-3 text-sm text-[var(--ink-text)]">
+                  <span className="font-semibold">Active filters:</span>
+
+                  {searchTerm && (
+                    <span className="ml-2">Search: "{searchTerm}"</span>
+                  )}
+
+                  {selectedCategory !== 'all' && (
+                    <span className="ml-2">Category: {selectedCategory}</span>
+                  )}
+                </div>
+              )}
               <div className="space-y-3">
-                {library.sample_cases.map((sample) => (
-                  <div key={sample.phrase} className="rounded-2xl border border-[var(--paper-line)] bg-[var(--paper)] p-4">
+                {filteredCases.length > 0 ? (
+                  filteredCases.map((sample) => (
+                  <div
+                    key={`${sample.phrase}-${sample.authority}-${sample.target}`}
+                    className="rounded-2xl border border-[var(--paper-line)] bg-[var(--paper)] p-4"
+                  >
                     <div className="text-sm font-semibold text-[var(--ink)]">{sample.authority} • {sample.medium}</div>
                     <div className="mt-1 text-xs uppercase tracking-[0.25em] text-[var(--ink-text)]/50">Target: {sample.target} • Issue: {sample.issue}</div>
                     <p className="text-sm text-[var(--ink-text)]/75 mt-2">{sample.phrase}</p>
                   </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-[var(--paper-line)] p-6 text-center">
+                    <p className="font-semibold text-[var(--ink)]">
+                      No matching threat cases found.
+                    </p>
+                    <p className="mt-2 text-sm text-[var(--ink-text)]/70">
+                      Try a different search term or clear your filters.
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -79,8 +185,20 @@ export default function ThreatLibraryPage({ setActiveView }) {
             </div>
           </div>
         </div>
+      ) : error ? (
+        <div
+          role="alert"
+          className="rounded-3xl border border-red-200 bg-red-50 p-6 text-red-700"
+        >
+          {error}
+        </div>
       ) : (
-        <div className="rounded-3xl border border-[var(--paper-line)] bg-[var(--paper)] p-6 shadow-sm">Loading library samples…</div>
+        <div
+          role="status"
+          className="rounded-3xl border border-[var(--paper-line)] bg-[var(--paper)] p-6 shadow-sm"
+        >
+          Loading library samples…
+        </div>
       )}
     </div>
   );
