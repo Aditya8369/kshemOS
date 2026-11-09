@@ -764,6 +764,21 @@ export async function fetchOfficialContactsApi(category = '') {
 }
 
 // ======================================================
+// SECTION 63 BSA / 65B IEA ELECTRONIC EVIDENCE AFFIDAVIT COMPILER APIs
+// ======================================================
+
+export {
+  OFFICIAL_NTP_RECORD,
+  HARDWARE_SIGNATURE_PROFILES,
+  DEMO_CASE_PRESETS,
+  compileSection63AffidavitLocally,
+  compileSection63AffidavitApi,
+  fetchNtpStatusApi,
+  fetchHardwareProfilesApi,
+  getAffidavitPreviewHtmlUrl,
+} from './evidenceAffidavitStore.js';
+
+// ======================================================
 // SIM BOX & SPOOFED CLI DETECTION ENGINE APIs
 // ======================================================
 

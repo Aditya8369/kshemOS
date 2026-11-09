@@ -1487,6 +1487,99 @@ class RetryNotificationResponse(BaseModel):
     notification: IncidentNotificationPayload
     message: str
 
+# ======================================================
+# SECTION 63 BSA / 65B IEA ELECTRONIC EVIDENCE AFFIDAVIT COMPILER MODELS
+# ======================================================
+
+class DeviceHardwareSignature(BaseModel):
+    device_make_model: str = Field(default="KshemOS Cloud Forensic Vault Node")
+    hardware_id_type: str = Field(default="SYSTEM_UUID", description="IMEI, MAC_ADDRESS, SYSTEM_UUID, SERVER_SERIAL")
+    hardware_identifier: str = Field(default="550e8400-e29b-41d4-a716-446655440000")
+    operating_system: str = Field(default="Linux 6.8.0-45-generic x86_64")
+    acquisition_software: str = Field(default="KshemOS Cryptographic Custody Ingestion Agent v2.4.0 (FIPS-140-3)")
+    storage_media_type: str = Field(default="Encrypted NVMe Block Volume (AES-256-XTS)")
+
+
+class NtpSynchronizationRecord(BaseModel):
+    ntp_server_host: str = Field(default="time.nplindia.org", description="CSIR-National Physical Laboratory India Primary Reference")
+    stratum_level: int = Field(default=1, description="NTP stratum (Stratum 1 atomic/GPS primary reference)")
+    is_synchronized: bool = Field(default=True)
+    clock_offset_ms: float = Field(default=0.342, description="Clock offset in milliseconds against UTC(NPLI)")
+    jitter_ms: float = Field(default=0.084, description="Packet jitter in milliseconds")
+    round_trip_delay_ms: float = Field(default=1.25, description="Network round-trip delay in ms")
+    last_sync_timestamp: str = Field(default="2026-11-09T10:40:00.000Z")
+    leap_indicator: int = Field(default=0, description="0=no warning, 1=last minute has 61 seconds")
+    reference_clock_id: str = Field(default="NPLI-GPS", description="National Physical Laboratory Primary GPS Clock")
+    statutory_compliance: str = Field(
+        default="Complies with Section 63(2)(a) BSA 2023 & Rule 419A Indian Telegraph Rules temporal precision standards (<5.0ms forensic tolerance)"
+    )
+
+
+class SignatoryDeclaration(BaseModel):
+    signatory_role: Literal["SYSTEM_IN_CHARGE", "INVESTIGATING_OFFICER", "FORENSIC_EXPERT"]
+    officer_name: str
+    designation: str
+    badge_id: str
+    organization: str
+    declaration_text: str
+    fir_number: Optional[str] = None
+    police_station: Optional[str] = None
+    court_name: Optional[str] = None
+    esign_status: Literal["PENDING_SIGNATURE", "DSC_TOKEN_AFFIXED", "AADHAAR_ESIGN_VERIFIED", "EXEMPT_MANUAL_SEAL"] = "PENDING_SIGNATURE"
+    esign_placeholder: str
+    signed_at: Optional[str] = None
+
+
+class AffidavitArtifactExhibit(BaseModel):
+    exhibit_number: str
+    evidence_id: str
+    title: str
+    file_name: str
+    file_size_bytes: int
+    mime_type: str
+    sha256_hash: str
+    genesis_hash: str
+    ingested_at: int
+    ingested_at_iso: str
+    hardware_signature: DeviceHardwareSignature
+    rfc3161_token_serial: str
+    chain_of_custody_verified: bool
+    custodial_transactions_count: int
+
+
+class Section63AffidavitRequest(BaseModel):
+    case_id: str = Field(..., description="Target Case or Incident ID (e.g. CASE-2026-DELHI-01)")
+    evidence_ids: Optional[List[str]] = Field(default=None, description="Specific evidence IDs to include. If omitted, includes all case exhibits.")
+    investigating_officer: Optional[Dict[str, Any]] = Field(default=None, description="Investigating Officer (IO) details")
+    system_incharge: Optional[Dict[str, Any]] = Field(default=None, description="System In-Charge / Technical Custodian details")
+    court_name: Optional[str] = Field(default=None, description="Jurisdictional Magistrate or Sessions Court")
+    fir_crime_number: Optional[str] = Field(default=None, description="FIR / Crime Number and Police Station")
+    affix_digital_signature: bool = Field(default=False, description="Whether to simulate affixing DSC / Aadhaar eSign")
+
+
+class Section63AffidavitResponse(BaseModel):
+    affidavit_id: str
+    case_id: str
+    fir_crime_number: str
+    court_name: str
+    legal_framework: str = "Section 63 Bharatiya Sakshya Adhiniyam, 2023 (BSA) & Section 65B Indian Evidence Act, 1872 (IEA)"
+    generated_at: int
+    generated_at_iso: str
+    status: Literal["SEALED_CRYPTOGRAPHICALLY_VALID", "COMPILATION_BLOCKED_TAMPER_DETECTED"]
+    all_hash_chains_verified: bool
+    tampered_artifacts_count: int = 0
+    ntp_verification: NtpSynchronizationRecord
+    system_incharge_declaration: SignatoryDeclaration
+    investigating_officer_declaration: SignatoryDeclaration
+    exhibits: List[AffidavitArtifactExhibit]
+    master_manifest_sha256: str
+    total_exhibits: int
+    total_file_size_bytes: int
+    affidavit_title: str
+    court_printable_html: str
+    tamper_details: Optional[Dict[str, Any]] = None
+
+
 # ---------- SIM Box & Spoofed Calling Line Identification (CLI) Detection Engine ----------
 
 class SpoofAnomalyFlag(BaseModel):

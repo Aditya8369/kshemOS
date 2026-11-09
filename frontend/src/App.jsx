@@ -87,6 +87,7 @@ import IncidentNotificationConsole from './components/incidentDashboard/Incident
 import SyndicateTriageView from './components/SyndicateTriageView';
 import MuleFreezeDispatchView from './components/MuleFreezeDispatchView';
 import MeetPage from './components/MeetPage';
+import Section63AffidavitCompilerView from './components/evidence/Section63AffidavitCompilerView';
 import CliSpoofDetectorView from './components/CliSpoofDetectorView';
 
 export default function App() {
@@ -185,6 +186,7 @@ export default function App() {
     if (activeView === 'syndicate-triage') return <SyndicateTriageView />;
     if (activeView === 'alerts') return <AlertDispatchView />;
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
+    if (activeView === 'evidence-affidavit-compiler') return <Section63AffidavitCompilerView />;
     if (activeView === 'cli-spoof-detector') return <CliSpoofDetectorView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;

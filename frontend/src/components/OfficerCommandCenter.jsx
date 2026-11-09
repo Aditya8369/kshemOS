@@ -3,6 +3,7 @@ import FraudGraphView from './FraudGraphView';
 import IncidentDashboardView from './IncidentDashboardView';
 import JurisdictionConfigView from './jurisdiction/JurisdictionConfigView';
 import EvidenceGroundedCopilotView from './officer/EvidenceGroundedCopilotView';
+import Section63AffidavitCompilerView from './evidence/Section63AffidavitCompilerView';
 import CliSpoofDetectorView from './CliSpoofDetectorView';
 import SyndicateTriageView from './SyndicateTriageView';
 import MuleFreezeDispatchView from './MuleFreezeDispatchView';
@@ -678,6 +679,7 @@ const TABS = [
   { key: 'copilot', label: 'Officer Copilot (Grounded)' },
   { key: 'cli-spoof', label: 'CLI Spoof & Telecom Triage' },
   { key: 'evidence', label: 'Evidence Vault' },
+  { key: 'affidavit', label: 'Section 63 BSA Compiler' },
   { key: 'syndicate', label: 'Syndicate & APK Triage' },
   { key: 'tools', label: 'Investigation tools' },
 ];
@@ -708,6 +710,8 @@ export default function OfficerCommandCenter() {
   ? 'Calling Line Identification (CLI) spoof detection, TRAI circle cross-referencing, and rogue GSM SIM Box ingress triage.'
   : tab === 'evidence'
   ? 'Immutable chain of custody, Section 65B forensic bundles, and legal hold verification.'
+  : tab === 'affidavit'
+  ? 'Sealed court-ready Section 63 BSA / 65B IEA certificates with Stratum 1 NTP records and dual-officer legal declarations.'
   : tab === 'syndicate'
   ? 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK sandbox triage.'
   : 'Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.'}
@@ -749,6 +753,8 @@ export default function OfficerCommandCenter() {
   <CliSpoofDetectorView />
 ) : tab === 'evidence' ? (
   <EvidenceVaultView />
+) : tab === 'affidavit' ? (
+  <Section63AffidavitCompilerView />
 ) : tab === 'syndicate' ? (
   <SyndicateTriageView />
 ) : (

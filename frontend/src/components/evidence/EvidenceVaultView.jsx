@@ -15,6 +15,7 @@ import {
   EVIDENCE_CHANGED_EVENT,
 } from '../../evidenceStore.js';
 import CitizenEvidenceUploadPortal from './CitizenEvidenceUploadPortal.jsx';
+import Section63AffidavitCompilerView from './Section63AffidavitCompilerView.jsx';
 
 const TYPE_ICONS = {
   audio_recording: '🎙️',
@@ -440,6 +441,17 @@ export default function EvidenceVaultView({ activeCaseId = null }) {
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-1" />
               )}
             </button>
+            <button
+              onClick={() => setVaultSubTab('affidavit')}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
+                vaultSubTab === 'affidavit'
+                  ? 'bg-[var(--saffron)] text-white shadow'
+                  : 'bg-[var(--ink)] text-[var(--mist)] hover:text-white border border-[var(--navy-line)]'
+              }`}
+            >
+              <span>📜</span>
+              <span>Section 63 BSA Affidavit Compiler</span>
+            </button>
           </div>
         </div>
 
@@ -759,6 +771,11 @@ export default function EvidenceVaultView({ activeCaseId = null }) {
               </div>
             )}
           </div>
+        )}
+
+        {/* SUBTAB 3: SECTION 63 BSA AFFIDAVIT COMPILER */}
+        {vaultSubTab === 'affidavit' && (
+          <Section63AffidavitCompilerView />
         )}
       </div>
 

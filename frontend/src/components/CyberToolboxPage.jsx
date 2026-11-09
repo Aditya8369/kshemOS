@@ -65,6 +65,7 @@ const TOOLBOX_ITEMS = [
   { key: 'cyber-preparedness-report', title: 'Cyber Preparedness Report', description: 'Generate a preparedness report for handling cyber incidents.', accent: 'var(--alert)' },
   { key: 'digital-trust-score', title: 'Digital Trust Score', description: 'Calculate trustworthiness of an online account or profile.', accent: 'var(--safe)' },
   { key: 'online-reputation-safety', title: 'Online Reputation Safety', description: 'Detect impersonation, doxxing, and fake profiles affecting reputation.', accent: 'var(--caution)' },
+  { key: 'evidence-affidavit-compiler', title: 'Section 63 BSA Affidavit Compiler', description: 'Compile court-ready electronic evidence certificates with SHA-256 hashes, Stratum 1 NTP records, and dual-officer declarations.', accent: 'var(--saffron)' },
   { key: 'cli-spoof-detector', title: 'CLI Spoof & SIM Box Detector', description: 'Cross-reference caller ID metadata, TRAI numbering plans, and VoIP gateways to detect spoofed calls.', accent: 'var(--saffron)' },
   { key: 'syndicate-triage', title: 'Syndicate & APK Triage', description: 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK trojan permissions.', accent: 'var(--alert)' },
 ];
