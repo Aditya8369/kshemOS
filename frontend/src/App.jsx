@@ -84,6 +84,7 @@ import JurisdictionConfigView from './components/jurisdiction/JurisdictionConfig
 import MultilingualSpeechSafetyView from './components/speech/MultilingualSpeechSafetyView';
 import LiveCallSafetyView from './components/livecall/LiveCallSafetyView';
 import IncidentNotificationConsole from './components/incidentDashboard/IncidentNotificationConsole';
+import SyndicateTriageView from './components/SyndicateTriageView';
 import MeetPage from './components/MeetPage';
 
 export default function App() {
@@ -178,6 +179,7 @@ export default function App() {
     if (activeView === 'incident-notifications') return <IncidentNotificationConsole />;
     if (activeView === 'evidence') return <EvidenceVaultView/>;
     if (activeView === 'evidence-upload') return <CitizenEvidenceUploadPortal setActiveView={setActiveView} />;
+    if (activeView === 'syndicate-triage') return <SyndicateTriageView />;
     if (activeView === 'alerts') return <AlertDispatchView />;
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;

@@ -748,3 +748,25 @@ export async function fetchOfficialContactsApi(category = '') {
 
   return handle(response);
 }
+
+// ======================================================
+// SYNDICATE GROUP PARSER & APK TRIAGE APIs
+// ======================================================
+
+export {
+  parseChatLocally,
+  analyzeApkLocally,
+  parseSyndicateChatApi,
+  analyzeApkApi,
+  uploadApkApi,
+  fetchSyndicateCorrelationsApi,
+  fetchSyndicateStatsApi,
+  fetchSyndicateChatsApi,
+  fetchSyndicateApksApi,
+  SAMPLE_CHAT_WHATSAPP,
+  SAMPLE_CHAT_TELEGRAM,
+  SAMPLE_APK_PAYLOAD,
+  SYNDICATE_COUNTRY_CODES,
+  DANGEROUS_PERMISSIONS_MAP,
+} from './syndicateTriageStore.js';
+
