@@ -268,6 +268,7 @@ export default function Shell({
                 { key: 'evidence', label: 'Evidence Vault' },
                 { key: 'alerts', label: 'Alert Dispatch' },
                 { key: 'jurisdiction', label: 'Jurisdiction Config' },
+                { key: 'dpdp-redaction', label: 'DPDP Redaction & Masking' },
               ])}
             </div>
 

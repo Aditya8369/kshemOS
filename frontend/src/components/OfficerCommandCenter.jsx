@@ -3,6 +3,8 @@ import FraudGraphView from './FraudGraphView';
 import IncidentDashboardView from './IncidentDashboardView';
 import JurisdictionConfigView from './jurisdiction/JurisdictionConfigView';
 import EvidenceGroundedCopilotView from './officer/EvidenceGroundedCopilotView';
+import EvidenceVaultView from './EvidenceVaultView';
+import DpdpRedactionView from './DpdpRedactionView';
 
 import {
   lookupFraudRing,
@@ -673,6 +675,7 @@ const TABS = [
   { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
   { key: 'copilot', label: 'Officer Copilot (Grounded)' },
   { key: 'evidence', label: 'Evidence Vault' },
+  { key: 'dpdp', label: 'DPDP Redaction & Masking' },
   { key: 'tools', label: 'Investigation tools' },
 ];
 
@@ -733,6 +736,8 @@ export default function OfficerCommandCenter() {
   <EvidenceGroundedCopilotView />
 ) : tab === 'evidence' ? (
   <EvidenceVaultView />
+) : tab === 'dpdp' ? (
+  <DpdpRedactionView />
 ) : (
   <div className="space-y-6">
     <EvidenceGroundedCopilotView />

@@ -85,6 +85,7 @@ import MultilingualSpeechSafetyView from './components/speech/MultilingualSpeech
 import LiveCallSafetyView from './components/livecall/LiveCallSafetyView';
 import IncidentNotificationConsole from './components/incidentDashboard/IncidentNotificationConsole';
 import MeetPage from './components/MeetPage';
+import DpdpRedactionView from './components/DpdpRedactionView';
 
 export default function App() {
   const [portal, setPortal] = useState('citizen');
@@ -181,6 +182,7 @@ export default function App() {
     if (activeView === 'alerts') return <AlertDispatchView />;
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;
+    if (activeView === 'dpdp-redaction') return <DpdpRedactionView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
     if (activeView === 'portal') {
       return portal === 'citizen' ? <CitizenPortal setActiveView={setActiveView} /> : <OfficerCommandCenter />;

@@ -748,3 +748,31 @@ export async function fetchOfficialContactsApi(category = '') {
 
   return handle(response);
 }
+
+// ======================================================
+// DPDP ACT REDACTION & IDENTITY MASKING PIPELINE APIs
+// ======================================================
+
+export {
+  maskAadhaar,
+  maskPan,
+  maskBankAccount,
+  maskMobile,
+  maskEmail,
+  generatePersistentToken,
+  sanitizeTextLocally,
+  pseudonymizeThreatFeedLocally,
+  listUnmaskRequestsLocally,
+  submitUnmaskRequestLocally,
+  reviewUnmaskRequestLocally,
+  revealUnmaskedValueLocally,
+  getDpdpAuditTrailLocally,
+  DEMO_UNMASK_REQUESTS,
+  sanitizePiiApi,
+  pseudonymizeThreatFeedApi,
+  submitUnmaskRequestApi,
+  listUnmaskRequestsApi,
+  reviewUnmaskRequestApi,
+  revealUnmaskedValueApi,
+  fetchDpdpAuditTrailApi,
+} from './dpdpSanitizationStore.js';

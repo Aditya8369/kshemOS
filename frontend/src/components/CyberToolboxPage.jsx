@@ -64,6 +64,7 @@ const TOOLBOX_ITEMS = [
   { key: 'cyber-preparedness-report', title: 'Cyber Preparedness Report', description: 'Generate a preparedness report for handling cyber incidents.', accent: 'var(--alert)' },
   { key: 'digital-trust-score', title: 'Digital Trust Score', description: 'Calculate trustworthiness of an online account or profile.', accent: 'var(--safe)' },
   { key: 'online-reputation-safety', title: 'Online Reputation Safety', description: 'Detect impersonation, doxxing, and fake profiles affecting reputation.', accent: 'var(--caution)' },
+  { key: 'dpdp-redaction', title: 'DPDP Act Redaction & Identity Masking', description: 'Detect, mask, and tokenize citizen identifiers (Aadhaar, PAN, Bank accounts) with supervisory unmask workflows.', accent: 'var(--saffron)' },
 ];
 
 function ToolCard({ item, index, setActiveView }) {
