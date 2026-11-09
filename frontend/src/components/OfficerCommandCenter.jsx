@@ -3,6 +3,7 @@ import FraudGraphView from './FraudGraphView';
 import IncidentDashboardView from './IncidentDashboardView';
 import JurisdictionConfigView from './jurisdiction/JurisdictionConfigView';
 import EvidenceGroundedCopilotView from './officer/EvidenceGroundedCopilotView';
+import CliSpoofDetectorView from './CliSpoofDetectorView';
 import SyndicateTriageView from './SyndicateTriageView';
 import MuleFreezeDispatchView from './MuleFreezeDispatchView';
 
@@ -675,6 +676,7 @@ const TABS = [
   { key: 'freeze', label: 'UPI Mule Freeze (1930)' },
   { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
   { key: 'copilot', label: 'Officer Copilot (Grounded)' },
+  { key: 'cli-spoof', label: 'CLI Spoof & Telecom Triage' },
   { key: 'evidence', label: 'Evidence Vault' },
   { key: 'syndicate', label: 'Syndicate & APK Triage' },
   { key: 'tools', label: 'Investigation tools' },
@@ -702,6 +704,8 @@ export default function OfficerCommandCenter() {
   ? 'Operational zone boundaries, service areas, automated dispatch routing, and multi-officer change review.'
   : tab === 'copilot'
   ? 'Evidence-grounded investigative next steps with 4-tier separation, source citations, and human approval guardrails.'
+  : tab === 'cli-spoof'
+  ? 'Calling Line Identification (CLI) spoof detection, TRAI circle cross-referencing, and rogue GSM SIM Box ingress triage.'
   : tab === 'evidence'
   ? 'Immutable chain of custody, Section 65B forensic bundles, and legal hold verification.'
   : tab === 'syndicate'
@@ -741,6 +745,8 @@ export default function OfficerCommandCenter() {
   <JurisdictionConfigView />
 ) : tab === 'copilot' ? (
   <EvidenceGroundedCopilotView />
+) : tab === 'cli-spoof' ? (
+  <CliSpoofDetectorView />
 ) : tab === 'evidence' ? (
   <EvidenceVaultView />
 ) : tab === 'syndicate' ? (

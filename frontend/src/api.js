@@ -764,6 +764,24 @@ export async function fetchOfficialContactsApi(category = '') {
 }
 
 // ======================================================
+// SIM BOX & SPOOFED CLI DETECTION ENGINE APIs
+// ======================================================
+
+export {
+  MANDATORY_WARNING_BANNER,
+  TRAI_STD_CIRCLES,
+  OFFICIAL_POLICE_DIRECTORIES,
+  DEMO_CALL_PRESETS,
+  normalizeCliNumber,
+  verifyTelephonyRouteLocally,
+  verifyCliRouteApi,
+  fetchTelecomTriageFeedApi,
+  updateTriageIncidentActionApi,
+  fetchTelecomTriageSummaryApi,
+  fetchTraiDirectoryApi,
+} from './cliSpoofStore.js';
+
+// ======================================================
 // SYNDICATE GROUP PARSER & APK TRIAGE APIs
 // ======================================================
 
