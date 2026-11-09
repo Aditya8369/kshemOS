@@ -263,8 +263,10 @@ export default function Shell({
 
               {/* Operations Dropdown */}
               {dropdownMenu('officer-operations', 'Operations', [
+                { key: 'mule-freeze', label: 'Mule Account Freeze' },
                 { key: 'triage', label: 'Triage Engine' },
                 { key: 'cli-spoof-detector', label: 'CLI Spoof & Telecom Triage' },
+                { key: 'syndicate-triage', label: 'Syndicate & APK Triage' },
                 { key: 'advisory', label: 'Advisory Composer' },
                 { key: 'evidence', label: 'Evidence Vault' },
                 { key: 'alerts', label: 'Alert Dispatch' },

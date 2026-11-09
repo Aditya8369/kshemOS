@@ -278,8 +278,6 @@ export async function askCitizenAssistant({ question, language }) {
 export async function submitCitizenReport(payload) {
   const report = submitCitizenReportLocally(payload);
 
-  // Every report becomes a live incident on the officer dashboard.
-  // A failure here must not lose the citizen's acknowledgement.
   try {
     const { incident, source } = await recordIncident({
       ...payload,
@@ -669,7 +667,6 @@ export {
   JURISDICTION_REGION_MAP,
 } from './incidentNotificationStore.js';
 
-// Fetch notification audit history and delivery statistics
 export async function fetchIncidentNotificationsApi() {
   const state = defaultIncidentNotificationStore.getState();
 
@@ -679,12 +676,10 @@ export async function fetchIncidentNotificationsApi() {
   };
 }
 
-// Fetch the officer directory
 export async function fetchNotificationDirectoryApi() {
   return defaultIncidentNotificationStore.getState().officers;
 }
 
-// Update an officer's notification preferences
 export async function updateOfficerPreferencesApi(officerId, preferences) {
   return defaultIncidentNotificationStore.updateOfficerPreferences(
     officerId,
@@ -692,7 +687,6 @@ export async function updateOfficerPreferencesApi(officerId, preferences) {
   );
 }
 
-// Retry a failed or pending notification
 export async function retryIncidentNotificationApi(notificationId) {
   try {
     const notification =
@@ -711,7 +705,6 @@ export async function retryIncidentNotificationApi(notificationId) {
   }
 }
 
-// Dispatch incident notifications
 export async function dispatchIncidentNotificationApi(
   incident,
   eventType,
@@ -788,3 +781,152 @@ export {
   fetchTraiDirectoryApi,
 } from './cliSpoofStore.js';
 
+// ======================================================
+// SYNDICATE GROUP PARSER & APK TRIAGE APIs
+// ======================================================
+
+export {
+  parseChatLocally,
+  analyzeApkLocally,
+  parseSyndicateChatApi,
+  analyzeApkApi,
+  uploadApkApi,
+  fetchSyndicateCorrelationsApi,
+  fetchSyndicateStatsApi,
+  fetchSyndicateChatsApi,
+  fetchSyndicateApksApi,
+  SAMPLE_CHAT_WHATSAPP,
+  SAMPLE_CHAT_TELEGRAM,
+  SAMPLE_APK_PAYLOAD,
+  SYNDICATE_COUNTRY_CODES,
+  DANGEROUS_PERMISSIONS_MAP,
+} from './syndicateTriageStore.js';
+
+// ======================================================
+// AUTOMATED UPI MULE ACCOUNT FREEZE DISPATCH (CFCFRMS / 1930)
+// ======================================================
+
+export {
+  MuleFreezeStore,
+  defaultMuleFreezeStore,
+  MULE_FREEZE_STORAGE_KEY,
+  MULE_FREEZE_CHANGED_EVENT,
+  DEFAULT_SAMPLE_FREEZE_REQUESTS,
+  validateVpa,
+  validateUtr,
+  validateIfsc,
+  parseFinancialEntities,
+  evaluateMuleRisk,
+  generateSection102NoticeText,
+  generateCfcfrmsPayload,
+} from './muleFreezeStore.js';
+
+import {
+  defaultMuleFreezeStore,
+  parseFinancialEntities as parseFinancialEntitiesLocal,
+  evaluateMuleRisk as evaluateMuleRiskLocal,
+} from './muleFreezeStore.js';
+
+export async function parseFinancialEntitiesApi(text) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/parse`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local
+  }
+  return parseFinancialEntitiesLocal(text);
+}
+
+export async function evaluateMuleFreezeApi(data) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/evaluate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local
+  }
+  return evaluateMuleRiskLocal(data);
+}
+
+export async function dispatchMuleFreezeApi(data) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/dispatch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMuleFreezeStore.dispatchFreeze(data);
+}
+
+export async function fetchMuleFreezeRequestsApi(params = {}) {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/requests${query ? `?${query}` : ''}`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMuleFreezeStore.getRequests(params);
+}
+
+export async function fetchMuleFreezeRequestApi(freezeId) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/requests/${freezeId}`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMuleFreezeStore.getRequest(freezeId);
+}
+
+export async function acknowledgeMuleFreezeApi(freezeId, bankNodalRef, freezeOutcome = 'FROZEN', notes = '') {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/requests/${freezeId}/acknowledge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bank_nodal_ref: bankNodalRef, freeze_outcome: freezeOutcome, notes }),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMuleFreezeStore.recordBankAcknowledgment(freezeId, bankNodalRef, freezeOutcome, notes);
+}
+
+export async function revokeMuleFreezeApi(freezeId, revokingOfficerBadgeId, revocationReason) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/requests/${freezeId}/revoke`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        revoking_officer_badge_id: revokingOfficerBadgeId,
+        revocation_reason: revocationReason,
+      }),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMuleFreezeStore.revokeFreeze(freezeId, revokingOfficerBadgeId, revocationReason);
+}
+
+export async function fetchMuleFreezeStatsApi() {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/stats`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMuleFreezeStore.getStats();
+}

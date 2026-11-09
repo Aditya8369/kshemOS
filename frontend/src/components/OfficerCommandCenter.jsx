@@ -4,6 +4,8 @@ import IncidentDashboardView from './IncidentDashboardView';
 import JurisdictionConfigView from './jurisdiction/JurisdictionConfigView';
 import EvidenceGroundedCopilotView from './officer/EvidenceGroundedCopilotView';
 import CliSpoofDetectorView from './CliSpoofDetectorView';
+import SyndicateTriageView from './SyndicateTriageView';
+import MuleFreezeDispatchView from './MuleFreezeDispatchView';
 
 import {
   lookupFraudRing,
@@ -671,10 +673,12 @@ function CaseSummaryPanel() {
 
 const TABS = [
   { key: 'incidents', label: 'Incident dashboard' },
+  { key: 'freeze', label: 'UPI Mule Freeze (1930)' },
   { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
   { key: 'copilot', label: 'Officer Copilot (Grounded)' },
   { key: 'cli-spoof', label: 'CLI Spoof & Telecom Triage' },
   { key: 'evidence', label: 'Evidence Vault' },
+  { key: 'syndicate', label: 'Syndicate & APK Triage' },
   { key: 'tools', label: 'Investigation tools' },
 ];
 
@@ -694,6 +698,8 @@ export default function OfficerCommandCenter() {
           <p className="text-sm text-[var(--mist)] mt-1 max-w-2xl leading-relaxed">
             {tab === 'incidents'
   ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
+  : tab === 'freeze'
+  ? 'Automated Section 102 CrPC provisional debit freeze dispatch to bank nodal desks and CFCFRMS priority stop protocol.'
   : tab === 'jurisdiction'
   ? 'Operational zone boundaries, service areas, automated dispatch routing, and multi-officer change review.'
   : tab === 'copilot'
@@ -702,6 +708,8 @@ export default function OfficerCommandCenter() {
   ? 'Calling Line Identification (CLI) spoof detection, TRAI circle cross-referencing, and rogue GSM SIM Box ingress triage.'
   : tab === 'evidence'
   ? 'Immutable chain of custody, Section 65B forensic bundles, and legal hold verification.'
+  : tab === 'syndicate'
+  ? 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK sandbox triage.'
   : 'Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.'}
           </p>
         </div>
@@ -731,6 +739,8 @@ export default function OfficerCommandCenter() {
 
         {tab === 'incidents' ? (
   <IncidentDashboardView />
+) : tab === 'freeze' ? (
+  <MuleFreezeDispatchView />
 ) : tab === 'jurisdiction' ? (
   <JurisdictionConfigView />
 ) : tab === 'copilot' ? (
@@ -739,6 +749,8 @@ export default function OfficerCommandCenter() {
   <CliSpoofDetectorView />
 ) : tab === 'evidence' ? (
   <EvidenceVaultView />
+) : tab === 'syndicate' ? (
+  <SyndicateTriageView />
 ) : (
   <div className="space-y-6">
     <EvidenceGroundedCopilotView />
