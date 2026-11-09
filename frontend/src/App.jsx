@@ -84,8 +84,12 @@ import JurisdictionConfigView from './components/jurisdiction/JurisdictionConfig
 import MultilingualSpeechSafetyView from './components/speech/MultilingualSpeechSafetyView';
 import LiveCallSafetyView from './components/livecall/LiveCallSafetyView';
 import IncidentNotificationConsole from './components/incidentDashboard/IncidentNotificationConsole';
+import SyndicateTriageView from './components/SyndicateTriageView';
+import MuleFreezeDispatchView from './components/MuleFreezeDispatchView';
 import MeetPage from './components/MeetPage';
 import DpdpRedactionView from './components/DpdpRedactionView';
+import Section63AffidavitCompilerView from './components/evidence/Section63AffidavitCompilerView';
+import CliSpoofDetectorView from './components/CliSpoofDetectorView';
 
 export default function App() {
   const [portal, setPortal] = useState('citizen');
@@ -178,9 +182,13 @@ export default function App() {
     if (activeView === 'live-call-safety') return <LiveCallSafetyView />;
     if (activeView === 'incident-notifications') return <IncidentNotificationConsole />;
     if (activeView === 'evidence') return <EvidenceVaultView/>;
+    if (activeView === 'mule-freeze') return <MuleFreezeDispatchView />;
     if (activeView === 'evidence-upload') return <CitizenEvidenceUploadPortal setActiveView={setActiveView} />;
+    if (activeView === 'syndicate-triage') return <SyndicateTriageView />;
     if (activeView === 'alerts') return <AlertDispatchView />;
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
+    if (activeView === 'evidence-affidavit-compiler') return <Section63AffidavitCompilerView />;
+    if (activeView === 'cli-spoof-detector') return <CliSpoofDetectorView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;
     if (activeView === 'dpdp-redaction') return <DpdpRedactionView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
