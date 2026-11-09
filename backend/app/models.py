@@ -1484,3 +1484,72 @@ class RetryNotificationResponse(BaseModel):
     success: bool
     notification: IncidentNotificationPayload
     message: str
+
+
+# ---------- SIM Box & Spoofed Calling Line Identification (CLI) Detection Engine ----------
+
+class SpoofAnomalyFlag(BaseModel):
+    flag_type: str
+    severity: Literal["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+    description: str
+    statutory_reference: Optional[str] = None
+
+
+class TelephonyRouteVerificationRequest(BaseModel):
+    call_id: Optional[str] = Field(None, description="Optional telephony call identifier")
+    claimed_cli: str = Field(..., description="Incoming caller ID as displayed on handset / softphone")
+    claimed_entity: Optional[str] = Field(None, description="Caller's claimed organization (e.g. Mumbai Police, CBI HQ)")
+    call_channel: Literal[
+        "pstn_gsm", "whatsapp_voip", "skype_voip", "telegram_call", "sip_trunk", "unknown"
+    ] = "sip_trunk"
+    sip_headers: Optional[Dict[str, str]] = Field(default_factory=dict, description="Extracted SIP headers (From, Contact, User-Agent, PAI)")
+    carrier_ingress_ip: Optional[str] = Field(None, description="Ingress gateway IP of the incoming call stream")
+    audio_latency_ms: Optional[float] = Field(None, description="Round-trip audio latency measurement in milliseconds")
+    packet_jitter_ms: Optional[float] = Field(None, description="VoIP / RTP packet jitter in milliseconds")
+    packet_loss_pct: Optional[float] = Field(None, description="Packet loss percentage")
+    recipient_circle: Optional[str] = Field("MH", description="Recipient telecom circle (e.g. DL, MH, KA)")
+    officer_badge: Optional[str] = Field("OFFICER-SYS", description="Investigating officer identifier")
+
+
+class TelephonyRouteVerificationResponse(BaseModel):
+    verification_id: str
+    call_id: str
+    claimed_cli: str
+    normalized_cli: str
+    claimed_entity: str
+    is_spoofed: bool
+    spoof_confidence: float = Field(..., ge=0.0, le=1.0)
+    threat_tier: Literal["CRITICAL", "HIGH", "MEDIUM", "LOW", "VERIFIED_LEGITIMATE"]
+    carrier_legitimacy_score: float = Field(..., ge=0.0, le=100.0)
+    trai_circle_info: Dict[str, Any]
+    route_telemetry: Dict[str, Any]
+    anomaly_flags: List[SpoofAnomalyFlag] = Field(default_factory=list)
+    warning_banner: str
+    recommended_action: str
+    forwarded_to_telecom_triage: bool
+    ingress_point_id: Optional[str] = None
+    verified_at: str
+
+
+class TelecomTriageIncident(BaseModel):
+    triage_id: str
+    verification_id: str
+    claimed_cli: str
+    carrier_ingress_ip: Optional[str] = None
+    ingress_country: str
+    spoof_type: str
+    gateway_signature: str
+    status: Literal["DISPATCHED_TO_TELCO", "BLOCKED_AT_GATEWAY", "UNDER_INVESTIGATION", "RESOLVED"]
+    target_agency_spoofed: str
+    dot_reporting_payload: Dict[str, Any] = Field(default_factory=dict)
+    timestamp: str
+
+
+class TelecomTriageSummary(BaseModel):
+    total_calls_inspected: int
+    spoofed_calls_intercepted: int
+    simbox_gateways_isolated: int
+    international_grey_routes_blocked: int
+    high_risk_ingress_ips: List[str] = Field(default_factory=list)
+    recent_dispatches: List[TelecomTriageIncident] = Field(default_factory=list)
+

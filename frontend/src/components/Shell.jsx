@@ -264,6 +264,7 @@ export default function Shell({
               {/* Operations Dropdown */}
               {dropdownMenu('officer-operations', 'Operations', [
                 { key: 'triage', label: 'Triage Engine' },
+                { key: 'cli-spoof-detector', label: 'CLI Spoof & Telecom Triage' },
                 { key: 'advisory', label: 'Advisory Composer' },
                 { key: 'evidence', label: 'Evidence Vault' },
                 { key: 'alerts', label: 'Alert Dispatch' },

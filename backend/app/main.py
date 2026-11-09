@@ -21,6 +21,7 @@ from app.routers import (
     live_call_safety,
     incident_notifications,
     official_contacts,
+    cli_spoof,
 )
 
 app = FastAPI(
@@ -62,6 +63,7 @@ app.include_router(live_call_safety.router)
 app.include_router(incident_notifications.router)
 app.include_router(advisory.router)
 app.include_router(official_contacts.router)
+app.include_router(cli_spoof.router)
 
 
 @app.get("/", tags=["Health"])

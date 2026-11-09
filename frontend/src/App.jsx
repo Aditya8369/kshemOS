@@ -85,6 +85,7 @@ import MultilingualSpeechSafetyView from './components/speech/MultilingualSpeech
 import LiveCallSafetyView from './components/livecall/LiveCallSafetyView';
 import IncidentNotificationConsole from './components/incidentDashboard/IncidentNotificationConsole';
 import MeetPage from './components/MeetPage';
+import CliSpoofDetectorView from './components/CliSpoofDetectorView';
 
 export default function App() {
   const [portal, setPortal] = useState('citizen');
@@ -180,6 +181,7 @@ export default function App() {
     if (activeView === 'evidence-upload') return <CitizenEvidenceUploadPortal setActiveView={setActiveView} />;
     if (activeView === 'alerts') return <AlertDispatchView />;
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
+    if (activeView === 'cli-spoof-detector') return <CliSpoofDetectorView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
     if (activeView === 'portal') {
