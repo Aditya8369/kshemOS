@@ -3,6 +3,8 @@ import FraudGraphView from './FraudGraphView';
 import IncidentDashboardView from './IncidentDashboardView';
 import JurisdictionConfigView from './jurisdiction/JurisdictionConfigView';
 import EvidenceGroundedCopilotView from './officer/EvidenceGroundedCopilotView';
+import EvidenceVaultView from './EvidenceVaultView';
+import DpdpRedactionView from './DpdpRedactionView';
 import Section63AffidavitCompilerView from './evidence/Section63AffidavitCompilerView';
 import CliSpoofDetectorView from './CliSpoofDetectorView';
 import SyndicateTriageView from './SyndicateTriageView';
@@ -679,6 +681,7 @@ const TABS = [
   { key: 'copilot', label: 'Officer Copilot (Grounded)' },
   { key: 'cli-spoof', label: 'CLI Spoof & Telecom Triage' },
   { key: 'evidence', label: 'Evidence Vault' },
+  { key: 'dpdp', label: 'DPDP Redaction & Masking' },
   { key: 'affidavit', label: 'Section 63 BSA Compiler' },
   { key: 'syndicate', label: 'Syndicate & APK Triage' },
   { key: 'tools', label: 'Investigation tools' },
@@ -753,6 +756,8 @@ export default function OfficerCommandCenter() {
   <CliSpoofDetectorView />
 ) : tab === 'evidence' ? (
   <EvidenceVaultView />
+) : tab === 'dpdp' ? (
+  <DpdpRedactionView />
 ) : tab === 'affidavit' ? (
   <Section63AffidavitCompilerView />
 ) : tab === 'syndicate' ? (

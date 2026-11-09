@@ -87,6 +87,7 @@ import IncidentNotificationConsole from './components/incidentDashboard/Incident
 import SyndicateTriageView from './components/SyndicateTriageView';
 import MuleFreezeDispatchView from './components/MuleFreezeDispatchView';
 import MeetPage from './components/MeetPage';
+import DpdpRedactionView from './components/DpdpRedactionView';
 import Section63AffidavitCompilerView from './components/evidence/Section63AffidavitCompilerView';
 import CliSpoofDetectorView from './components/CliSpoofDetectorView';
 
@@ -189,6 +190,7 @@ export default function App() {
     if (activeView === 'evidence-affidavit-compiler') return <Section63AffidavitCompilerView />;
     if (activeView === 'cli-spoof-detector') return <CliSpoofDetectorView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;
+    if (activeView === 'dpdp-redaction') return <DpdpRedactionView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
     if (activeView === 'portal') {
       return portal === 'citizen' ? <CitizenPortal setActiveView={setActiveView} /> : <OfficerCommandCenter />;

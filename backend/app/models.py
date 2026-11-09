@@ -1486,6 +1486,124 @@ class RetryNotificationResponse(BaseModel):
     success: bool
     notification: IncidentNotificationPayload
     message: str
+# ======================================================
+# DPDP ACT REDACTION & IDENTITY MASKING PIPELINE MODELS
+# ======================================================
+
+class DetectedPiiEntity(BaseModel):
+    entity_type: str = Field(..., description="AADHAAR, PAN, BANK_ACCOUNT, PHONE, EMAIL, UPI_VPA")
+    original_snippet: str = Field(..., description="Original raw snippet (internal only)")
+    masked_value: str = Field(..., description="Redacted display value, e.g. XXXX-XXXX-1234 or ABCDE****F")
+    start_index: int
+    end_index: int
+    pseudonym_token: str = Field(..., description="Persistent deterministic token, e.g. CITIZEN_REF_8492")
+
+
+class PiiSanitizationRequest(BaseModel):
+    text: Optional[str] = Field(default=None, description="Raw text containing potential citizen PII")
+    object_payload: Optional[Dict[str, Any]] = Field(default=None, description="Structured dictionary/JSON containing PII")
+    mask_types: Optional[List[str]] = Field(
+        default=None,
+        description="Specific PII categories to mask (defaults to all: AADHAAR, PAN, BANK_ACCOUNT, PHONE, EMAIL, UPI_VPA)"
+    )
+    tokenize_persistent: bool = Field(default=True, description="Whether to assign persistent CITIZEN_REF tokens")
+
+
+class PiiSanitizationResponse(BaseModel):
+    sanitized_text: Optional[str] = None
+    sanitized_payload: Optional[Dict[str, Any]] = None
+    detected_entities: List[DetectedPiiEntity] = Field(default_factory=list)
+    redactions_count: int
+    statutory_compliance: str = "Complies with Sections 4, 8 & 9 Digital Personal Data Protection Act, 2023 (DPDP Act) PII redaction standards."
+
+
+class PseudonymizeFeedRequest(BaseModel):
+    feed_items: List[Dict[str, Any]] = Field(..., description="List of threat intelligence or incident feed records")
+    pseudonym_salt: Optional[str] = Field(default="kshemos_dpdp_master_salt", description="HMAC salt context for deterministic tokenization")
+
+
+class PseudonymizeFeedResponse(BaseModel):
+    sanitized_items: List[Dict[str, Any]]
+    total_redactions: int
+    entities_tokenized: int
+    graph_topology_preserved: bool = True
+    statutory_compliance: str = "DPDP Act 2023 § 8(5) Pseudonymized Threat Sharing Format"
+
+
+class UnmaskRequestCreate(BaseModel):
+    record_id: str = Field(..., description="Target citizen report or entity record ID")
+    field_name: str = Field(default="all_pii", description="Specific field: aadhaar, pan, bank_account, or all_pii")
+    case_fir_number: str = Field(..., description="Mandatory FIR or Crime Reference Number (e.g. FIR No. 142/2026)")
+    legal_basis: Literal[
+        "SECTION_91_CRPC",
+        "SECTION_102_CRPC",
+        "COURT_WARRANT_MAGISTRATE",
+        "SECTION_17_DPDP_INVESTIGATION_EXEMPTION",
+        "CFCFRMS_1930_EMERGENCY_FREEZE"
+    ] = Field(..., description="Statutory investigative authority")
+    justification: str = Field(..., min_length=15, description="Detailed investigative necessity for unmasking citizen identity")
+    requester_badge_id: str = Field(default="OFF-IO-4412", description="Investigating Officer Badge ID")
+    requester_name: str = Field(default="Inspector Rajesh Kumar", description="Investigating Officer Name")
+    requester_role: str = Field(default="INVESTIGATOR", description="Officer role")
+
+
+class UnmaskReviewAction(BaseModel):
+    request_id: str = Field(..., description="Target Unmask Request ID (e.g. UNMASK-REQ-2026-001)")
+    action: Literal["APPROVE", "REJECT"] = Field(..., description="Supervisory determination")
+    supervisor_badge_id: str = Field(default="SUP-DCP-9901", description="Supervisory Officer Badge ID")
+    supervisor_name: str = Field(default="DCP Cyber Crime Ops", description="Supervisory Officer Name")
+    approval_notes: str = Field(..., min_length=10, description="Formal supervisory concurrence and court compliance review")
+
+
+UnmaskApprovalRequest = UnmaskReviewAction
+
+
+class UnmaskRequestRecord(BaseModel):
+    request_id: str
+    record_id: str
+    field_name: str
+    case_fir_number: str
+    legal_basis: str
+    justification: str
+    requester_badge_id: str
+    requester_name: str
+    requester_role: str
+    status: Literal["PENDING_SUPERVISORY_APPROVAL", "APPROVED", "REJECTED", "EXPIRED"]
+    created_at: int
+    reviewed_at: Optional[int] = None
+    supervisor_badge_id: Optional[str] = None
+    supervisor_name: Optional[str] = None
+    approval_notes: Optional[str] = None
+    lease_expires_at: Optional[int] = None
+
+
+class UnmaskedValueResponse(BaseModel):
+    request_id: str
+    record_id: str
+    field_name: str
+    unmasked_value: str
+    masked_value: str
+    requester_badge_id: str
+    supervisor_badge_id: str
+    lease_expires_at: int
+    seconds_remaining: int
+    audit_transaction_id: str
+    statutory_warning: str = "CONFIDENTIAL: Unmasked under statutory court exemption. Unauthorized dissemination violates Section 17 DPDP Act & BNS § 316."
+
+
+class DpdpAuditLogEntry(BaseModel):
+    audit_id: str
+    timestamp: int
+    timestamp_iso: str
+    action: str
+    actor_badge_id: str
+    actor_role: str
+    record_id: str
+    legal_basis: str
+    outcome: str
+    details: str
+    client_ip: str
+
 
 # ======================================================
 # SECTION 63 BSA / 65B IEA ELECTRONIC EVIDENCE AFFIDAVIT COMPILER MODELS
