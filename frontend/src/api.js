@@ -278,8 +278,6 @@ export async function askCitizenAssistant({ question, language }) {
 export async function submitCitizenReport(payload) {
   const report = submitCitizenReportLocally(payload);
 
-  // Every report becomes a live incident on the officer dashboard.
-  // A failure here must not lose the citizen's acknowledgement.
   try {
     const { incident, source } = await recordIncident({
       ...payload,
@@ -669,7 +667,6 @@ export {
   JURISDICTION_REGION_MAP,
 } from './incidentNotificationStore.js';
 
-// Fetch notification audit history and delivery statistics
 export async function fetchIncidentNotificationsApi() {
   const state = defaultIncidentNotificationStore.getState();
 
@@ -679,12 +676,10 @@ export async function fetchIncidentNotificationsApi() {
   };
 }
 
-// Fetch the officer directory
 export async function fetchNotificationDirectoryApi() {
   return defaultIncidentNotificationStore.getState().officers;
 }
 
-// Update an officer's notification preferences
 export async function updateOfficerPreferencesApi(officerId, preferences) {
   return defaultIncidentNotificationStore.updateOfficerPreferences(
     officerId,
@@ -692,7 +687,6 @@ export async function updateOfficerPreferencesApi(officerId, preferences) {
   );
 }
 
-// Retry a failed or pending notification
 export async function retryIncidentNotificationApi(notificationId) {
   try {
     const notification =
@@ -711,7 +705,6 @@ export async function retryIncidentNotificationApi(notificationId) {
   }
 }
 
-// Dispatch incident notifications
 export async function dispatchIncidentNotificationApi(
   incident,
   eventType,
@@ -769,6 +762,27 @@ export async function fetchOfficialContactsApi(category = '') {
 
   return handle(response);
 }
+
+// ======================================================
+// SYNDICATE GROUP PARSER & APK TRIAGE APIs
+// ======================================================
+
+export {
+  parseChatLocally,
+  analyzeApkLocally,
+  parseSyndicateChatApi,
+  analyzeApkApi,
+  uploadApkApi,
+  fetchSyndicateCorrelationsApi,
+  fetchSyndicateStatsApi,
+  fetchSyndicateChatsApi,
+  fetchSyndicateApksApi,
+  SAMPLE_CHAT_WHATSAPP,
+  SAMPLE_CHAT_TELEGRAM,
+  SAMPLE_APK_PAYLOAD,
+  SYNDICATE_COUNTRY_CODES,
+  DANGEROUS_PERMISSIONS_MAP,
+} from './syndicateTriageStore.js';
 
 // ======================================================
 // AUTOMATED UPI MULE ACCOUNT FREEZE DISPATCH (CFCFRMS / 1930)
@@ -898,4 +912,3 @@ export async function fetchMuleFreezeStatsApi() {
   }
   return defaultMuleFreezeStore.getStats();
 }
-

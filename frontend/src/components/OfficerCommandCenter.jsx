@@ -3,6 +3,7 @@ import FraudGraphView from './FraudGraphView';
 import IncidentDashboardView from './IncidentDashboardView';
 import JurisdictionConfigView from './jurisdiction/JurisdictionConfigView';
 import EvidenceGroundedCopilotView from './officer/EvidenceGroundedCopilotView';
+import SyndicateTriageView from './SyndicateTriageView';
 import MuleFreezeDispatchView from './MuleFreezeDispatchView';
 
 import {
@@ -675,6 +676,7 @@ const TABS = [
   { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
   { key: 'copilot', label: 'Officer Copilot (Grounded)' },
   { key: 'evidence', label: 'Evidence Vault' },
+  { key: 'syndicate', label: 'Syndicate & APK Triage' },
   { key: 'tools', label: 'Investigation tools' },
 ];
 
@@ -702,6 +704,8 @@ export default function OfficerCommandCenter() {
   ? 'Evidence-grounded investigative next steps with 4-tier separation, source citations, and human approval guardrails.'
   : tab === 'evidence'
   ? 'Immutable chain of custody, Section 65B forensic bundles, and legal hold verification.'
+  : tab === 'syndicate'
+  ? 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK sandbox triage.'
   : 'Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.'}
           </p>
         </div>
@@ -739,6 +743,8 @@ export default function OfficerCommandCenter() {
   <EvidenceGroundedCopilotView />
 ) : tab === 'evidence' ? (
   <EvidenceVaultView />
+) : tab === 'syndicate' ? (
+  <SyndicateTriageView />
 ) : (
   <div className="space-y-6">
     <EvidenceGroundedCopilotView />

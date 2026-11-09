@@ -265,6 +265,7 @@ export default function Shell({
               {dropdownMenu('officer-operations', 'Operations', [
                 { key: 'mule-freeze', label: 'Mule Account Freeze' },
                 { key: 'triage', label: 'Triage Engine' },
+                { key: 'syndicate-triage', label: 'Syndicate & APK Triage' },
                 { key: 'advisory', label: 'Advisory Composer' },
                 { key: 'evidence', label: 'Evidence Vault' },
                 { key: 'alerts', label: 'Alert Dispatch' },
