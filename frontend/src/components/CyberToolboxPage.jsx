@@ -7,6 +7,7 @@ const TOOLBOX_ITEMS = [
   { key: 'sms-analyzer', title: 'SMS Analyzer', description: 'Review SMS messages for urgency, payment pressure, and scam links.', accent: 'var(--alert)' },
   { key: 'phish-detect', title: 'PhishDetect', description: 'Analyze suspicious emails for spoofed senders, aggressive subjects, and risky links.', accent: 'var(--safe)' },
   { key: 'upi-fraud-shield', title: 'UPI Fraud Shield', description: 'Evaluate UPI payments for odd amounts, suspect handles, and unusual reasons.', accent: 'var(--caution)' },
+  { key: 'mule-freeze', title: 'UPI Mule Freeze (1930)', description: 'Fast-track Section 102 CrPC provisional debit freeze mandates and CFCFRMS dispatch.', accent: 'var(--alert)' },
   { key: 'job-scam-radar', title: 'JobScam Radar', description: 'Spot fake job offers that ask for upfront fees or pressure you to act fast.', accent: 'var(--saffron)' },
   { key: 'invest-scan', title: 'InvestScan', description: 'Flag investment pitches with guaranteed returns and Ponzi-style pressure.', accent: 'var(--navy)' },
   { key: 'loan-trap-alert', title: 'LoanTrap Alert', description: 'Review loan offers for fake approvals, processing fees, and payment demands.', accent: 'var(--alert)' },
@@ -65,6 +66,8 @@ const TOOLBOX_ITEMS = [
   { key: 'digital-trust-score', title: 'Digital Trust Score', description: 'Calculate trustworthiness of an online account or profile.', accent: 'var(--safe)' },
   { key: 'online-reputation-safety', title: 'Online Reputation Safety', description: 'Detect impersonation, doxxing, and fake profiles affecting reputation.', accent: 'var(--caution)' },
   { key: 'evidence-affidavit-compiler', title: 'Section 63 BSA Affidavit Compiler', description: 'Compile court-ready electronic evidence certificates with SHA-256 hashes, Stratum 1 NTP records, and dual-officer declarations.', accent: 'var(--saffron)' },
+  { key: 'cli-spoof-detector', title: 'CLI Spoof & SIM Box Detector', description: 'Cross-reference caller ID metadata, TRAI numbering plans, and VoIP gateways to detect spoofed calls.', accent: 'var(--saffron)' },
+  { key: 'syndicate-triage', title: 'Syndicate & APK Triage', description: 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK trojan permissions.', accent: 'var(--alert)' },
 ];
 
 function ToolCard({ item, index, setActiveView }) {

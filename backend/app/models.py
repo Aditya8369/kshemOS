@@ -1487,7 +1487,6 @@ class RetryNotificationResponse(BaseModel):
     notification: IncidentNotificationPayload
     message: str
 
-
 # ======================================================
 # SECTION 63 BSA / 65B IEA ELECTRONIC EVIDENCE AFFIDAVIT COMPILER MODELS
 # ======================================================
@@ -1580,3 +1579,317 @@ class Section63AffidavitResponse(BaseModel):
     court_printable_html: str
     tamper_details: Optional[Dict[str, Any]] = None
 
+
+# ---------- SIM Box & Spoofed Calling Line Identification (CLI) Detection Engine ----------
+
+class SpoofAnomalyFlag(BaseModel):
+    flag_type: str
+    severity: Literal["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+    description: str
+    statutory_reference: Optional[str] = None
+
+
+class TelephonyRouteVerificationRequest(BaseModel):
+    call_id: Optional[str] = Field(None, description="Optional telephony call identifier")
+    claimed_cli: str = Field(..., description="Incoming caller ID as displayed on handset / softphone")
+    claimed_entity: Optional[str] = Field(None, description="Caller's claimed organization (e.g. Mumbai Police, CBI HQ)")
+    call_channel: Literal[
+        "pstn_gsm", "whatsapp_voip", "skype_voip", "telegram_call", "sip_trunk", "unknown"
+    ] = "sip_trunk"
+    sip_headers: Optional[Dict[str, str]] = Field(default_factory=dict, description="Extracted SIP headers (From, Contact, User-Agent, PAI)")
+    carrier_ingress_ip: Optional[str] = Field(None, description="Ingress gateway IP of the incoming call stream")
+    audio_latency_ms: Optional[float] = Field(None, description="Round-trip audio latency measurement in milliseconds")
+    packet_jitter_ms: Optional[float] = Field(None, description="VoIP / RTP packet jitter in milliseconds")
+    packet_loss_pct: Optional[float] = Field(None, description="Packet loss percentage")
+    recipient_circle: Optional[str] = Field("MH", description="Recipient telecom circle (e.g. DL, MH, KA)")
+    officer_badge: Optional[str] = Field("OFFICER-SYS", description="Investigating officer identifier")
+
+
+class TelephonyRouteVerificationResponse(BaseModel):
+    verification_id: str
+    call_id: str
+    claimed_cli: str
+    normalized_cli: str
+    claimed_entity: str
+    is_spoofed: bool
+    spoof_confidence: float = Field(..., ge=0.0, le=1.0)
+    threat_tier: Literal["CRITICAL", "HIGH", "MEDIUM", "LOW", "VERIFIED_LEGITIMATE"]
+    carrier_legitimacy_score: float = Field(..., ge=0.0, le=100.0)
+    trai_circle_info: Dict[str, Any]
+    route_telemetry: Dict[str, Any]
+    anomaly_flags: List[SpoofAnomalyFlag] = Field(default_factory=list)
+    warning_banner: str
+    recommended_action: str
+    forwarded_to_telecom_triage: bool
+    ingress_point_id: Optional[str] = None
+    verified_at: str
+
+
+class TelecomTriageIncident(BaseModel):
+    triage_id: str
+    verification_id: str
+    claimed_cli: str
+    carrier_ingress_ip: Optional[str] = None
+    ingress_country: str
+    spoof_type: str
+    gateway_signature: str
+    status: Literal["DISPATCHED_TO_TELCO", "BLOCKED_AT_GATEWAY", "UNDER_INVESTIGATION", "RESOLVED"]
+    target_agency_spoofed: str
+    dot_reporting_payload: Dict[str, Any] = Field(default_factory=dict)
+    timestamp: str
+
+
+class TelecomTriageSummary(BaseModel):
+    total_calls_inspected: int
+    spoofed_calls_intercepted: int
+    simbox_gateways_isolated: int
+    international_grey_routes_blocked: int
+    high_risk_ingress_ips: List[str] = Field(default_factory=list)
+    recent_dispatches: List[TelecomTriageIncident] = Field(default_factory=list)
+
+
+# ---------- WhatsApp & Telegram Syndicate Group Parser and APK Triage ----------
+
+class SyndicateChatParseRequest(BaseModel):
+    raw_text: str = Field(..., description="Chat screenshot OCR text or exported chat log")
+    incident_id: Optional[str] = Field(None, description="Linked citizen report or incident ID")
+    source_platform: Optional[str] = Field("auto", description="Source platform: whatsapp, telegram, or auto")
+    officer_badge: Optional[str] = Field("OFFICER-SYS", description="Officer ID or badge number")
+
+
+class ExtractedInviteLink(BaseModel):
+    platform: str
+    url: str
+    code: str
+
+
+class ExtractedPhoneNumber(BaseModel):
+    number: str
+    country: str
+    is_syndicate_intl: bool
+    role: str  # "admin", "recruiter", "sender", "mentioned"
+
+
+class ExtractedCryptoWallet(BaseModel):
+    address: str
+    network: str  # "BTC", "ETH", "TRON"
+    standard: str  # "TRC-20", "ERC-20", "Native"
+
+
+class SyndicateChatParseResponse(BaseModel):
+    artifact_id: str
+    incident_id: Optional[str] = None
+    source_platform: str
+    invite_links: List[ExtractedInviteLink] = Field(default_factory=list)
+    phone_numbers: List[ExtractedPhoneNumber] = Field(default_factory=list)
+    crypto_wallets: List[ExtractedCryptoWallet] = Field(default_factory=list)
+    upi_ids: List[str] = Field(default_factory=list)
+    apk_urls: List[str] = Field(default_factory=list)
+    syndicate_keywords: List[str] = Field(default_factory=list)
+    risk_score: float
+    threat_band: str  # "CRITICAL", "HIGH", "MEDIUM", "LOW"
+    cluster_id: Optional[str] = None
+    graph_nodes_injected: int = 0
+    parsed_at: str
+    summary: str
+
+
+class ApkAnalyzeRequest(BaseModel):
+    filename: str = Field(..., description="File name of APK or mock payload")
+    file_bytes_base64: Optional[str] = Field(None, description="Base64 encoded APK or package manifest")
+    incident_id: Optional[str] = Field(None, description="Associated citizen incident ID")
+    officer_badge: Optional[str] = Field("OFFICER-SYS", description="Submitting officer badge")
+
+
+class DangerousPermission(BaseModel):
+    permission: str
+    risk_level: str  # "CRITICAL", "HIGH", "MEDIUM"
+    category: str
+    description: str
+
+
+class SuspiciousServiceOrIntent(BaseModel):
+    name: str
+    component_type: str  # "Service", "Receiver", "Activity"
+    flag_reason: str
+
+
+class C2Endpoint(BaseModel):
+    endpoint_type: str  # "telegram_bot", "ipv4", "domain", "dynamic_dns"
+    target: str
+    risk: str
+    notes: Optional[str] = None
+
+
+class ApkAnalyzeResponse(BaseModel):
+    artifact_id: str
+    incident_id: Optional[str] = None
+    filename: str
+    sha256: str
+    sha1: str
+    md5: str
+    filesize_bytes: int
+    package_name: str
+    version_code: str
+    version_name: str
+    app_label: str
+    is_quarantined: bool
+    quarantine_path: str
+    dangerous_permissions: List[DangerousPermission] = Field(default_factory=list)
+    suspicious_services_intents: List[SuspiciousServiceOrIntent] = Field(default_factory=list)
+    c2_endpoints: List[C2Endpoint] = Field(default_factory=list)
+    malware_family: str
+    overall_risk_score: float
+    threat_level: str  # "CRITICAL", "HIGH", "MEDIUM", "LOW"
+    analyzed_at: str
+    cluster_id: Optional[str] = None
+    graph_nodes_injected: int = 0
+    summary: str
+
+
+class LinkedIncident(BaseModel):
+    incident_id: str
+    shared_indicators: List[str]
+    indicator_types: List[str]
+    first_seen: str
+    last_seen: str
+
+
+class SyndicateClusterInfo(BaseModel):
+    cluster_id: str
+    cluster_name: str
+    threat_tier: str
+    indicators: Dict[str, List[str]]
+    linked_incidents: List[str]
+    total_nodes: int
+    mule_accounts: List[str]
+
+
+class SyndicateCorrelationResponse(BaseModel):
+    clusters: List[SyndicateClusterInfo]
+    cross_linked_incidents: List[LinkedIncident]
+    total_indicators_tracked: int
+
+
+class SyndicateStatsResponse(BaseModel):
+    total_chats_parsed: int
+    total_apks_quarantined: int
+    total_syndicate_clusters: int
+    total_linked_incidents: int
+    high_risk_admin_numbers: int
+    crypto_wallets_indexed: int
+    upi_handles_indexed: int
+
+
+# ---------- Automated UPI Mule Account Freeze Dispatch via CFCFRMS / 1930 ----------
+
+class ParseFinancialEntitiesRequest(BaseModel):
+    text: str = Field(..., description="Raw citizen complaint, chat log, or note text")
+
+
+class ParseFinancialEntitiesResponse(BaseModel):
+    vpas: List[str] = Field(default_factory=list)
+    phone_linked_vpas: List[str] = Field(default_factory=list)
+    utrs: List[str] = Field(default_factory=list)
+    ifsc_codes: List[str] = Field(default_factory=list)
+    account_numbers: List[str] = Field(default_factory=list)
+    extracted_count: int
+
+
+class FreezeEvaluationRequest(BaseModel):
+    vpa: str
+    account_number: Optional[str] = None
+    ifsc: Optional[str] = None
+    utr_number: Optional[str] = None
+    transaction_amount: float = 0.0
+    transaction_timestamp_iso: Optional[str] = None
+    recent_transactions: Optional[List[Dict[str, Any]]] = None
+    is_digital_arrest: bool = False
+
+
+class FreezeEvaluationResponse(BaseModel):
+    vpa: str
+    account_number: Optional[str] = None
+    ifsc: Optional[str] = None
+    utr_number: Optional[str] = None
+    transaction_amount: float
+    priority_tier: str
+    sla_minutes: int
+    action_directive: str
+    graph_hop_distance: Optional[int] = None
+    shortest_syndicate_path: List[str] = Field(default_factory=list)
+    mule_probability: float
+    velocity_score: float
+    has_rapid_burst: bool
+    total_volume: float
+    evaluation_rationale: str
+    evaluated_at: str
+
+
+class DispatchFreezeRequest(BaseModel):
+    incident_id: str
+    suspect_vpa: str
+    suspect_account: Optional[str] = None
+    suspect_ifsc: Optional[str] = None
+    utr_number: Optional[str] = None
+    transaction_amount: float = 0.0
+    transaction_timestamp_iso: Optional[str] = None
+    recent_transactions: Optional[List[Dict[str, Any]]] = None
+    officer_name: str = "Inspector R. K. Sharma"
+    officer_badge_id: str = "OFF-DELHI-101"
+    police_station: str = "Cyber Crime Police Station, Central Delhi"
+    is_digital_arrest: bool = False
+    victim_details: Optional[Dict[str, Any]] = None
+
+
+class RecordBankAcknowledgmentRequest(BaseModel):
+    bank_nodal_ref: str
+    freeze_outcome: Literal[
+        "FROZEN", "LIEN_MARKED", "REJECTED_INSUFFICIENT_FUNDS", "REJECTED_INVALID_ACCOUNT"
+    ] = "FROZEN"
+    notes: Optional[str] = None
+
+
+class RevokeFreezeRequest(BaseModel):
+    revoking_officer_badge_id: str
+    revocation_reason: str
+
+
+class FreezeRecordResponse(BaseModel):
+    freeze_id: str
+    incident_id: str
+    suspect_vpa: str
+    suspect_account: Optional[str] = None
+    suspect_ifsc: Optional[str] = None
+    utr_number: Optional[str] = None
+    transaction_amount: float
+    status: str
+    priority_tier: str
+    sla_minutes: int
+    action_directive: str
+    officer_badge_id: str
+    officer_name: str
+    police_station: str
+    dispatched_at: str
+    dispatched_at_ms: int
+    acknowledged_at: Optional[str] = None
+    acknowledged_at_ms: Optional[int] = None
+    bank_nodal_ref: Optional[str] = None
+    bank_response_time_ms: Optional[float] = None
+    evaluation: Dict[str, Any]
+    statutory_notice: Dict[str, Any]
+    cfcfrms_payload: Dict[str, Any]
+    audit_events: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class FreezeStatsResponse(BaseModel):
+    total_requests: int
+    dispatched: int
+    frozen: int
+    rejected: int
+    revoked: int
+    tier1_immediate_stop: int
+    tier2_provisional_freeze: int
+    tier3_monitor: int
+    average_bank_latency_ms: float
+    total_amount_protected_inr: float
