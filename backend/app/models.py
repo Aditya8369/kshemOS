@@ -88,12 +88,14 @@ class BenchmarkEvaluationResponse(BaseModel):
 # ---------- Counterfeit Currency Agent ----------
 
 class CurrencyScanResponse(BaseModel):
-    verdict: str  # "likely_genuine" | "suspicious" | "inconclusive"
+    verdict: str  # "inconclusive" until a validated model is available
     confidence: float
     reasons: list[str]
     signals: dict
-
-
+    quality_status: str
+    quality_checks: dict
+    model_version: str
+    analysis_status: str
 
 # ---------- Fraud Graph Agent ----------
 
