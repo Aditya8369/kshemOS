@@ -2,7 +2,6 @@ import emailjs from '@emailjs/browser';
 
 import {
   analyzeScamTranscript as analyzeLocally,
-  scanCurrencyImageLocally,
   askCitizenAssistantLocally,
   submitCitizenReportLocally,
   getCaseSummaryLocally,
@@ -121,8 +120,24 @@ export async function analyzeScamTranscript({
   return analyzeLocally(transcript, callerClaimsToBe);
 }
 
+// Currency image scanning - backend API
 export async function scanCurrencyImage(file) {
-  return scanCurrencyImageLocally(file);
+  if (!file) {
+    throw new Error('Please select an image first.');
+  }
+
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await fetch(
+    `${BASE_URL.replace(/\/+$/, '')}/api/currency/scan`,
+    {
+      method: 'POST',
+      body: formData,
+    }
+  );
+
+  return handle(response);
 }
 
 export async function lookupFraudRing(accountId) {
@@ -249,6 +264,7 @@ export async function verifyFraudGraphReviewIntegrity(
 export async function exportFraudGraphReviews(analystToken) {
   return graphReviewRequest('/reviews/export', analystToken);
 }
+
 export async function askCitizenAssistant({ question, language }) {
   return {
     answer: askCitizenAssistantLocally(question, language),
@@ -511,7 +527,6 @@ export {
   defaultMutualAidStore,
 } from './mutualAidStore.js';
 
-
 // ======================================================
 // MULTILINGUAL SPEECH RECOGNITION & REGIONAL ASR APIs
 // ======================================================
@@ -529,6 +544,7 @@ export {
   MULTILINGUAL_SAMPLES,
   MULTILINGUAL_SCAM_LEXICON,
 } from './multilingualSpeechStore.js';
+
 // CONSENT-BASED LIVE SCAM-CALL TRANSCRIPTION & RISK ALERTS
 // ======================================================
 
@@ -546,6 +562,7 @@ export {
   OFFICIAL_HELPLINES,
   SAMPLE_CALL_SIMULATIONS,
 } from './liveCallSafetyStore.js';
+
 // ======================================================
 // PUBLIC ADVISORY & EMERGENCY BROADCAST APIs
 // ======================================================
@@ -567,6 +584,7 @@ export {
   AdvisoryBroadcastStore,
   defaultBroadcastStore,
 } from './advisoryBroadcastStore.js';
+
 // ======================================================
 // AI TELEPHONY HONEYPOT & CALL-PATTERN TRIANGULATION APIs
 // ======================================================
@@ -585,6 +603,7 @@ export {
   KNOWN_SYNDICATES_DB,
   DEFAULT_SEED_SESSIONS,
 } from './telephonyHoneypotStore.js';
+
 // ======================================================
 // PREDICTIVE SPATIAL INTELLIGENCE & THREAT HEATMAP APIs
 // ======================================================
@@ -638,6 +657,7 @@ export {
   EVIDENCE_UPLOAD_LINKS_KEY,
   DEFAULT_SAMPLE_UPLOAD_LINKS,
 } from './evidenceStore.js';
+
 // ======================================================
 // INCIDENT NOTIFICATION & OFFICER ESCALATION APIs
 // ======================================================
@@ -714,6 +734,7 @@ export async function dispatchIncidentNotificationApi(
     count: notifications.length,
   };
 }
+
 // ======================================================
 // EVIDENCE-GROUNDED OFFICER COPILOT APIs
 // ======================================================

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 
 import RiskGauge from './RiskGauge';
@@ -341,23 +340,62 @@ function CurrencyScanner() {
           )}
 
           {result && (
-            <div className="mt-3 text-sm">
+            <div className="mt-3 text-sm space-y-3">
               <div
-                className="inline-block font-display font-semibold uppercase text-xs px-3 py-1 rounded-full mb-2"
+                className="inline-block font-display font-semibold uppercase text-xs px-3 py-1 rounded-full"
                 style={{
                   color: verdictColor,
                   border: `1px solid ${verdictColor}`,
                 }}
               >
-                {(result.verdict || 'unknown').replace('_', ' ')} ·{' '}
-                {((result.confidence ?? 0) * 100).toFixed(0)}% confidence
+                {(result.verdict || 'unknown').replace(/_/g, ' ')}
               </div>
 
-              <ul className="list-disc list-inside space-y-0.5 text-[var(--ink-text)]/80">
-                {(result.reasons || []).map((r) => (
-                  <li key={r}>{r}</li>
-                ))}
-              </ul>
+              <div>
+                <p className="font-semibold text-[var(--ink)]">
+                  Image quality:{' '}
+                  {(result.quality_status || 'unknown').replace(/_/g, ' ')}
+                </p>
+
+                {Object.keys(result.quality_checks || {}).length > 0 && (
+                  <ul className="list-disc list-inside space-y-0.5 text-[var(--ink-text)]/80 mt-1">
+                    {Object.entries(result.quality_checks).map(([key, value]) => (
+                      <li key={key}>
+                        {key.replace(/_/g, ' ')}: {value ? 'Passed' : 'Needs attention'}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold text-[var(--ink)]">
+                  Analysis reasons
+                </p>
+                <ul className="list-disc list-inside space-y-0.5 text-[var(--ink-text)]/80 mt-1">
+                  {(result.reasons || []).map((reason, index) => (
+                    <li key={`${index}-${reason}`}>{reason}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="text-xs text-[var(--ink-text)]/70 space-y-1">
+                <p>
+                  Model version: {result.model_version || 'Unknown'}
+                </p>
+                <p>
+                  Analysis status:{' '}
+                  {(result.analysis_status || 'Unknown').replace(/_/g, ' ')}
+                </p>
+              </div>
+
+              <p className="rounded-lg border border-[var(--caution)]/40 bg-[var(--caution)]/10 p-3 text-sm text-[var(--ink-text)]">
+                <strong>Important:</strong> This scan checks image quality only
+                when an authenticity model is unavailable. It does not confirm
+                whether the currency note is genuine or counterfeit. Do not
+                rely on this result alone. For verification, consult an
+                authorized bank or financial institution.
+              </p>
             </div>
           )}
         </div>
