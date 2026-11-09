@@ -21,6 +21,8 @@ from app.routers import (
     live_call_safety,
     incident_notifications,
     official_contacts,
+    evidence,
+    evidence_affidavit,
 )
 
 app = FastAPI(
@@ -60,8 +62,9 @@ app.include_router(drills.router)
 app.include_router(multilingual_asr.router)
 app.include_router(live_call_safety.router)
 app.include_router(incident_notifications.router)
-app.include_router(advisory.router)
 app.include_router(official_contacts.router)
+app.include_router(evidence.router)
+app.include_router(evidence_affidavit.router)
 
 
 @app.get("/", tags=["Health"])

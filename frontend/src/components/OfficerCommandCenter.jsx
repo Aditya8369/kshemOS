@@ -3,6 +3,7 @@ import FraudGraphView from './FraudGraphView';
 import IncidentDashboardView from './IncidentDashboardView';
 import JurisdictionConfigView from './jurisdiction/JurisdictionConfigView';
 import EvidenceGroundedCopilotView from './officer/EvidenceGroundedCopilotView';
+import Section63AffidavitCompilerView from './evidence/Section63AffidavitCompilerView';
 
 import {
   lookupFraudRing,
@@ -673,6 +674,7 @@ const TABS = [
   { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
   { key: 'copilot', label: 'Officer Copilot (Grounded)' },
   { key: 'evidence', label: 'Evidence Vault' },
+  { key: 'affidavit', label: 'Section 63 BSA Compiler' },
   { key: 'tools', label: 'Investigation tools' },
 ];
 
@@ -698,6 +700,8 @@ export default function OfficerCommandCenter() {
   ? 'Evidence-grounded investigative next steps with 4-tier separation, source citations, and human approval guardrails.'
   : tab === 'evidence'
   ? 'Immutable chain of custody, Section 65B forensic bundles, and legal hold verification.'
+  : tab === 'affidavit'
+  ? 'Sealed court-ready Section 63 BSA / 65B IEA certificates with Stratum 1 NTP records and dual-officer legal declarations.'
   : 'Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.'}
           </p>
         </div>
@@ -733,6 +737,8 @@ export default function OfficerCommandCenter() {
   <EvidenceGroundedCopilotView />
 ) : tab === 'evidence' ? (
   <EvidenceVaultView />
+) : tab === 'affidavit' ? (
+  <Section63AffidavitCompilerView />
 ) : (
   <div className="space-y-6">
     <EvidenceGroundedCopilotView />

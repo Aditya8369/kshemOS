@@ -264,6 +264,7 @@ export default function Shell({
               {/* Operations Dropdown */}
               {dropdownMenu('officer-operations', 'Operations', [
                 { key: 'triage', label: 'Triage Engine' },
+                { key: 'evidence-affidavit-compiler', label: 'Section 63 BSA Affidavit' },
                 { key: 'advisory', label: 'Advisory Composer' },
                 { key: 'evidence', label: 'Evidence Vault' },
                 { key: 'alerts', label: 'Alert Dispatch' },

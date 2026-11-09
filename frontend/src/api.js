@@ -748,3 +748,19 @@ export async function fetchOfficialContactsApi(category = '') {
 
   return handle(response);
 }
+
+// ======================================================
+// SECTION 63 BSA / 65B IEA ELECTRONIC EVIDENCE AFFIDAVIT COMPILER APIs
+// ======================================================
+
+export {
+  OFFICIAL_NTP_RECORD,
+  HARDWARE_SIGNATURE_PROFILES,
+  DEMO_CASE_PRESETS,
+  compileSection63AffidavitLocally,
+  compileSection63AffidavitApi,
+  fetchNtpStatusApi,
+  fetchHardwareProfilesApi,
+  getAffidavitPreviewHtmlUrl,
+} from './evidenceAffidavitStore.js';
+
