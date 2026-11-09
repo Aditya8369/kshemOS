@@ -1486,3 +1486,118 @@ class RetryNotificationResponse(BaseModel):
     success: bool
     notification: IncidentNotificationPayload
     message: str
+
+
+# ---------- Automated UPI Mule Account Freeze Dispatch via CFCFRMS / 1930 ----------
+
+class ParseFinancialEntitiesRequest(BaseModel):
+    text: str = Field(..., description="Raw citizen complaint, chat log, or note text")
+
+
+class ParseFinancialEntitiesResponse(BaseModel):
+    vpas: List[str] = Field(default_factory=list)
+    phone_linked_vpas: List[str] = Field(default_factory=list)
+    utrs: List[str] = Field(default_factory=list)
+    ifsc_codes: List[str] = Field(default_factory=list)
+    account_numbers: List[str] = Field(default_factory=list)
+    extracted_count: int
+
+
+class FreezeEvaluationRequest(BaseModel):
+    vpa: str
+    account_number: Optional[str] = None
+    ifsc: Optional[str] = None
+    utr_number: Optional[str] = None
+    transaction_amount: float = 0.0
+    transaction_timestamp_iso: Optional[str] = None
+    recent_transactions: Optional[List[Dict[str, Any]]] = None
+    is_digital_arrest: bool = False
+
+
+class FreezeEvaluationResponse(BaseModel):
+    vpa: str
+    account_number: Optional[str] = None
+    ifsc: Optional[str] = None
+    utr_number: Optional[str] = None
+    transaction_amount: float
+    priority_tier: str
+    sla_minutes: int
+    action_directive: str
+    graph_hop_distance: Optional[int] = None
+    shortest_syndicate_path: List[str] = Field(default_factory=list)
+    mule_probability: float
+    velocity_score: float
+    has_rapid_burst: bool
+    total_volume: float
+    evaluation_rationale: str
+    evaluated_at: str
+
+
+class DispatchFreezeRequest(BaseModel):
+    incident_id: str
+    suspect_vpa: str
+    suspect_account: Optional[str] = None
+    suspect_ifsc: Optional[str] = None
+    utr_number: Optional[str] = None
+    transaction_amount: float = 0.0
+    transaction_timestamp_iso: Optional[str] = None
+    recent_transactions: Optional[List[Dict[str, Any]]] = None
+    officer_name: str = "Inspector R. K. Sharma"
+    officer_badge_id: str = "OFF-DELHI-101"
+    police_station: str = "Cyber Crime Police Station, Central Delhi"
+    is_digital_arrest: bool = False
+    victim_details: Optional[Dict[str, Any]] = None
+
+
+class RecordBankAcknowledgmentRequest(BaseModel):
+    bank_nodal_ref: str
+    freeze_outcome: Literal[
+        "FROZEN", "LIEN_MARKED", "REJECTED_INSUFFICIENT_FUNDS", "REJECTED_INVALID_ACCOUNT"
+    ] = "FROZEN"
+    notes: Optional[str] = None
+
+
+class RevokeFreezeRequest(BaseModel):
+    revoking_officer_badge_id: str
+    revocation_reason: str
+
+
+class FreezeRecordResponse(BaseModel):
+    freeze_id: str
+    incident_id: str
+    suspect_vpa: str
+    suspect_account: Optional[str] = None
+    suspect_ifsc: Optional[str] = None
+    utr_number: Optional[str] = None
+    transaction_amount: float
+    status: str
+    priority_tier: str
+    sla_minutes: int
+    action_directive: str
+    officer_badge_id: str
+    officer_name: str
+    police_station: str
+    dispatched_at: str
+    dispatched_at_ms: int
+    acknowledged_at: Optional[str] = None
+    acknowledged_at_ms: Optional[int] = None
+    bank_nodal_ref: Optional[str] = None
+    bank_response_time_ms: Optional[float] = None
+    evaluation: Dict[str, Any]
+    statutory_notice: Dict[str, Any]
+    cfcfrms_payload: Dict[str, Any]
+    audit_events: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class FreezeStatsResponse(BaseModel):
+    total_requests: int
+    dispatched: int
+    frozen: int
+    rejected: int
+    revoked: int
+    tier1_immediate_stop: int
+    tier2_provisional_freeze: int
+    tier3_monitor: int
+    average_bank_latency_ms: float
+    total_amount_protected_inr: float
+

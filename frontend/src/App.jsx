@@ -84,6 +84,7 @@ import JurisdictionConfigView from './components/jurisdiction/JurisdictionConfig
 import MultilingualSpeechSafetyView from './components/speech/MultilingualSpeechSafetyView';
 import LiveCallSafetyView from './components/livecall/LiveCallSafetyView';
 import IncidentNotificationConsole from './components/incidentDashboard/IncidentNotificationConsole';
+import MuleFreezeDispatchView from './components/MuleFreezeDispatchView';
 import MeetPage from './components/MeetPage';
 
 export default function App() {
@@ -177,6 +178,7 @@ export default function App() {
     if (activeView === 'live-call-safety') return <LiveCallSafetyView />;
     if (activeView === 'incident-notifications') return <IncidentNotificationConsole />;
     if (activeView === 'evidence') return <EvidenceVaultView/>;
+    if (activeView === 'mule-freeze') return <MuleFreezeDispatchView />;
     if (activeView === 'evidence-upload') return <CitizenEvidenceUploadPortal setActiveView={setActiveView} />;
     if (activeView === 'alerts') return <AlertDispatchView />;
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
