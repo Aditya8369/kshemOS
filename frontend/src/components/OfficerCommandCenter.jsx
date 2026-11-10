@@ -9,6 +9,7 @@ import Section63AffidavitCompilerView from './evidence/Section63AffidavitCompile
 import CliSpoofDetectorView from './CliSpoofDetectorView';
 import SyndicateTriageView from './SyndicateTriageView';
 import MuleFreezeDispatchView from './MuleFreezeDispatchView';
+import FieldSeizureCompanionView from './evidence/FieldSeizureCompanionView';
 
 import {
   lookupFraudRing,
@@ -676,6 +677,7 @@ function CaseSummaryPanel() {
 
 const TABS = [
   { key: 'incidents', label: 'Incident dashboard' },
+  { key: 'field-seizure', label: 'Field Device Seizure' },
   { key: 'freeze', label: 'UPI Mule Freeze (1930)' },
   { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
   { key: 'copilot', label: 'Officer Copilot (Grounded)' },
@@ -703,6 +705,8 @@ export default function OfficerCommandCenter() {
           <p className="text-sm text-[var(--mist)] mt-1 max-w-2xl leading-relaxed">
             {tab === 'incidents'
   ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
+  : tab === 'field-seizure'
+  ? 'Offline-first PWA for field officers: SHA-256 genesis hardware receipts, Faraday seal tracking, and central vault sync.'
   : tab === 'freeze'
   ? 'Automated Section 102 CrPC provisional debit freeze dispatch to bank nodal desks and CFCFRMS priority stop protocol.'
   : tab === 'jurisdiction'
@@ -746,6 +750,8 @@ export default function OfficerCommandCenter() {
 
         {tab === 'incidents' ? (
   <IncidentDashboardView />
+) : tab === 'field-seizure' ? (
+  <FieldSeizureCompanionView />
 ) : tab === 'freeze' ? (
   <MuleFreezeDispatchView />
 ) : tab === 'jurisdiction' ? (

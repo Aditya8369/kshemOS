@@ -2011,3 +2011,98 @@ class FreezeStatsResponse(BaseModel):
     tier3_monitor: int
     average_bank_latency_ms: float
     total_amount_protected_inr: float
+
+
+# ============================================================
+# OFFLINE-FIRST FIELD SEIZURE & DEVICE TRIAGE COMPANION MODELS
+# ============================================================
+
+class FieldSeizureRecord(BaseModel):
+    seizure_id: str
+    case_id: str
+    incident_id: Optional[str] = None
+    officer_badge: str
+    officer_name: str
+    police_station: str = "Special Cyber Crime Cell, New Delhi"
+    device_category: str  # smartphone, laptop, tablet, hard_drive, crypto_hardware_wallet, sim_card, feature_phone
+    make_model: str
+    imei1: Optional[str] = None
+    imei2: Optional[str] = None
+    mac_address: Optional[str] = None
+    serial_number: Optional[str] = None
+    seizure_bag_barcode: str
+    faraday_bag_sealed: bool = True
+    power_state_at_seizure: str = "powered_off"  # powered_on, powered_off, airplane_mode_locked, damaged
+    sim_card_status: str = "removed_and_bagged"  # removed_and_bagged, kept_in_slot, no_sim
+    seizure_location: Dict[str, Any] = Field(default_factory=dict)
+    photo_hashes: List[str] = Field(default_factory=list)
+    photo_thumbnails: List[str] = Field(default_factory=list)
+    on_site_genesis_hash: str
+    offline_timestamp_iso: str
+    offline_timestamp_ms: int
+    rfc3161_token: Dict[str, Any] = Field(default_factory=dict)
+    genesis_receipt: Dict[str, Any] = Field(default_factory=dict)
+    sync_status: str = "queued_offline"  # queued_offline, synced_verified, synced_tamper_flagged
+    synced_at_iso: Optional[str] = None
+    central_intake_hash: Optional[str] = None
+    central_intake_at_iso: Optional[str] = None
+    intake_verified_by_badge: Optional[str] = None
+    tamper_flag: bool = False
+    tamper_reason: Optional[str] = None
+    chain_of_custody_events: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class FieldSeizureCreateRequest(BaseModel):
+    case_id: str
+    officer_badge: str
+    officer_name: str
+    police_station: str = "Special Cyber Crime Cell, New Delhi"
+    incident_id: Optional[str] = None
+    device_category: str
+    make_model: str
+    imei1: Optional[str] = None
+    imei2: Optional[str] = None
+    mac_address: Optional[str] = None
+    serial_number: Optional[str] = None
+    seizure_bag_barcode: str
+    faraday_bag_sealed: bool = True
+    power_state_at_seizure: str = "powered_off"
+    sim_card_status: str = "removed_and_bagged"
+    seizure_location: Optional[Dict[str, Any]] = None
+    photo_hashes: Optional[List[str]] = None
+    photo_thumbnails: Optional[List[str]] = None
+    offline_timestamp_ms: Optional[int] = None
+
+
+class FieldSeizureSyncRequest(BaseModel):
+    records: List[FieldSeizureRecord]
+    sync_source: str = "kshemos_pwa_companion"
+    synced_by_badge: str = "OFF-FIELD-01"
+
+
+class CentralIntakeVerificationRequest(BaseModel):
+    seizure_id: str
+    verified_by_badge: str
+    received_bag_barcode: str
+    verified_imei1: Optional[str] = None
+    verified_serial: Optional[str] = None
+    verified_mac: Optional[str] = None
+    verified_make_model: Optional[str] = None
+    bag_seal_intact: bool = True
+    intake_notes: Optional[str] = None
+
+
+class FieldSeizureSyncResponse(BaseModel):
+    synced_count: int
+    conflict_count: int
+    tamper_flagged_count: int
+    records: List[FieldSeizureRecord]
+    sync_timestamp_iso: str
+
+
+class FieldSeizureStatsResponse(BaseModel):
+    total_seizures: int
+    offline_queued: int
+    synced_clean: int
+    tamper_flagged: int
+    faraday_sealed_percent: float

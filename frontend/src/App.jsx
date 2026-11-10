@@ -90,6 +90,7 @@ import MeetPage from './components/MeetPage';
 import DpdpRedactionView from './components/DpdpRedactionView';
 import Section63AffidavitCompilerView from './components/evidence/Section63AffidavitCompilerView';
 import CliSpoofDetectorView from './components/CliSpoofDetectorView';
+import FieldSeizureCompanionView from './components/evidence/FieldSeizureCompanionView';
 
 export default function App() {
   const [portal, setPortal] = useState('citizen');
@@ -189,6 +190,7 @@ export default function App() {
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
     if (activeView === 'evidence-affidavit-compiler') return <Section63AffidavitCompilerView />;
     if (activeView === 'cli-spoof-detector') return <CliSpoofDetectorView />;
+    if (activeView === 'field-seizure') return <FieldSeizureCompanionView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;
     if (activeView === 'dpdp-redaction') return <DpdpRedactionView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
