@@ -973,3 +973,68 @@ export async function fetchMuleFreezeStatsApi() {
   }
   return defaultMuleFreezeStore.getStats();
 }
+
+// ======================================================
+// SYNDICATE MONEY TRAIL & HOP RECONSTRUCTOR API
+// ======================================================
+
+export {
+  MoneyTrailStore,
+  defaultMoneyTrailStore,
+  MONEY_TRAIL_STORAGE_KEY,
+  MONEY_TRAIL_CHANGED_EVENT,
+  SAMPLE_CSV_DATA as SAMPLE_MONEY_TRAIL_CSV,
+  parseCsvTransactions as parseMoneyTrailCsv,
+  reconstructMoneyTrail,
+} from './moneyTrailStore.js';
+
+import {
+  defaultMoneyTrailStore,
+} from './moneyTrailStore.js';
+
+export async function fetchMoneyTrailAnalysisApi(caseId = 'CASE-2026-DELHI-01') {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/money-trail/analysis?case_id=${encodeURIComponent(caseId)}`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMoneyTrailStore.getAnalysis(caseId);
+}
+
+export async function ingestMoneyTrailTransactionsApi(payload) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/money-trail/ingest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMoneyTrailStore.ingest(payload.case_id, payload.raw_csv, payload.transactions);
+}
+
+export async function fetchSection102ScheduleApi(caseId = 'CASE-2026-DELHI-01') {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/money-trail/section-102-schedule?case_id=${encodeURIComponent(caseId)}`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMoneyTrailStore.getSection102Schedule(caseId);
+}
+
+export async function fetchSampleMoneyTrailCsvApi() {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/money-trail/sample-csv`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return {
+    format: 'CSV',
+    csv_data: defaultMoneyTrailStore.getSampleCsv(),
+  };
+}

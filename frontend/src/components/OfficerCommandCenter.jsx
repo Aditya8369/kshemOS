@@ -9,6 +9,7 @@ import Section63AffidavitCompilerView from './evidence/Section63AffidavitCompile
 import CliSpoofDetectorView from './CliSpoofDetectorView';
 import SyndicateTriageView from './SyndicateTriageView';
 import MuleFreezeDispatchView from './MuleFreezeDispatchView';
+import MoneyTrailVisualizerView from './MoneyTrailVisualizerView';
 
 import {
   lookupFraudRing,
@@ -677,6 +678,7 @@ function CaseSummaryPanel() {
 const TABS = [
   { key: 'incidents', label: 'Incident dashboard' },
   { key: 'freeze', label: 'UPI Mule Freeze (1930)' },
+  { key: 'money-trail', label: 'Money Trail & Hop Reconstructor' },
   { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
   { key: 'copilot', label: 'Officer Copilot (Grounded)' },
   { key: 'cli-spoof', label: 'CLI Spoof & Telecom Triage' },
@@ -705,6 +707,8 @@ export default function OfficerCommandCenter() {
   ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
   : tab === 'freeze'
   ? 'Automated Section 102 CrPC provisional debit freeze dispatch to bank nodal desks and CFCFRMS priority stop protocol.'
+  : tab === 'money-trail'
+  ? 'Multi-hop money trail reconstruction, Mule Hub bottleneck detection, layering velocity calculation, and Section 102 CrPC asset attachment schedules.'
   : tab === 'jurisdiction'
   ? 'Operational zone boundaries, service areas, automated dispatch routing, and multi-officer change review.'
   : tab === 'copilot'
@@ -748,6 +752,8 @@ export default function OfficerCommandCenter() {
   <IncidentDashboardView />
 ) : tab === 'freeze' ? (
   <MuleFreezeDispatchView />
+) : tab === 'money-trail' ? (
+  <MoneyTrailVisualizerView />
 ) : tab === 'jurisdiction' ? (
   <JurisdictionConfigView />
 ) : tab === 'copilot' ? (

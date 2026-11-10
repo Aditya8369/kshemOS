@@ -8,6 +8,7 @@ const TOOLBOX_ITEMS = [
   { key: 'phish-detect', title: 'PhishDetect', description: 'Analyze suspicious emails for spoofed senders, aggressive subjects, and risky links.', accent: 'var(--safe)' },
   { key: 'upi-fraud-shield', title: 'UPI Fraud Shield', description: 'Evaluate UPI payments for odd amounts, suspect handles, and unusual reasons.', accent: 'var(--caution)' },
   { key: 'mule-freeze', title: 'UPI Mule Freeze (1930)', description: 'Fast-track Section 102 CrPC provisional debit freeze mandates and CFCFRMS dispatch.', accent: 'var(--alert)' },
+  { key: 'money-trail', title: 'Money Trail & Hop Reconstructor', description: 'Reconstruct multi-hop money flow graph, pinpoint Mule Hubs, and generate Section 102 CrPC attachment schedules.', accent: 'var(--saffron)' },
   { key: 'job-scam-radar', title: 'JobScam Radar', description: 'Spot fake job offers that ask for upfront fees or pressure you to act fast.', accent: 'var(--saffron)' },
   { key: 'invest-scan', title: 'InvestScan', description: 'Flag investment pitches with guaranteed returns and Ponzi-style pressure.', accent: 'var(--navy)' },
   { key: 'loan-trap-alert', title: 'LoanTrap Alert', description: 'Review loan offers for fake approvals, processing fees, and payment demands.', accent: 'var(--alert)' },
