@@ -973,3 +973,15 @@ export async function fetchMuleFreezeStatsApi() {
   }
   return defaultMuleFreezeStore.getStats();
 }
+
+// -----------------------------------------------------------------------------
+// Privacy-Preserving Regional Threat Broadcast & Micro-Advisory Mesh
+// -----------------------------------------------------------------------------
+
+export {
+  fetchThreatClustersApi,
+  fetchMicroAdvisoriesApi,
+  commanderSignoffApi,
+  queryPortalMeshBannerApi,
+  fetchThreatMeshStatsApi,
+} from './regionalThreatMeshStore.js';
