@@ -2011,3 +2011,76 @@ class FreezeStatsResponse(BaseModel):
     tier3_monitor: int
     average_bank_latency_ms: float
     total_amount_protected_inr: float
+
+
+# =============================================================================
+# MULTILINGUAL AUTOMATED VOICE SAFETY HOTLINE MODELS
+# =============================================================================
+
+class VoiceHotlineLanguageInfo(BaseModel):
+    code: str = Field(..., description="ISO 639-1 language code e.g. hi, ta, te")
+    name: str = Field(..., description="English name of language")
+    native_name: str = Field(..., description="Autonym in native script")
+    dtmf_key: str = Field(..., description="DTMF digit assigned for selection")
+    tts_locale: str = Field(..., description="BCP 47 language tag e.g. hi-IN")
+
+
+class VoiceHotlineCallRequest(BaseModel):
+    caller_phone: Optional[str] = Field(default="+91 98765 43210", description="Caller phone number (anonymized in logs)")
+    initial_language: Optional[str] = Field(default="en", description="Default initial language (en, hi, ta, te, kn, bn, mr, gu)")
+    telecom_circle: Optional[str] = Field(default="Delhi", description="Telecom circle of the incoming line")
+    is_forwarded_call: bool = Field(default=False, description="Whether call was forwarded from citizen active call")
+
+
+class VoiceHotlineInputRequest(BaseModel):
+    session_id: str = Field(..., description="Unique IVR session identifier")
+    dtmf_digit: str = Field(..., description="DTMF keypad press (1, 2, 3...)")
+    speech_input: Optional[str] = Field(default=None, description="Optional transcribed voice utterance")
+
+
+class VoiceHotlinePromptResponse(BaseModel):
+    session_id: str
+    current_step: str
+    selected_language: str
+    audio_text: str
+    audio_locale: str
+    allowed_dtmf_keys: List[str]
+    claimed_authority: Optional[bool] = None
+    demanded_money: Optional[bool] = None
+    reassurance_delivered: bool = False
+    sms_dispatched: bool = False
+    sms_summary: Optional[str] = None
+    nearest_cyber_desk: Optional[str] = None
+    triage_incident_id: Optional[str] = None
+    is_completed: bool = False
+
+
+class VoiceHotlineSessionRecord(BaseModel):
+    session_id: str
+    caller_phone_masked: str
+    language: str
+    telecom_circle: str
+    call_status: str
+    created_at: int
+    updated_at: int
+    current_step: str
+    dtmf_history: List[Dict[str, Any]] = Field(default_factory=list)
+    claimed_authority: Optional[bool] = None
+    demanded_money: Optional[bool] = None
+    reassurance_delivered: bool = False
+    sms_dispatched: bool = False
+    sms_text: Optional[str] = None
+    nearest_cyber_desk: Optional[str] = None
+    triage_incident_id: Optional[str] = None
+
+
+class VoiceHotlineStatsResponse(BaseModel):
+    total_calls: int
+    active_calls: int
+    completed_calls: int
+    languages_breakdown: Dict[str, int]
+    authorities_flagged: int
+    extortions_flagged: int
+    reassurances_delivered: int
+    sms_dispatched_count: int
+    triage_incidents_logged: int

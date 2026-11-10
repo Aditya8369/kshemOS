@@ -869,6 +869,41 @@ export default function CitizenPortal({ setActiveView }) {
         </button>
       </div>
 
+      {/* Multilingual Voice Safety Hotline Quick Launch Banner */}
+      <div className="bg-gradient-to-r from-emerald-500/10 via-sky-500/10 to-transparent border border-emerald-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+            📞
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-sm text-[var(--ink)]">
+                Automated Voice Safety Hotline (8 Indic Languages)
+              </span>
+
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-600 text-white">
+                Toll-Free IVR
+              </span>
+            </div>
+
+            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+              Dial or forward suspicious calls for simple spoken guidance in Hindi, Tamil, Telugu, Kannada, Bengali, Marathi, Gujarati, or English. Receives instant 1930 SMS summary.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setActiveView && setActiveView('voice-hotline')
+          }
+          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          <span>📞 Open Voice Hotline</span>
+        </button>
+      </div>
+
       <ScamCheck />
 
       <CurrencyScanner />

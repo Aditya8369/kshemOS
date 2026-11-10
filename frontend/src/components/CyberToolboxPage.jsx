@@ -69,6 +69,7 @@ const TOOLBOX_ITEMS = [
   { key: 'evidence-affidavit-compiler', title: 'Section 63 BSA Affidavit Compiler', description: 'Compile court-ready electronic evidence certificates with SHA-256 hashes, Stratum 1 NTP records, and dual-officer declarations.', accent: 'var(--saffron)' },
   { key: 'cli-spoof-detector', title: 'CLI Spoof & SIM Box Detector', description: 'Cross-reference caller ID metadata, TRAI numbering plans, and VoIP gateways to detect spoofed calls.', accent: 'var(--saffron)' },
   { key: 'syndicate-triage', title: 'Syndicate & APK Triage', description: 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK trojan permissions.', accent: 'var(--alert)' },
+  { key: 'voice-hotline', title: 'Multilingual Automated Voice Safety Hotline', description: 'Interactive voice response (IVR) state machine in 8 Indic languages with 1930 SMS summary dispatch and regional triage.', accent: 'var(--saffron)' },
 ];
 
 function ToolCard({ item, index, setActiveView }) {
