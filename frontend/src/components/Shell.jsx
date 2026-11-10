@@ -234,6 +234,11 @@ export default function Shell({
               {/* Citizen Tools Dropdown */}
               {dropdownMenu('citizen-tools', 'Citizen Tools', [
                 {
+                  key: 'takedown-generator',
+                  label: 'Domain Abuse Takedown',
+                  dotColor: 'bg-blue-600',
+                },
+                {
                   key: 'multilingual-speech',
                   label: 'Indic Speech ASR',
                   dotColor: 'bg-purple-600',
@@ -263,6 +268,7 @@ export default function Shell({
 
               {/* Operations Dropdown */}
               {dropdownMenu('officer-operations', 'Operations', [
+                { key: 'takedown-generator', label: 'Abuse Takedown Notice' },
                 { key: 'mule-freeze', label: 'Mule Account Freeze' },
                 { key: 'triage', label: 'Triage Engine' },
                 { key: 'evidence-affidavit-compiler', label: 'Section 63 BSA Affidavit' },

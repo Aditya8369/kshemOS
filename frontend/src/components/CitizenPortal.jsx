@@ -869,6 +869,41 @@ export default function CitizenPortal({ setActiveView }) {
         </button>
       </div>
 
+      {/* Phishing Website Takedown Quick Launch Banner */}
+      <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent border border-blue-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+            🌐
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-sm text-[var(--ink)]">
+                Spotted a fake bank or police phishing website?
+              </span>
+
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-600 text-white">
+                Abuse Takedown
+              </span>
+            </div>
+
+            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+              Generate certified CERT-In and registrar abuse takedown packages to suspend rogue domains and hosting servers within hours.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setActiveView && setActiveView('takedown-generator')
+          }
+          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          Generate Abuse Takedown
+        </button>
+      </div>
+
       <ScamCheck />
 
       <CurrencyScanner />

@@ -973,3 +973,16 @@ export async function fetchMuleFreezeStatsApi() {
   }
   return defaultMuleFreezeStore.getStats();
 }
+
+// -----------------------------------------------------------------------------
+// Automated Registrar & Hosting Abuse Takedown Notice Generator
+// -----------------------------------------------------------------------------
+
+export {
+  generateTakedownNoticeApi,
+  listTakedownNoticesApi,
+  getTakedownNoticeApi,
+  updateTakedownStatusApi,
+  checkDomainDnsStatusApi,
+  fetchTakedownStatsApi,
+} from './takedownStore.js';
