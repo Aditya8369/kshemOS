@@ -234,6 +234,11 @@ export default function Shell({
               {/* Citizen Tools Dropdown */}
               {dropdownMenu('citizen-tools', 'Citizen Tools', [
                 {
+                  key: 'emergency-killswitch',
+                  label: 'Emergency Kill-Switch',
+                  dotColor: 'bg-red-600',
+                },
+                {
                   key: 'multilingual-speech',
                   label: 'Indic Speech ASR',
                   dotColor: 'bg-purple-600',

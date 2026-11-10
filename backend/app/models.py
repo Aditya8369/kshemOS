@@ -2011,3 +2011,78 @@ class FreezeStatsResponse(BaseModel):
     tier3_monitor: int
     average_bank_latency_ms: float
     total_amount_protected_inr: float
+
+
+# ============================================================
+# EMERGENCY FINANCIAL KILL-SWITCH & AADHAAR LOCK MODELS
+# ============================================================
+
+class EmergencyKillSwitchBankInfo(BaseModel):
+    bank_id: str
+    bank_name: str
+    category: str
+    ussd_code: str = "*99#"
+    ussd_instructions: str
+    sms_card_block_syntax: str
+    sms_card_block_number: str
+    sms_acc_freeze_syntax: Optional[str] = None
+    sms_acc_freeze_number: Optional[str] = None
+    sms_upi_disable_syntax: Optional[str] = None
+    sms_upi_disable_number: Optional[str] = None
+    phone_hotline: str
+    phone_alt: Optional[str] = None
+    netbanking_url: str
+    mobile_app_name: str
+    official_portal_guidance: str
+
+
+class AadhaarBiometricLockStep(BaseModel):
+    step_number: int
+    title: str
+    instruction: str
+    warning: Optional[str] = None
+    official_url: Optional[str] = None
+
+
+class AadhaarBiometricLockGuide(BaseModel):
+    overview: str
+    why_lock_biometrics: str
+    aeps_vulnerability_explanation: str
+    myaadhaar_portal_url: str = "https://myaadhaar.uidai.gov.in"
+    uidai_helpline: str = "1947"
+    sms_1947_syntax: Dict[str, str] = Field(default_factory=dict)
+    steps: List[AadhaarBiometricLockStep] = Field(default_factory=list)
+    temporary_unlock_guidance: str
+
+
+class EmergencyMitigationReceiptRequest(BaseModel):
+    citizen_name: Optional[str] = "Citizen (Protected)"
+    selected_bank_id: str
+    bank_name: str
+    card_last_4: Optional[str] = None
+    account_last_4: Optional[str] = None
+    actions_attempted: List[str] = Field(default_factory=list)
+    reported_to_1930: bool = False
+    reported_to_portal: bool = False
+    aadhaar_biometrics_locked: bool = False
+    incident_description: Optional[str] = None
+
+
+class EmergencyMitigationReceipt(BaseModel):
+    receipt_id: str
+    citizen_name: str
+    selected_bank_id: str
+    bank_name: str
+    timestamp_iso: str
+    timestamp_ist: str
+    timestamp_ms: int
+    card_last_4: Optional[str] = None
+    account_last_4: Optional[str] = None
+    actions_attempted: List[str]
+    reported_to_1930: bool
+    reported_to_portal: bool
+    aadhaar_biometrics_locked: bool
+    rbi_circular_reference: str
+    legal_disclaimer: str
+    sha256_hash: str
+    verification_token: str
