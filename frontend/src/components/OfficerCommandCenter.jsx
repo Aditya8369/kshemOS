@@ -9,6 +9,7 @@ import Section63AffidavitCompilerView from './evidence/Section63AffidavitCompile
 import CliSpoofDetectorView from './CliSpoofDetectorView';
 import SyndicateTriageView from './SyndicateTriageView';
 import MuleFreezeDispatchView from './MuleFreezeDispatchView';
+import StageUniformInspectorView from './StageUniformInspectorView';
 
 import {
   lookupFraudRing,
@@ -684,6 +685,7 @@ const TABS = [
   { key: 'dpdp', label: 'DPDP Redaction & Masking' },
   { key: 'affidavit', label: 'Section 63 BSA Compiler' },
   { key: 'syndicate', label: 'Syndicate & APK Triage' },
+  { key: 'stage-inspector', label: 'Video Call Stage Inspector' },
   { key: 'tools', label: 'Investigation tools' },
 ];
 
@@ -717,6 +719,8 @@ export default function OfficerCommandCenter() {
   ? 'Sealed court-ready Section 63 BSA / 65B IEA certificates with Stratum 1 NTP records and dual-officer legal declarations.'
   : tab === 'syndicate'
   ? 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK sandbox triage.'
+  : tab === 'stage-inspector'
+  ? 'Computer vision inspection of suspicious video call stages, virtual chroma fringing, perspective logo warps, and uniform insignia.'
   : 'Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.'}
           </p>
         </div>
@@ -762,6 +766,8 @@ export default function OfficerCommandCenter() {
   <Section63AffidavitCompilerView />
 ) : tab === 'syndicate' ? (
   <SyndicateTriageView />
+) : tab === 'stage-inspector' ? (
+  <StageUniformInspectorView />
 ) : (
   <div className="space-y-6">
     <EvidenceGroundedCopilotView />

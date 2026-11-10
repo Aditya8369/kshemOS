@@ -273,6 +273,7 @@ export default function Shell({
                 { key: 'alerts', label: 'Alert Dispatch' },
                 { key: 'jurisdiction', label: 'Jurisdiction Config' },
                 { key: 'dpdp-redaction', label: 'DPDP Redaction & Masking' },
+                { key: 'stage-inspector', label: 'Stage & Uniform Inspector' },
               ])}
             </div>
 
