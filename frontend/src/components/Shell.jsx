@@ -29,7 +29,10 @@ export default function Shell({
   children,
 }) {
   const navButton = (key, label, onClick, extraClass = '') => {
-    const isActive = activeView === key;
+    const isActive =
+      activeView === key ||
+      (key === 'contributors' && activeView === 'meet') ||
+      (key === 'meet' && activeView === 'contributors');
 
     const buttonClass = [
       'px-3 py-1 rounded-full font-semibold transition-all duration-200',
@@ -174,11 +177,11 @@ export default function Shell({
                 () => setActiveView('triage')
               )}
 
-              {/* Meet */}
+              {/* Contributors */}
               {navButton(
-                'meet',
-                'Meet',
-                () => setActiveView('meet')
+                'contributors',
+                'Contributors',
+                () => setActiveView('contributors')
               )}
 
               {/* Advisory Composer */}
