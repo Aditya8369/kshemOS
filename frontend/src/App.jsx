@@ -193,6 +193,7 @@ export default function App() {
     if (activeView === 'regional-threat-mesh') return <RegionalThreatMeshView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;
     if (activeView === 'dpdp-redaction') return <DpdpRedactionView />;
+    if (activeView === 'voice-hotline') return <VoiceSafetyHotlineView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
     if (activeView === 'portal') {
       return portal === 'citizen' ? <CitizenPortal setActiveView={setActiveView} /> : <OfficerCommandCenter />;
