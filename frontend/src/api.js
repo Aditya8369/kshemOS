@@ -975,25 +975,17 @@ export async function fetchMuleFreezeStatsApi() {
 }
 
 // ======================================================
-// MULTILINGUAL AUTOMATED VOICE SAFETY HOTLINE APIs
+// DIGITAL ARREST VIDEO CALL STAGE & UNIFORM INSPECTOR APIs
 // ======================================================
 
 export {
-  SUPPORTED_INDIC_LANGUAGES,
-  DTMF_TO_LANG_CODE,
-  INDIC_HOTLINE_CATALOG,
-  REGIONAL_CYBER_DESKS,
-  resolveDesk,
-  playDtmfTone,
-  speakText,
-  stopSpeaking,
-  startLocalVoiceHotlineCall,
-  processLocalVoiceHotlineInput,
-  listLocalVoiceHotlineSessions,
-  getLocalDispatchedSms,
-  fetchVoiceHotlineLanguagesApi,
-  startVoiceHotlineCallApi,
-  submitVoiceHotlineInputApi,
-  listVoiceHotlineSessionsApi,
-  getVoiceHotlineStatsApi,
-} from './voiceHotlineStore.js';
+  STATUTORY_BNSS_NOTICE,
+  OFFICIAL_UNIFORM_REGULATIONS,
+  DEMO_STAGE_PRESETS,
+  inspectVideoCallStageLocally,
+  listLocalStageInspections,
+  inspectVideoCallStageApi,
+  fetchUniformRegulationsApi,
+  listStageInspectionsApi,
+  fetchStageInspectionStatsApi,
+} from './stageUniformInspectorStore.js';

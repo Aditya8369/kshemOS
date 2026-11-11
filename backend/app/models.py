@@ -2014,73 +2014,66 @@ class FreezeStatsResponse(BaseModel):
 
 
 # =============================================================================
-# MULTILINGUAL AUTOMATED VOICE SAFETY HOTLINE MODELS
+# DIGITAL ARREST VIDEO CALL STAGE & UNIFORM ARTIFACT INSPECTOR MODELS
 # =============================================================================
 
-class VoiceHotlineLanguageInfo(BaseModel):
-    code: str = Field(..., description="ISO 639-1 language code e.g. hi, ta, te")
-    name: str = Field(..., description="English name of language")
-    native_name: str = Field(..., description="Autonym in native script")
-    dtmf_key: str = Field(..., description="DTMF digit assigned for selection")
-    tts_locale: str = Field(..., description="BCP 47 language tag e.g. hi-IN")
+class VisualArtifactHallmark(BaseModel):
+    hallmark_type: str = Field(..., description="e.g. virtual_chroma_fringe, perspective_warp, non_standard_stars")
+    severity: str = Field(..., description="critical, high, medium, low")
+    confidence_score: float = Field(..., ge=0.0, le=1.0)
+    title: str
+    description: str
+    bounding_box: Optional[Dict[str, float]] = Field(default=None, description="Normalized coordinates x, y, width, height")
+    regulation_reference: Optional[str] = None
 
 
-class VoiceHotlineCallRequest(BaseModel):
-    caller_phone: Optional[str] = Field(default="+91 98765 43210", description="Caller phone number (anonymized in logs)")
-    initial_language: Optional[str] = Field(default="en", description="Default initial language (en, hi, ta, te, kn, bn, mr, gu)")
-    telecom_circle: Optional[str] = Field(default="Delhi", description="Telecom circle of the incoming line")
-    is_forwarded_call: bool = Field(default=False, description="Whether call was forwarded from citizen active call")
+class UniformInspectionResult(BaseModel):
+    claimed_agency: str
+    claimed_rank: Optional[str] = None
+    uniform_matches_agency: bool
+    insignia_validity: str = Field(..., description="forged, suspicious, compliant, inconclusive")
+    star_count_discrepancy: Optional[str] = None
+    discrepancies: List[str] = Field(default_factory=list)
+    official_regulation_summary: str
 
 
-class VoiceHotlineInputRequest(BaseModel):
-    session_id: str = Field(..., description="Unique IVR session identifier")
-    dtmf_digit: str = Field(..., description="DTMF keypad press (1, 2, 3...)")
-    speech_input: Optional[str] = Field(default=None, description="Optional transcribed voice utterance")
+class StageUniformInspectionRequest(BaseModel):
+    image_data: str = Field(..., description="Base64 encoded screenshot data or image URL")
+    file_name: str = Field(default="video_call_screenshot.png")
+    claimed_agency: Optional[str] = Field(default="CBI", description="Claimed agency e.g. CBI, Mumbai Police, Delhi Police, Customs, Supreme Court")
+    claimed_officer_name: Optional[str] = Field(default=None, description="Name claimed on video call")
+    case_id: Optional[str] = Field(default=None, description="Associated KshemOS Case ID")
+    save_to_evidence_vault: bool = Field(default=True, description="Automatically preserve in Evidence Vault")
+    notes: Optional[str] = None
 
 
-class VoiceHotlinePromptResponse(BaseModel):
-    session_id: str
-    current_step: str
-    selected_language: str
-    audio_text: str
-    audio_locale: str
-    allowed_dtmf_keys: List[str]
-    claimed_authority: Optional[bool] = None
-    demanded_money: Optional[bool] = None
-    reassurance_delivered: bool = False
-    sms_dispatched: bool = False
-    sms_summary: Optional[str] = None
-    nearest_cyber_desk: Optional[str] = None
-    triage_incident_id: Optional[str] = None
-    is_completed: bool = False
+class StageUniformInspectionResponse(BaseModel):
+    inspection_id: str
+    image_sha256: str
+    is_synthetic_stage: bool
+    stage_forgery_score: float = Field(..., ge=0.0, le=1.0)
+    risk_verdict: str = Field(..., description="CRITICAL_FORGERY_DETECTED, HIGH_RISK_STAGE, SUSPICIOUS, INCONCLUSIVE")
+    detected_hallmarks: List[VisualArtifactHallmark]
+    uniform_evaluation: UniformInspectionResult
+    exif_metadata: Dict[str, Any] = Field(default_factory=dict)
+    statutory_bnss_notice: str
+    vaulted_evidence_id: Optional[str] = None
+    inspection_timestamp: int
 
 
-class VoiceHotlineSessionRecord(BaseModel):
-    session_id: str
-    caller_phone_masked: str
-    language: str
-    telecom_circle: str
-    call_status: str
-    created_at: int
-    updated_at: int
-    current_step: str
-    dtmf_history: List[Dict[str, Any]] = Field(default_factory=list)
-    claimed_authority: Optional[bool] = None
-    demanded_money: Optional[bool] = None
-    reassurance_delivered: bool = False
-    sms_dispatched: bool = False
-    sms_text: Optional[str] = None
-    nearest_cyber_desk: Optional[str] = None
-    triage_incident_id: Optional[str] = None
+class UniformRegulationRecord(BaseModel):
+    agency_id: str
+    agency_name: str
+    authorized_attire: str
+    shoulder_rank_insignia: str
+    collar_insignia_rules: str
+    official_id_credential: str
+    common_scam_forgeries: List[str]
 
 
-class VoiceHotlineStatsResponse(BaseModel):
-    total_calls: int
-    active_calls: int
-    completed_calls: int
-    languages_breakdown: Dict[str, int]
-    authorities_flagged: int
-    extortions_flagged: int
-    reassurances_delivered: int
-    sms_dispatched_count: int
-    triage_incidents_logged: int
+class StageInspectionStatsResponse(BaseModel):
+    total_inspected: int
+    critical_forgeries_detected: int
+    cbi_impersonations: int
+    police_uniform_forgeries: int
+    vault_evidence_preserved: int
