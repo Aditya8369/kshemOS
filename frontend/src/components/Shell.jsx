@@ -279,6 +279,7 @@ export default function Shell({
                 { key: 'alerts', label: 'Alert Dispatch' },
                 { key: 'jurisdiction', label: 'Jurisdiction Config' },
                 { key: 'dpdp-redaction', label: 'DPDP Redaction & Masking' },
+                { key: 'voice-hotline', label: 'Voice Safety Hotline (8 Languages)' },
               ])}
             </div>
 

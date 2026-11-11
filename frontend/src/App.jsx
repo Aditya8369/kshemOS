@@ -193,6 +193,7 @@ export default function App() {
     if (activeView === 'takedown-generator') return <TakedownNoticeGeneratorView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;
     if (activeView === 'dpdp-redaction') return <DpdpRedactionView />;
+    if (activeView === 'voice-hotline') return <VoiceSafetyHotlineView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
     if (activeView === 'portal') {
       return portal === 'citizen' ? <CitizenPortal setActiveView={setActiveView} /> : <OfficerCommandCenter />;
