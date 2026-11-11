@@ -1,14 +1,14 @@
 {
-  "name": "kshemos-root",
+  "name": "kshemos",
   "private": true,
-  "version": "1.0.0",
-  "description": "KshemOS — AI Operating System for Digital Public Safety",
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
-    "dev": "npm --prefix frontend run dev",
-    "build": "npm --prefix frontend run build",
-    "lint": "npm --prefix frontend run lint",
-    "preview": "npm --prefix frontend run preview",
-    "test": "npm --prefix frontend test"
+    "dev": "npm --workspace=frontend run dev",
+    "build": "npm --workspace=frontend run build",
+    "lint": "npm --workspace=frontend run lint",
+    "preview": "npm --workspace=frontend run preview",
+    "test": "npm --workspace=frontend test"
   }
 }
-
