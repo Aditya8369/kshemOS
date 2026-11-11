@@ -90,6 +90,7 @@ import MeetPage from './components/MeetPage';
 import DpdpRedactionView from './components/DpdpRedactionView';
 import Section63AffidavitCompilerView from './components/evidence/Section63AffidavitCompilerView';
 import CliSpoofDetectorView from './components/CliSpoofDetectorView';
+import VoiceSafetyHotlineView from './components/VoiceSafetyHotlineView';
 
 export default function App() {
   const [portal, setPortal] = useState('citizen');
@@ -191,6 +192,7 @@ export default function App() {
     if (activeView === 'cli-spoof-detector') return <CliSpoofDetectorView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;
     if (activeView === 'dpdp-redaction') return <DpdpRedactionView />;
+    if (activeView === 'voice-hotline') return <VoiceSafetyHotlineView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
     if (activeView === 'portal') {
       return portal === 'citizen' ? <CitizenPortal setActiveView={setActiveView} /> : <OfficerCommandCenter />;

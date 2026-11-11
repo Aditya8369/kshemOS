@@ -973,3 +973,27 @@ export async function fetchMuleFreezeStatsApi() {
   }
   return defaultMuleFreezeStore.getStats();
 }
+
+// ======================================================
+// MULTILINGUAL AUTOMATED VOICE SAFETY HOTLINE APIs
+// ======================================================
+
+export {
+  SUPPORTED_INDIC_LANGUAGES,
+  DTMF_TO_LANG_CODE,
+  INDIC_HOTLINE_CATALOG,
+  REGIONAL_CYBER_DESKS,
+  resolveDesk,
+  playDtmfTone,
+  speakText,
+  stopSpeaking,
+  startLocalVoiceHotlineCall,
+  processLocalVoiceHotlineInput,
+  listLocalVoiceHotlineSessions,
+  getLocalDispatchedSms,
+  fetchVoiceHotlineLanguagesApi,
+  startVoiceHotlineCallApi,
+  submitVoiceHotlineInputApi,
+  listVoiceHotlineSessionsApi,
+  getVoiceHotlineStatsApi,
+} from './voiceHotlineStore.js';
