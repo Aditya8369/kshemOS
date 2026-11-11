@@ -59,34 +59,37 @@ function GitHubMark({ size = 16, className = '' }) {
 }
 
 function ContributorAvatar({ contributor, size = 64 }) {
+  const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const avatarUrl = getContributorAvatarUrl(contributor.github, 160);
 
-  if (avatarUrl && !imgError) {
-    return (
-      <img
-        src={avatarUrl}
-        alt={`${contributor.name}'s GitHub avatar`}
-        loading="lazy"
-        onError={() => setImgError(true)}
-        className="rounded-2xl object-cover border border-[var(--paper-line)] shadow-sm shrink-0 transition-transform duration-300 group-hover:scale-105"
-        style={{ width: size, height: size }}
-      />
-    );
-  }
-
   return (
     <div
-      className="flex shrink-0 items-center justify-center rounded-2xl font-bold text-white shadow-sm font-mono transition-transform duration-300 group-hover:scale-105"
+      className="relative flex shrink-0 items-center justify-center rounded-2xl font-bold text-white shadow-sm font-mono overflow-hidden transition-transform duration-300 group-hover:scale-105"
       style={{
         backgroundColor: contributor.color,
         width: size,
         height: size,
         fontSize: size * 0.38,
       }}
-      aria-label={`${contributor.name} initials`}
+      aria-label={`${contributor.name} avatar`}
     >
-      {contributor.initials}
+      {/* Fallback initials always visible with signature background color */}
+      <span>{contributor.initials}</span>
+
+      {/* GitHub avatar layered on top when loaded */}
+      {avatarUrl && !imgError && (
+        <img
+          src={avatarUrl}
+          alt={`${contributor.name}'s GitHub avatar`}
+          loading="lazy"
+          onLoad={() => setImgLoaded(true)}
+          onError={() => setImgError(true)}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+            imgLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
+        />
+      )}
     </div>
   );
 }
