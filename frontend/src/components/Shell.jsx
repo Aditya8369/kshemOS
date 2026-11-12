@@ -247,6 +247,12 @@ export default function Shell({
               {/* Citizen Tools Dropdown */}
               {dropdownMenu('citizen-tools', 'Citizen Tools', [
                 {
+{
+                  key: 'regional-threat-mesh',
+                  label: 'Regional Threat Mesh',
+                  dotColor: 'bg-emerald-600',
+                },
+                {
                   key: 'takedown-generator',
                   label: 'Domain Abuse Takedown',
                   dotColor: 'bg-blue-600',
@@ -265,6 +271,7 @@ export default function Shell({
                   key: 'voice-deepfake',
                   label: 'Voice Deepfake Detector',
                   dotColor: 'bg-indigo-600',
+                },
                 },
                 {
                   key: 'multilingual-speech',
@@ -296,6 +303,7 @@ export default function Shell({
 
               {/* Operations Dropdown */}
               {dropdownMenu('officer-operations', 'Operations', [
+                { key: 'regional-threat-mesh', label: 'Regional Threat Mesh' },
                 { key: 'takedown-generator', label: 'Abuse Takedown Notice' },
                 { key: 'field-seizure', label: 'Field Seizure Companion' },
                 { key: 'voice-deepfake', label: 'Voice Deepfake Detector' },

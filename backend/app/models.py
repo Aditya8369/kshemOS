@@ -2186,56 +2186,61 @@ class EmergencyMitigationReceipt(BaseModel):
 # SYNDICATE MULE RING MONEY-TRAIL & FLOW HOP RECONSTRUCTOR
 # ============================================================
 
-class MoneyTrailTransaction(BaseModel):
-    utr_number: str
-    timestamp_iso: str
-    sender_account: str
-    sender_bank: Optional[str] = "Originating Bank"
-    sender_ifsc: Optional[str] = None
-    receiver_account: str
-    receiver_bank: Optional[str] = "Beneficiary Bank"
-    receiver_ifsc: Optional[str] = None
-    amount: float
-    txn_type: str = "IMPS"  # IMPS, RTGS, NEFT, UPI, ATM_CASH, CRYPTO_OTC
-    hop_level: Optional[int] = None
+# ---------- Privacy-Preserving Regional Threat Broadcast & Micro-Advisory Mesh ----------
+
+MicroAdvisoryStatus = Literal[
+    "DRAFTED_PENDING_APPROVAL",
+    "PUBLISHED_ACTIVE",
+    "DISMISSED",
+    "EXPIRED",
+]
 
 
-class MoneyTrailNode(BaseModel):
-    account_id: str
-    label: str
-    bank_name: str
-    ifsc_code: Optional[str] = None
-    node_type: str  # victim, primary_mule, mule_hub, splitter_mule, exit_channel
-    hop_level: int
-    total_inflow: float
-    total_outflow: float
-    resting_balance: float
-    inflow_count: int
-    outflow_count: int
-    is_mule_hub: bool = False
-    mule_hub_score: float = 0.0
-    transfer_velocity_minutes: Optional[float] = None
-    freeze_priority: str = "TIER_3_MONITOR"  # TIER_1_CRITICAL_RESTING, TIER_2_HIGH_VELOCITY, TIER_3_MONITOR
+class RegionalThreatCluster(BaseModel):
+    cluster_id: str = Field(..., description="Unique cluster ID, e.g. CLUST-DELHI-NORTH-01")
+    service_area_id: str = Field(..., description="Target service area ID, e.g. SA-NORTH-01")
+    service_area_name: str = Field(..., description="Metropolitan service area name")
+    police_station_circle: str = Field(..., description="Designated police station jurisdiction")
+    postal_pincodes: List[str] = Field(default_factory=list, description="Target postal pin codes")
+    scam_category: str = Field(..., description="Category: electricity_bill_scam, digital_arrest, etc.")
+    scam_category_label: str = Field(..., description="Human-readable scam label")
+    complaint_count: int = Field(..., ge=3, description="Aggregated report count within 24h window (3+ required)")
+    first_complaint_timestamp: int
+    last_complaint_timestamp: int
+    window_hours: float = Field(..., le=24.0, description="Elapsed hours of cluster window (<= 24.0h)")
+    privacy_guarantee: str = Field(default="K-Anonymity Verified: Zero PII or individual loss figures retained")
+    anonymized_report_refs: List[str] = Field(default_factory=list)
 
 
-class MoneyTrailHopFlow(BaseModel):
-    from_hop: int
-    to_hop: int
-    source_node: str
-    target_node: str
-    amount: float
-    utr_number: str
-    timestamp_iso: str
-    velocity_minutes: Optional[float] = None
+class RegionalMicroAdvisory(BaseModel):
+    advisory_id: str = Field(..., description="Unique micro-advisory identifier e.g. ADV-MESH-2026-101")
+    cluster_id: str = Field(..., description="Associated threat cluster reference")
+    title: str = Field(..., description="Headline alert, e.g. 'Notice: Fake electricity bill payment SMS active in North Delhi area.'")
+    summary_guidance: str = Field(..., description="Human-readable plain language advisory guidance")
+    scam_category: str
+    service_area_id: str
+    service_area_name: str
+    police_station_circle: str
+    target_pincodes: List[str]
+    geofence_center: Dict[str, float] = Field(default_factory=lambda: {"lat": 28.6920, "lng": 77.2150})
+    geofence_radius_km: float = Field(default=5.5)
+    complaints_aggregated: int
+    window_hours: float
+    status: MicroAdvisoryStatus = Field(default="DRAFTED_PENDING_APPROVAL")
+    urgency: Literal["low", "medium", "high", "critical"] = "high"
+    action_checklist: List[str] = Field(default_factory=list)
+    drafted_at: int
+    published_at: Optional[int] = None
+    approved_by_commander_badge: Optional[str] = None
+    approved_by_commander_name: Optional[str] = None
+    active_portal_banner_text: str
 
 
-class SankeyNode(BaseModel):
-    id: str
-    name: str
-    hop: int
-    category: str
-    amount: float
-
+class CommanderSignoffRequest(BaseModel):
+    commander_badge_id: str = Field(default="CMD-DELHI-NORTH", description="Authorizing commander badge")
+    commander_name: str = Field(default="DCP Vikram Malhotra", description="Commanding officer name")
+    action: Literal["approve_publish", "dismiss"] = "approve_publish"
+    notes: Optional[str] = None
 
 class SankeyLink(BaseModel):
     source: str
@@ -2243,151 +2248,362 @@ class SankeyLink(BaseModel):
     value: float
     utr: str
 
+class CitizenMeshAdvisoryQuery(BaseModel):
+    pincode: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    service_area_id: Optional[str] = None
 
 class SankeyDiagramData(BaseModel):
     nodes: List[SankeyNode]
     links: List[SankeyLink]
 
+import { useState, useRef, useEffect } from 'react';
+import EmergencyPortalBanner from './EmergencyPortalBanner';
+import Footer from './Footer';
 
-class Section102CrPCScheduleItem(BaseModel):
-    schedule_index: int
-    beneficiary_account: str
-    bank_name: str
-    ifsc_code: str
-    branch_name: Optional[str] = None
-    suspect_name: Optional[str] = None
-    seized_amount_resting_inr: float
-    total_fraud_received_inr: float
-    utr_references: List[str]
-    freeze_mandate_priority: str
-    statutory_grounds: str
+function ShieldMark({ size = 28 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+      <path
+        d="M20 3 L34 9 V19 C34 28 28 34 20 37 C12 34 6 28 6 19 V9 Z"
+        fill="var(--navy)"
+      />
+      <path
+        d="M13 20 L18 25 L28 13"
+        stroke="var(--saffron)"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
 
+export default function Shell({
+  portal,
+  setPortal,
+  activeView,
+  setActiveView,
+  children,
+}) {
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const navRef = useRef(null);
 
-class Section102CrPCScheduleResponse(BaseModel):
-    schedule_id: str
-    case_id: str
-    investigating_officer: str
-    police_station: str
-    total_resting_amount_inr: float
-    total_dispersed_amount_inr: float
-    accounts_count: int
-    mule_hubs_count: int
-    items: List[Section102CrPCScheduleItem]
-    statutory_declaration: str
-    generated_at_iso: str
-    schedule_hash: str
+  // Close dropdown on click outside or escape key
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (navRef.current && !navRef.current.contains(e.target)) {
+        setOpenDropdown(null);
+      }
+    }
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        setOpenDropdown(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
+  const navigateTo = (view, portalMode = null) => {
+    if (portalMode) {
+      setPortal(portalMode);
+    }
+    setActiveView(view);
+    setOpenDropdown(null);
+  };
 
-class MoneyTrailIngestionRequest(BaseModel):
-    case_id: str = "CASE-2026-DELHI-01"
-    raw_csv: Optional[str] = None
-    transactions: Optional[List[MoneyTrailTransaction]] = None
-    format: str = "CSV"  # CSV | CFCFRMS_JSON
+  const navButton = (key, label, onClick, extraClass = '', isDirectActive = false) => {
+    const isActive =
+      isDirectActive ||
+      activeView === key ||
+      (key === 'contributors' && activeView === 'meet') ||
+      (key === 'meet' && activeView === 'contributors');
 
+    const buttonClass = [
+      'px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer',
+      isActive
+        ? 'bg-[var(--ink)] text-white shadow-sm'
+        : 'text-[var(--ink-text)]/70 hover:text-[var(--ink)] hover:bg-white',
+      extraClass,
+    ]
+      .filter(Boolean)
+      .join(' ');
 
-class MoneyTrailAnalysisResponse(BaseModel):
-    case_id: str
-    total_volume_inr: float
-    total_victims: int
-    total_mules: int
-    mule_hubs: List[str]
-    active_resting_balance_inr: float
-    nodes: List[MoneyTrailNode]
-    edges: List[MoneyTrailHopFlow]
-    sankey_data: SankeyDiagramData
-    section_102_schedule: Section102CrPCScheduleResponse
+    return (
+      <button
+        key={key}
+        type="button"
+        onClick={onClick}
+        className={buttonClass}
+      >
+        {label}
+      </button>
+    );
+  };
 
+  const dropdownMenu = (menuId, label, items) => {
+    const isOpen = openDropdown === menuId;
+    const hasActiveChild = items.some(
+      (item) =>
+        activeView === item.key ||
+        (item.key === 'contributors' && activeView === 'meet') ||
+        (item.key === 'meet' && activeView === 'contributors')
+    );
 
-# ---------- Automated Registrar & Hosting Abuse Takedown Notice Generator ----------
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+          aria-label={label}
+          onClick={() => setOpenDropdown(isOpen ? null : menuId)}
+          className={[
+            'px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 flex items-center gap-1 cursor-pointer',
+            hasActiveChild
+              ? 'bg-[var(--ink)] text-white shadow-sm'
+              : 'text-[var(--ink-text)]/70 hover:text-[var(--ink)] hover:bg-white',
+          ].join(' ')}
+        >
+          <span>{label}</span>
+          <svg
+            className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
 
-TakedownLifecycleStatus = Literal[
-    "DISPATCHED",
-    "UNDER_REVIEW",
-    "DOMAIN_SUSPENDED",
-    "SLA_BREACHED",
-]
+        {isOpen && (
+          <div
+            role="menu"
+            className="absolute left-0 mt-2 w-56 rounded-2xl bg-white border border-[var(--paper-line)] shadow-xl shadow-[var(--ink)]/10 p-1.5 z-30 animate-fade-up"
+          >
+            {items.map((item) => {
+              const isItemActive =
+                activeView === item.key ||
+                (item.key === 'contributors' && activeView === 'meet') ||
+                (item.key === 'meet' && activeView === 'contributors');
 
+              return (
+                <button
+                  key={item.key}
+                  role="menuitem"
+                  type="button"
+                  onClick={() => navigateTo(item.key, item.portal)}
+                  className={[
+                    'w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all flex items-center justify-between gap-2 cursor-pointer',
+                    isItemActive
+                      ? 'bg-[var(--ink)] text-white font-semibold'
+                      : 'text-[var(--ink-text)]/80 hover:bg-[var(--paper)] hover:text-[var(--ink)]',
+                  ].join(' ')}
+                >
+                  <span className="flex items-center gap-1.5">
+                    {item.dotColor && (
+                      <span className={`w-1.5 h-1.5 rounded-full ${item.dotColor}`} />
+                    )}
+                    {item.label}
+                  </span>
+                  {item.badge && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--paper)] text-[var(--ink-text)]/60 font-mono">
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
 
-class DnsResolutionRecords(BaseModel):
-    domain: str = Field(..., description="Target domain, e.g. sbi-kyc-alert.top")
-    a_records: List[str] = Field(default_factory=list, description="Resolved IPv4 addresses")
-    cname_records: List[str] = Field(default_factory=list, description="CNAME aliases")
-    ns_records: List[str] = Field(default_factory=list, description="Authoritative nameservers")
-    mx_records: List[str] = Field(default_factory=list, description="Mail exchange records")
-    ip_address: Optional[str] = Field(default=None, description="Primary ingress or origin IP")
-    asn: Optional[str] = Field(default=None, description="Autonomous System Number (e.g. AS13335, AS16509)")
-    hosting_provider: str = Field(..., description="Hosting company (Cloudflare, AWS, Hostinger, Namecheap, etc.)")
-    registrar_name: str = Field(..., description="Domain registrar name")
-    registrar_abuse_email: str = Field(..., description="ICANN designated abuse email for registrar")
-    hosting_abuse_email: str = Field(..., description="Host abuse desk email")
-    ssl_issuer: Optional[str] = Field(default=None, description="SSL certificate authority")
-    ssl_valid_until: Optional[str] = Field(default=None, description="SSL expiry timestamp")
-    resolved_at: int = Field(..., description="Timestamp of DNS query resolution in milliseconds")
+  return (
+    <div className="min-h-screen flex flex-col w-full overflow-x-hidden">
+      {/* Skip to Main Content Link for Keyboard & Screen Reader Users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--ink)] focus:text-white focus:rounded-full focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] font-semibold text-xs"
+      >
+        Skip to main content
+      </a>
 
+      {/* Emergency Banner */}
+      <EmergencyPortalBanner
+        onOpenAdvisory={() => navigateTo('advisory')}
+      />
 
-class TakedownEvidencePackage(BaseModel):
-    target_url: str = Field(..., description="Exact malicious phishing or extortion URL")
-    sha256_dom_hash: str = Field(..., description="Cryptographic SHA-256 fingerprint of captured HTML DOM")
-    html_dom_snippet: str = Field(..., description="Sanitized source snippet of credential harvesting form")
-    screenshot_vault_id: Optional[str] = Field(default=None, description="Evidence vault artifact reference for full-page screenshot")
-    screenshot_filename: Optional[str] = Field(default="evidence_capture.png", description="Evidence capture screenshot file name")
-    malicious_indicators: List[str] = Field(default_factory=list, description="Forensic indicators of compromise (IoCs)")
-    target_brand_impersonated: str = Field(..., description="Brand, agency, or institution spoofed")
+      {/* Header */}
+      <header className="border-b border-[var(--paper-line)] bg-white/90 backdrop-blur sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
 
+          {/* Brand */}
+          <button
+            type="button"
+            onClick={() => navigateTo('home')}
+            className="flex items-center gap-2 shrink-0 text-left cursor-pointer focus:outline-none"
+          >
+            <ShieldMark />
+            <div>
+              <div className="font-display font-semibold leading-none tracking-tight">
+                KSHEM<span className="text-[var(--saffron)]">OS</span>
+              </div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--ink-text)]/50">
+                Digital public safety
+              </div>
+            </div>
+          </button>
 
-class TakedownNoticeRequest(BaseModel):
-    target_url: str = Field(..., description="Phishing or scam URL, e.g. https://sbi-kyc-alert.top/login.php")
-    incident_id: Optional[str] = Field(default=None, description="Optional associated KshemOS incident ID")
-    brand_impersonated: Optional[str] = Field(default=None, description="Spoofed bank, police, or corporate brand")
-    officer_badge_id: str = Field(default="OFF-DELHI-104", description="Investigating officer badge ID")
-    officer_name: str = Field(default="Inspector Rajesh Sharma", description="Officer full legal name")
-    officer_email: str = Field(default="cybercell.delhi@gov.in", description="Official police or cyber desk email")
-    include_cert_in_cc: bool = Field(default=True, description="Whether to include incident@cert-in.org.in in CC")
-    urgency_level: Literal["CRITICAL_IMMINENT_FRAUD", "HIGH_CREDENTIAL_PHISH", "MODERATE_IMPERSONATION"] = "CRITICAL_IMMINENT_FRAUD"
-    custom_notes: Optional[str] = Field(default=None, description="Additional context or judicial complaint reference")
-    save_to_evidence_vault: bool = Field(default=True, description="Whether to seal certified package in Evidence Vault")
+          {/* Grouped Navigation */}
+          <nav
+            ref={navRef}
+            aria-label="Main navigation"
+            className="flex flex-wrap items-center gap-2"
+          >
+            {/* Group 1: Home */}
+            <div className="flex items-center bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {navButton('home', 'Home', () => navigateTo('home'))}
+            </div>
 
+            {/* Group 2: Citizen Safety (High-Priority Direct Actions + Tools Menu) */}
+            <div className="flex flex-wrap items-center gap-1.5 bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {/* Citizen Verify */}
+              {navButton(
+                'portal',
+                'Verify',
+                () => navigateTo('portal', 'citizen'),
+                '',
+                activeView === 'portal' && portal === 'citizen'
+              )}
 
-class TakedownNoticeRecord(BaseModel):
-    notice_id: str = Field(..., description="Unique takedown notice ID, e.g. ABUSE-2026-1001")
-    target_url: str = Field(..., description="Malicious URL")
-    target_domain: str = Field(..., description="Domain name")
-    dns_records: DnsResolutionRecords
-    evidence_package: TakedownEvidencePackage
-    cert_in_reference_id: str = Field(..., description="Statutory CERT-In incident tracking ID")
-    rfc_email_subject: str = Field(..., description="RFC-compliant abuse email subject line")
-    rfc_email_body: str = Field(..., description="Full certified takedown email text with legal clauses")
-    primary_recipient: str = Field(..., description="Primary abuse email address (host or registrar)")
-    cc_recipients: List[str] = Field(default_factory=list, description="CC recipient addresses")
-    status: TakedownLifecycleStatus = Field(default="DISPATCHED")
-    dispatched_at: int = Field(..., description="Timestamp of dispatch in ms")
-    sla_deadline: int = Field(..., description="SLA cutoff timestamp in ms (typically 6-24 hrs)")
-    sla_breached: bool = Field(default=False)
-    domain_offline: bool = Field(default=False, description="Whether domain currently fails DNS resolution or returns HTTP error")
-    current_nameservers: List[str] = Field(default_factory=list)
-    lifecycle_events: List[Dict[str, Any]] = Field(default_factory=list)
-    vaulted_evidence_id: Optional[str] = None
-    officer_badge_id: str
-    officer_name: str
+              {/* Live Call Shield */}
+              <button
+                type="button"
+                onClick={() => navigateTo('live-call-safety')}
+                className={[
+                  'px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 cursor-pointer',
+                  activeView === 'live-call-safety'
+                    ? 'bg-red-600 text-white shadow-sm'
+                    : 'text-red-700 bg-red-50 hover:bg-red-100',
+                ].join(' ')}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                Live Call Shield
+              </button>
 
+              {/* Citizen Tools Dropdown */}
+              {dropdownMenu('citizen-tools', 'Citizen Tools', [
+                {
+                  key: 'takedown-generator',
+                  label: 'Domain Abuse Takedown',
+                  dotColor: 'bg-blue-600',
+                },
+                {
+                  key: 'field-seizure',
+                  label: 'Field Seizure Companion',
+                  dotColor: 'bg-emerald-600',
+                },
+                {
+                  key: 'emergency-killswitch',
+                  label: 'Emergency Kill-Switch',
+                  dotColor: 'bg-red-600',
+                },
+                {
+                  key: 'voice-deepfake',
+                  label: 'Voice Deepfake Detector',
+                  dotColor: 'bg-indigo-600',
+                },
+                {
+                  key: 'multilingual-speech',
+                  label: 'Indic Speech ASR',
+                  dotColor: 'bg-purple-600',
+                },
+                {
+                  key: 'incident-notifications',
+                  label: 'Incident Notifications',
+                  dotColor: 'bg-indigo-500',
+                },
+                {
+                  key: 'toolbox',
+                  label: 'Cyber Toolbox',
+                },
+              ])}
+            </div>
 
-class TakedownNoticeStatusUpdateRequest(BaseModel):
-    new_status: TakedownLifecycleStatus
-    officer_badge_id: str = Field(default="OFF-DELHI-104")
-    notes: Optional[str] = None
+            {/* Group 3: Officer Operations */}
+            <div className="flex flex-wrap items-center gap-1.5 bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {/* Officer Command Center */}
+              {navButton(
+                'officer',
+                'Officer',
+                () => navigateTo('officer', 'officer'),
+                '',
+                activeView === 'officer' || (activeView === 'portal' && portal === 'officer')
+              )}
 
-class TakedownStatsResponse(BaseModel):
-    total_notices_dispatched: int
-    active_under_review: int
-    domains_suspended: int
-    sla_breached_count: int
-    offline_domains_detected: int
-    average_takedown_time_hours: float
+              {/* Operations Dropdown */}
+              {dropdownMenu('officer-operations', 'Operations', [
+                { key: 'takedown-generator', label: 'Abuse Takedown Notice' },
+                { key: 'field-seizure', label: 'Field Seizure Companion' },
+                { key: 'voice-deepfake', label: 'Voice Deepfake Detector' },
+                { key: 'mule-freeze', label: 'Mule Account Freeze' },
+                { key: 'money-trail', label: 'Money Trail & Hop Reconstructor' },
+                { key: 'triage', label: 'Triage Engine' },
+                { key: 'evidence-affidavit-compiler', label: 'Section 63 BSA Affidavit' },
+                { key: 'cli-spoof-detector', label: 'CLI Spoof & Telecom Triage' },
+                { key: 'syndicate-triage', label: 'Syndicate & APK Triage' },
+                { key: 'advisory', label: 'Advisory Composer' },
+                { key: 'evidence', label: 'Evidence Vault' },
+                { key: 'alerts', label: 'Alert Dispatch' },
+                { key: 'jurisdiction', label: 'Jurisdiction Config' },
+                { key: 'dpdp-redaction', label: 'DPDP Redaction & Masking' },
+                { key: 'stage-inspector', label: 'Stage & Uniform Inspector' },
+              ])}
+            </div>
 
+            {/* Group 4: Resources */}
+            <div className="flex items-center bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {dropdownMenu('resources', 'Resources', [
+                { key: 'awareness', label: 'Awareness' },
+                { key: 'safety-tips', label: 'Safety Tips' },
+                { key: 'scam-examples', label: 'Scam Examples' },
+                { key: 'rule-library', label: 'Threat Library' },
+              ])}
+            </div>
 
-class VoiceDeepfakeStatsResponse(BaseModel):
-    total_evaluated: int
-    high_synthetic_detected: int
-    suspicious_detected: int
-    natural_confirmed: int
-    vault_evidence_preserved: int
+            {/* Group 5: Project */}
+            <div className="flex items-center bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {dropdownMenu('project', 'Project', [
+                { key: 'about', label: 'About KshemOS' },
+                { key: 'how-it-works', label: 'How It Works' },
+                { key: 'meet', label: 'Contributors & Team' },
+                { key: 'contact', label: 'Contact' },
+              ])}
+            </div>
+          </nav>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main id="main-content" tabIndex="-1" className="flex-1 focus:outline-none w-full overflow-x-hidden">
+        {children}
+      </main>
+
+      {/* Global Footer */}
+      <Footer setActiveView={setActiveView} />
+    </div>
+  );
+}

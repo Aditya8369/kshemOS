@@ -16,6 +16,7 @@ import Section63AffidavitCompilerView from './evidence/Section63AffidavitCompile
 import CliSpoofDetectorView from './CliSpoofDetectorView';
 import SyndicateTriageView from './SyndicateTriageView';
 import MuleFreezeDispatchView from './MuleFreezeDispatchView';
+import RegionalThreatMeshView from './RegionalThreatMeshView';
 import TakedownNoticeGeneratorView from './TakedownNoticeGeneratorView';
 import FieldSeizureCompanionView from './evidence/FieldSeizureCompanionView';
 import VoiceDeepfakeDetectorView from './VoiceDeepfakeDetectorView';
@@ -664,6 +665,7 @@ function CaseSummaryPanel() {
 
 const TABS = [
   { key: 'incidents', label: 'Incident dashboard' },
+  { key: 'threat-mesh', label: 'Regional Threat Mesh' },
   { key: 'takedown', label: 'Domain Abuse Takedown' },
   { key: 'field-seizure', label: 'Field Device Seizure' },
   { key: 'voice-deepfake', label: 'Voice Deepfake Detector' },
@@ -748,6 +750,8 @@ export default function OfficerCommandCenter() {
           <p className={HEADER_TYPOGRAPHY.descriptionOfficer + ' mt-1'}>
             {tab === 'incidents'
   ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
+  : tab === 'threat-mesh'
+  ? 'Privacy-preserving spatial clustering, automated localized micro-advisory drafts, and commander sign-off.'
   : tab === 'takedown'
   ? 'Automated WHOIS/DNS query, certified CERT-In takedown notice generation, and domain offline watchdog monitoring.'
   : tab === 'field-seizure'
@@ -961,6 +965,8 @@ export default function OfficerCommandCenter() {
             ========================================================================= */}
         {tab === 'incidents' ? (
   <IncidentDashboardView />
+) : tab === 'threat-mesh' ? (
+  <RegionalThreatMeshView />
 ) : tab === 'takedown' ? (
   <TakedownNoticeGeneratorView />
 ) : tab === 'field-seizure' ? (

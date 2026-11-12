@@ -1119,6 +1119,17 @@ export {
   checkDomainDnsStatusApi,
   fetchTakedownStatsApi,
 } from './takedownStore.js';
+// -----------------------------------------------------------------------------
+// Privacy-Preserving Regional Threat Broadcast & Micro-Advisory Mesh
+// -----------------------------------------------------------------------------
+
+export {
+  fetchThreatClustersApi,
+  fetchMicroAdvisoriesApi,
+  commanderSignoffApi,
+  queryPortalMeshBannerApi,
+  fetchThreatMeshStatsApi,
+} from './regionalThreatMeshStore.js';
 
 // -----------------------------------------------------------------------------
 // Voice Deepfake & Synthetic Audio Impersonation Detector
