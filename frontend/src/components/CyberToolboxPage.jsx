@@ -71,6 +71,7 @@ const TOOLBOX_ITEMS = [
   { key: 'cli-spoof-detector', title: 'CLI Spoof & SIM Box Detector', description: 'Cross-reference caller ID metadata, TRAI numbering plans, and VoIP gateways to detect spoofed calls.', accent: 'var(--saffron)' },
   { key: 'voice-deepfake', title: 'Voice Deepfake & Audio Detector', description: 'Analyze pitch jitter, amplitude shimmer, neural vocoder artifacts, and receive reverse verification guidance for cloned voices.', accent: 'var(--saffron)' },
   { key: 'syndicate-triage', title: 'Syndicate & APK Triage', description: 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK trojan permissions.', accent: 'var(--alert)' },
+  { key: 'emergency-killswitch', title: 'Aadhaar Lock & Financial Kill-Switch', description: 'Instant bank freeze codes, *99# USSD block, Aadhaar biometric lock, and RBI Zero-Liability mitigation receipts.', accent: 'var(--alert)' },
   { key: 'stage-inspector', title: 'Video Call Stage & Uniform Inspector', description: 'Analyze screenshots of suspicious video calls for synthetic blur, green-screen chroma fringes, perspective warps, and forged uniforms.', accent: 'var(--alert)' },
 ];
 

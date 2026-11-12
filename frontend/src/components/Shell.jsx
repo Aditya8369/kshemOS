@@ -247,6 +247,11 @@ export default function Shell({
               {/* Citizen Tools Dropdown */}
               {dropdownMenu('citizen-tools', 'Citizen Tools', [
                 {
+                  key: 'emergency-killswitch',
+                  label: 'Emergency Kill-Switch',
+                  dotColor: 'bg-red-600',
+                },
+                {
                   key: 'voice-deepfake',
                   label: 'Voice Deepfake Detector',
                   dotColor: 'bg-indigo-600',
