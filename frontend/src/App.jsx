@@ -92,6 +92,7 @@ import MeetPage from './components/MeetPage';
 import DpdpRedactionView from './components/DpdpRedactionView';
 import Section63AffidavitCompilerView from './components/evidence/Section63AffidavitCompilerView';
 import CliSpoofDetectorView from './components/CliSpoofDetectorView';
+import FieldSeizureCompanionView from './components/evidence/FieldSeizureCompanionView';
 import EmergencyKillSwitchView from './components/EmergencyKillSwitchView';
 import VoiceDeepfakeDetectorView from './components/VoiceDeepfakeDetectorView';
 
@@ -197,6 +198,7 @@ export default function App() {
     if (activeView === 'online-reputation-safety') return <OnlineReputationSafetyView />;
     if (activeView === 'evidence-affidavit-compiler') return <Section63AffidavitCompilerView />;
     if (activeView === 'cli-spoof-detector') return <CliSpoofDetectorView />;
+    if (activeView === 'field-seizure') return <FieldSeizureCompanionView />;
     if (activeView === 'emergency-killswitch') return <EmergencyKillSwitchView />;
     if (activeView === 'voice-deepfake') return <VoiceDeepfakeDetectorView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;

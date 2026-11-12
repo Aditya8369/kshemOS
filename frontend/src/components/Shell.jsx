@@ -130,7 +130,7 @@ export default function Shell({
         {isOpen && (
           <div
             role="menu"
-            className="absolute left-0 mt-2 w-52 rounded-2xl bg-white border border-[var(--paper-line)] shadow-xl shadow-[var(--ink)]/10 p-1.5 z-30 animate-fade-up"
+            className="absolute left-0 mt-2 w-56 rounded-2xl bg-white border border-[var(--paper-line)] shadow-xl shadow-[var(--ink)]/10 p-1.5 z-30 animate-fade-up"
           >
             {items.map((item) => {
               const isItemActive =
@@ -247,6 +247,11 @@ export default function Shell({
               {/* Citizen Tools Dropdown */}
               {dropdownMenu('citizen-tools', 'Citizen Tools', [
                 {
+                  key: 'field-seizure',
+                  label: 'Field Seizure Companion',
+                  dotColor: 'bg-emerald-600',
+                },
+                {
                   key: 'emergency-killswitch',
                   label: 'Emergency Kill-Switch',
                   dotColor: 'bg-red-600',
@@ -286,6 +291,7 @@ export default function Shell({
 
               {/* Operations Dropdown */}
               {dropdownMenu('officer-operations', 'Operations', [
+                { key: 'field-seizure', label: 'Field Seizure Companion' },
                 { key: 'voice-deepfake', label: 'Voice Deepfake Detector' },
                 { key: 'mule-freeze', label: 'Mule Account Freeze' },
                 { key: 'money-trail', label: 'Money Trail & Hop Reconstructor' },

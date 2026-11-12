@@ -975,6 +975,92 @@ export async function fetchMuleFreezeStatsApi() {
 }
 
 // ============================================================
+// FIELD SEIZURE & DEVICE TRIAGE COMPANION APIS
+// ============================================================
+
+export async function fetchFieldSeizuresApi(filters = {}) {
+  try {
+    const params = new URLSearchParams();
+    if (filters.case_id) params.set('case_id', filters.case_id);
+    if (filters.sync_status) params.set('sync_status', filters.sync_status);
+    if (filters.tamper_flag !== undefined) params.set('tamper_flag', String(filters.tamper_flag));
+
+    const url = `${BASE_URL.replace(/\/+$/, '')}/api/field-seizure/records${params.toString() ? `?${params.toString()}` : ''}`;
+    const res = await fetch(url);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return null;
+}
+
+export async function fetchFieldSeizureByIdApi(seizureId) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/field-seizure/records/${seizureId}`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return null;
+}
+
+export async function createFieldSeizureApi(seizureData) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/field-seizure/records`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(seizureData),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback handled by store
+  }
+  return null;
+}
+
+export async function syncFieldSeizuresApi(records, syncedByBadge = 'OFF-FIELD-SYNC') {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/field-seizure/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        records,
+        sync_source: 'kshemos_pwa_companion',
+        synced_by_badge: syncedByBadge,
+      }),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback handled by store
+  }
+  return null;
+}
+
+export async function verifyCentralIntakeApi(intakeData) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/field-seizure/verify-intake`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(intakeData),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback handled by store
+  }
+  return null;
+}
+
+export async function fetchFieldSeizureStatsApi() {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/field-seizure/stats`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback handled by store
+  }
+  return null;
+}
+
+// ============================================================
 // EMERGENCY FINANCIAL KILL-SWITCH & AADHAAR LOCK APIS
 // ============================================================
 

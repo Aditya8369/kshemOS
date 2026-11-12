@@ -16,6 +16,7 @@ import {
 } from '../../evidenceStore.js';
 import CitizenEvidenceUploadPortal from './CitizenEvidenceUploadPortal.jsx';
 import Section63AffidavitCompilerView from './Section63AffidavitCompilerView.jsx';
+import FieldSeizureCompanionView from './FieldSeizureCompanionView.jsx';
 
 const TYPE_ICONS = {
   audio_recording: '🎙️',
@@ -452,6 +453,17 @@ export default function EvidenceVaultView({ activeCaseId = null }) {
               <span>📜</span>
               <span>Section 63 BSA Affidavit Compiler</span>
             </button>
+            <button
+              onClick={() => setVaultSubTab('field_seizure')}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ${
+                vaultSubTab === 'field_seizure'
+                  ? 'bg-purple-600 text-white shadow'
+                  : 'bg-[var(--ink)] text-[var(--mist)] hover:text-white border border-[var(--navy-line)]'
+              }`}
+            >
+              <span>📱</span>
+              <span>Field Seizure Companion</span>
+            </button>
           </div>
         </div>
 
@@ -776,6 +788,11 @@ export default function EvidenceVaultView({ activeCaseId = null }) {
         {/* SUBTAB 3: SECTION 63 BSA AFFIDAVIT COMPILER */}
         {vaultSubTab === 'affidavit' && (
           <Section63AffidavitCompilerView />
+        )}
+
+        {/* SUBTAB 4: FIELD SEIZURE COMPANION */}
+        {vaultSubTab === 'field_seizure' && (
+          <FieldSeizureCompanionView />
         )}
       </div>
 

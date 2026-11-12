@@ -16,6 +16,7 @@ import Section63AffidavitCompilerView from './evidence/Section63AffidavitCompile
 import CliSpoofDetectorView from './CliSpoofDetectorView';
 import SyndicateTriageView from './SyndicateTriageView';
 import MuleFreezeDispatchView from './MuleFreezeDispatchView';
+import FieldSeizureCompanionView from './evidence/FieldSeizureCompanionView';
 import VoiceDeepfakeDetectorView from './VoiceDeepfakeDetectorView';
 
 import {
@@ -662,6 +663,7 @@ function CaseSummaryPanel() {
 
 const TABS = [
   { key: 'incidents', label: 'Incident dashboard' },
+  { key: 'field-seizure', label: 'Field Device Seizure' },
   { key: 'voice-deepfake', label: 'Voice Deepfake Detector' },
   { key: 'freeze', label: 'UPI Mule Freeze (1930)' },
   { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
@@ -744,6 +746,8 @@ export default function OfficerCommandCenter() {
           <p className={HEADER_TYPOGRAPHY.descriptionOfficer + ' mt-1'}>
             {tab === 'incidents'
   ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
+  : tab === 'field-seizure'
+  ? 'Offline-first PWA for field officers: SHA-256 genesis hardware receipts, Faraday seal tracking, and central vault sync.'
   : tab === 'voice-deepfake'
   ? 'Acoustic micro-tremor analysis (jitter/shimmer), neural vocoder phase smearing, and explainable deepfake confidence scoring.'
   : tab === 'freeze'
@@ -953,6 +957,8 @@ export default function OfficerCommandCenter() {
             ========================================================================= */}
         {tab === 'incidents' ? (
   <IncidentDashboardView />
+) : tab === 'field-seizure' ? (
+  <FieldSeizureCompanionView />
 ) : tab === 'voice-deepfake' ? (
   <VoiceDeepfakeDetectorView />
 ) : tab === 'freeze' ? (
