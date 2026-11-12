@@ -10,6 +10,11 @@ import {
 
 import { recordIncident } from './incidentStore.js';
 
+// Money-trail analysis and offline fallback store
+import { defaultMoneyTrailStore } from './moneyTrailStore.js';
+export { MONEY_TRAIL_CHANGED_EVENT } from './moneyTrailStore.js';
+export { defaultMoneyTrailStore } from './moneyTrailStore.js';
+
 import { scanQRCode } from './cyberFeatures/qrGuardian.js';
 import { inspectURL } from './cyberFeatures/linkShield.js';
 import { analyzeSMS } from './cyberFeatures/smsAnalyzer.js';
@@ -1141,3 +1146,87 @@ export {
   getVoiceDeepfakeInspectionApi,
   fetchVoiceDeepfakeStatsApi,
 } from './voiceDeepfakeStore.js';
+
+// ======================================================
+// SYNDICATE MONEY-TRAIL VISUALIZER APIs
+// ======================================================
+
+export async function fetchMoneyTrailAnalysisApi(caseId = 'CASE-2026-DELHI-01') {
+  const params = new URLSearchParams();
+  if (caseId) params.set('case_id', caseId);
+
+  try {
+    const query = params.toString();
+    const response = await fetch(
+      `${BASE_URL.replace(/\\/+$/, '')}/api/money-trail/analysis${query ? `?${query}` : ''}`
+    );
+    return await handle(response);
+  } catch {
+    // Keep the visualizer usable when the API is unavailable.
+    return defaultMoneyTrailStore.getAnalysis(caseId);
+  }
+}
+
+export async function ingestMoneyTrailTransactionsApi(payload = {}) {
+  const caseId = payload.case_id || 'CASE-2026-DELHI-01';
+
+  try {
+    const response = await fetch(
+      `${BASE_URL.replace(/\\/+$/, '')}/api/money-trail/ingest`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          case_id: caseId,
+          raw_csv: payload.raw_csv || null,
+          transactions: payload.transactions || null,
+          format: payload.format || 'CSV',
+        }),
+      }
+    );
+    const result = await handle(response);
+
+    // Update the local cache and notify any other open views.
+    if (payload.raw_csv || payload.transactions?.length) {
+      defaultMoneyTrailStore.ingest(caseId, payload.raw_csv, payload.transactions);
+    }
+    return result;
+  } catch {
+    // Offline fallback uses the same parser and reconstruction logic.
+    return defaultMoneyTrailStore.ingest(
+      caseId,
+      payload.raw_csv,
+      payload.transactions
+    );
+  }
+}
+
+export async function fetchSection102ScheduleApi(caseId = 'CASE-2026-DELHI-01') {
+  const params = new URLSearchParams();
+  if (caseId) params.set('case_id', caseId);
+
+  try {
+    const query = params.toString();
+    const response = await fetch(
+      `${BASE_URL.replace(/\\/+$/, '')}/api/money-trail/section-102-schedule${query ? `?${query}` : ''}`
+    );
+    return await handle(response);
+  } catch {
+    return defaultMoneyTrailStore.getSection102Schedule(caseId);
+  }
+}
+
+export async function fetchSampleMoneyTrailCsvApi() {
+  try {
+    const response = await fetch(
+      `${BASE_URL.replace(/\\/+$/, '')}/api/money-trail/sample-csv`
+    );
+    return await handle(response);
+  } catch {
+    return {
+      format: 'CSV',
+      csv_data: defaultMoneyTrailStore.getSampleCsv(),
+      description: 'Sample transaction data for the Money Trail visualizer.',
+    };
+  }
+}
