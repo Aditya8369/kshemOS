@@ -2298,53 +2298,91 @@ class MoneyTrailAnalysisResponse(BaseModel):
     section_102_schedule: Section102CrPCScheduleResponse
 
 
-# ---------- Voice Deepfake & Synthetic Audio Impersonation Detector ----------
+# ---------- Automated Registrar & Hosting Abuse Takedown Notice Generator ----------
 
-class AcousticAnomalySpan(BaseModel):
-    start_ms: float = Field(..., description="Start offset of acoustic anomaly in milliseconds")
-    end_ms: float = Field(..., description="End offset of acoustic anomaly in milliseconds")
-    anomaly_type: str = Field(..., description="Category of anomaly, e.g. PITCH_FREEZE_FLATLINING, VOCODER_HIGH_FREQ_SMEARING")
-    confidence_score: float = Field(..., ge=0.0, le=1.0, description="Detection confidence for this span")
-    explanation: str = Field(..., description="Forensic acoustic reason for anomaly")
-    severity: Literal["low", "medium", "high", "critical"] = "medium"
-
-
-class SpectralMetrics(BaseModel):
-    jitter_pct: float = Field(..., description="Cycle-to-cycle fundamental frequency perturbation percentage (Normal: 0.5% - 1.2%)")
-    shimmer_pct: float = Field(..., description="Cycle-to-cycle amplitude perturbation percentage (Normal: 1.5% - 3.8%)")
-    hnr_db: float = Field(..., description="Harmonics-to-Noise Ratio in decibels (Normal human voiced: 14 - 24 dB)")
-    spectral_rolloff_hz: float = Field(..., description="High-frequency rolloff / Nyquist attenuation cutoff in Hertz")
-    vocoder_footprint_score: float = Field(..., ge=0.0, le=1.0, description="Neural vocoder checkerboard / transposed-conv artifact likelihood")
-    pitch_stability_index: float = Field(..., ge=0.0, le=1.0, description="Robotic unnatural pitch rigidity index (1.0 = completely frozen F0)")
+TakedownLifecycleStatus = Literal[
+    "DISPATCHED",
+    "UNDER_REVIEW",
+    "DOMAIN_SUSPENDED",
+    "SLA_BREACHED",
+]
 
 
-class VoiceDeepfakeInspectionRequest(BaseModel):
-    audio_data: str = Field(..., description="Base64-encoded audio bytes, audio data URI, or sample content")
-    file_name: str = Field(default="voice_evidence.wav", description="File name with extension (.wav, .mp3, .m4a)")
-    duration_seconds: Optional[float] = Field(default=None, description="Optional audio duration in seconds")
-    case_id: Optional[str] = Field(default="CASE-2026-ARREST-VOICE", description="Associated investigation or triage case ID")
-    caller_claimed_identity: Optional[str] = Field(default=None, description="Claimed identity (e.g. Grandson, CBI Officer, Mumbai Police)")
-    scam_context: Optional[str] = Field(default="Digital Arrest / Family Extortion", description="Scenario context")
-    save_to_evidence_vault: bool = Field(default=True, description="Whether to ingest directly into Evidence Vault")
-    officer_badge_id: Optional[str] = Field(default="CITIZEN-SAFETY-PORTAL", description="Reporting citizen or inspecting officer badge ID")
+class DnsResolutionRecords(BaseModel):
+    domain: str = Field(..., description="Target domain, e.g. sbi-kyc-alert.top")
+    a_records: List[str] = Field(default_factory=list, description="Resolved IPv4 addresses")
+    cname_records: List[str] = Field(default_factory=list, description="CNAME aliases")
+    ns_records: List[str] = Field(default_factory=list, description="Authoritative nameservers")
+    mx_records: List[str] = Field(default_factory=list, description="Mail exchange records")
+    ip_address: Optional[str] = Field(default=None, description="Primary ingress or origin IP")
+    asn: Optional[str] = Field(default=None, description="Autonomous System Number (e.g. AS13335, AS16509)")
+    hosting_provider: str = Field(..., description="Hosting company (Cloudflare, AWS, Hostinger, Namecheap, etc.)")
+    registrar_name: str = Field(..., description="Domain registrar name")
+    registrar_abuse_email: str = Field(..., description="ICANN designated abuse email for registrar")
+    hosting_abuse_email: str = Field(..., description="Host abuse desk email")
+    ssl_issuer: Optional[str] = Field(default=None, description="SSL certificate authority")
+    ssl_valid_until: Optional[str] = Field(default=None, description="SSL expiry timestamp")
+    resolved_at: int = Field(..., description="Timestamp of DNS query resolution in milliseconds")
 
 
-class VoiceDeepfakeInspectionResponse(BaseModel):
-    inspection_id: str
-    file_name: str
-    file_sha256: str
-    file_size_bytes: int
-    duration_seconds: float
-    synthetic_probability_score: float = Field(..., ge=0.0, le=1.0, description="Score 0.0 to 1.0 (0=natural, 1=synthetic)")
-    risk_band: Literal["LOW_PROBABILITY_NATURAL", "SUSPICIOUS", "HIGH_PROBABILITY_SYNTHETIC"]
-    verdict_summary: str
-    spectral_metrics: SpectralMetrics
-    anomaly_spans: List[AcousticAnomalySpan]
-    tactical_guidance: str
-    tactical_checklist: List[str]
+class TakedownEvidencePackage(BaseModel):
+    target_url: str = Field(..., description="Exact malicious phishing or extortion URL")
+    sha256_dom_hash: str = Field(..., description="Cryptographic SHA-256 fingerprint of captured HTML DOM")
+    html_dom_snippet: str = Field(..., description="Sanitized source snippet of credential harvesting form")
+    screenshot_vault_id: Optional[str] = Field(default=None, description="Evidence vault artifact reference for full-page screenshot")
+    screenshot_filename: Optional[str] = Field(default="evidence_capture.png", description="Evidence capture screenshot file name")
+    malicious_indicators: List[str] = Field(default_factory=list, description="Forensic indicators of compromise (IoCs)")
+    target_brand_impersonated: str = Field(..., description="Brand, agency, or institution spoofed")
+
+
+class TakedownNoticeRequest(BaseModel):
+    target_url: str = Field(..., description="Phishing or scam URL, e.g. https://sbi-kyc-alert.top/login.php")
+    incident_id: Optional[str] = Field(default=None, description="Optional associated KshemOS incident ID")
+    brand_impersonated: Optional[str] = Field(default=None, description="Spoofed bank, police, or corporate brand")
+    officer_badge_id: str = Field(default="OFF-DELHI-104", description="Investigating officer badge ID")
+    officer_name: str = Field(default="Inspector Rajesh Sharma", description="Officer full legal name")
+    officer_email: str = Field(default="cybercell.delhi@gov.in", description="Official police or cyber desk email")
+    include_cert_in_cc: bool = Field(default=True, description="Whether to include incident@cert-in.org.in in CC")
+    urgency_level: Literal["CRITICAL_IMMINENT_FRAUD", "HIGH_CREDENTIAL_PHISH", "MODERATE_IMPERSONATION"] = "CRITICAL_IMMINENT_FRAUD"
+    custom_notes: Optional[str] = Field(default=None, description="Additional context or judicial complaint reference")
+    save_to_evidence_vault: bool = Field(default=True, description="Whether to seal certified package in Evidence Vault")
+
+
+class TakedownNoticeRecord(BaseModel):
+    notice_id: str = Field(..., description="Unique takedown notice ID, e.g. ABUSE-2026-1001")
+    target_url: str = Field(..., description="Malicious URL")
+    target_domain: str = Field(..., description="Domain name")
+    dns_records: DnsResolutionRecords
+    evidence_package: TakedownEvidencePackage
+    cert_in_reference_id: str = Field(..., description="Statutory CERT-In incident tracking ID")
+    rfc_email_subject: str = Field(..., description="RFC-compliant abuse email subject line")
+    rfc_email_body: str = Field(..., description="Full certified takedown email text with legal clauses")
+    primary_recipient: str = Field(..., description="Primary abuse email address (host or registrar)")
+    cc_recipients: List[str] = Field(default_factory=list, description="CC recipient addresses")
+    status: TakedownLifecycleStatus = Field(default="DISPATCHED")
+    dispatched_at: int = Field(..., description="Timestamp of dispatch in ms")
+    sla_deadline: int = Field(..., description="SLA cutoff timestamp in ms (typically 6-24 hrs)")
+    sla_breached: bool = Field(default=False)
+    domain_offline: bool = Field(default=False, description="Whether domain currently fails DNS resolution or returns HTTP error")
+    current_nameservers: List[str] = Field(default_factory=list)
+    lifecycle_events: List[Dict[str, Any]] = Field(default_factory=list)
     vaulted_evidence_id: Optional[str] = None
-    inspection_timestamp: int
-    caller_claimed_identity: Optional[str] = None
+    officer_badge_id: str
+    officer_name: str
+
+
+class TakedownNoticeStatusUpdateRequest(BaseModel):
+    new_status: TakedownLifecycleStatus
+    officer_badge_id: str = Field(default="OFF-DELHI-104")
+    notes: Optional[str] = None
+
+class TakedownStatsResponse(BaseModel):
+    total_notices_dispatched: int
+    active_under_review: int
+    domains_suspended: int
+    sla_breached_count: int
+    offline_domains_detected: int
+    average_takedown_time_hours: float
 
 
 class VoiceDeepfakeStatsResponse(BaseModel):

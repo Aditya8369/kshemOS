@@ -247,6 +247,11 @@ export default function Shell({
               {/* Citizen Tools Dropdown */}
               {dropdownMenu('citizen-tools', 'Citizen Tools', [
                 {
+                  key: 'takedown-generator',
+                  label: 'Domain Abuse Takedown',
+                  dotColor: 'bg-blue-600',
+                },
+                {
                   key: 'field-seizure',
                   label: 'Field Seizure Companion',
                   dotColor: 'bg-emerald-600',
@@ -291,6 +296,7 @@ export default function Shell({
 
               {/* Operations Dropdown */}
               {dropdownMenu('officer-operations', 'Operations', [
+                { key: 'takedown-generator', label: 'Abuse Takedown Notice' },
                 { key: 'field-seizure', label: 'Field Seizure Companion' },
                 { key: 'voice-deepfake', label: 'Voice Deepfake Detector' },
                 { key: 'mule-freeze', label: 'Mule Account Freeze' },

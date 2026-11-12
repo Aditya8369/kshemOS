@@ -1107,6 +1107,18 @@ export async function generateEmergencyMitigationReceiptApi(payload) {
   }
   return null;
 }
+// -----------------------------------------------------------------------------
+// Automated Registrar & Hosting Abuse Takedown Notice Generator
+// -----------------------------------------------------------------------------
+
+export {
+  generateTakedownNoticeApi,
+  listTakedownNoticesApi,
+  getTakedownNoticeApi,
+  updateTakedownStatusApi,
+  checkDomainDnsStatusApi,
+  fetchTakedownStatsApi,
+} from './takedownStore.js';
 
 // -----------------------------------------------------------------------------
 // Voice Deepfake & Synthetic Audio Impersonation Detector
