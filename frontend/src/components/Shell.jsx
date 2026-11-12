@@ -247,7 +247,6 @@ export default function Shell({
               {/* Citizen Tools Dropdown */}
               {dropdownMenu('citizen-tools', 'Citizen Tools', [
                 {
-{
                   key: 'regional-threat-mesh',
                   label: 'Regional Threat Mesh',
                   dotColor: 'bg-emerald-600',
@@ -271,7 +270,6 @@ export default function Shell({
                   key: 'voice-deepfake',
                   label: 'Voice Deepfake Detector',
                   dotColor: 'bg-indigo-600',
-                },
                 },
                 {
                   key: 'multilingual-speech',
