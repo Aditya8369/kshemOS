@@ -20,6 +20,18 @@ from app.routers import (
     multilingual_asr,
     live_call_safety,
     incident_notifications,
+    official_contacts,
+    dpdp,
+    evidence,
+    evidence_affidavit,
+    cli_spoof,
+    syndicate_triage,
+    mule_freeze,
+    regional_threat_mesh,
+    takedown,
+    field_seizure,
+    emergency_killswitch,
+    voice_deepfake,
 )
 
 app = FastAPI(
@@ -59,6 +71,18 @@ app.include_router(drills.router)
 app.include_router(multilingual_asr.router)
 app.include_router(live_call_safety.router)
 app.include_router(incident_notifications.router)
+app.include_router(official_contacts.router)
+app.include_router(dpdp.router)
+app.include_router(evidence.router)
+app.include_router(evidence_affidavit.router)
+app.include_router(cli_spoof.router)
+app.include_router(syndicate_triage.router)
+app.include_router(mule_freeze.router)
+app.include_router(regional_threat_mesh.router)
+app.include_router(takedown.router)
+app.include_router(field_seizure.router)
+app.include_router(emergency_killswitch.router)
+app.include_router(voice_deepfake.router)
 
 
 @app.get("/", tags=["Health"])

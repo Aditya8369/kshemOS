@@ -88,12 +88,14 @@ class BenchmarkEvaluationResponse(BaseModel):
 # ---------- Counterfeit Currency Agent ----------
 
 class CurrencyScanResponse(BaseModel):
-    verdict: str  # "likely_genuine" | "suspicious" | "inconclusive"
+    verdict: str  # "inconclusive" until a validated model is available
     confidence: float
     reasons: list[str]
     signals: dict
-
-
+    quality_status: str
+    quality_checks: dict
+    model_version: str
+    analysis_status: str
 
 # ---------- Fraud Graph Agent ----------
 
@@ -1484,3 +1486,1124 @@ class RetryNotificationResponse(BaseModel):
     success: bool
     notification: IncidentNotificationPayload
     message: str
+# ======================================================
+# DPDP ACT REDACTION & IDENTITY MASKING PIPELINE MODELS
+# ======================================================
+
+class DetectedPiiEntity(BaseModel):
+    entity_type: str = Field(..., description="AADHAAR, PAN, BANK_ACCOUNT, PHONE, EMAIL, UPI_VPA")
+    original_snippet: str = Field(..., description="Original raw snippet (internal only)")
+    masked_value: str = Field(..., description="Redacted display value, e.g. XXXX-XXXX-1234 or ABCDE****F")
+    start_index: int
+    end_index: int
+    pseudonym_token: str = Field(..., description="Persistent deterministic token, e.g. CITIZEN_REF_8492")
+
+
+class PiiSanitizationRequest(BaseModel):
+    text: Optional[str] = Field(default=None, description="Raw text containing potential citizen PII")
+    object_payload: Optional[Dict[str, Any]] = Field(default=None, description="Structured dictionary/JSON containing PII")
+    mask_types: Optional[List[str]] = Field(
+        default=None,
+        description="Specific PII categories to mask (defaults to all: AADHAAR, PAN, BANK_ACCOUNT, PHONE, EMAIL, UPI_VPA)"
+    )
+    tokenize_persistent: bool = Field(default=True, description="Whether to assign persistent CITIZEN_REF tokens")
+
+
+class PiiSanitizationResponse(BaseModel):
+    sanitized_text: Optional[str] = None
+    sanitized_payload: Optional[Dict[str, Any]] = None
+    detected_entities: List[DetectedPiiEntity] = Field(default_factory=list)
+    redactions_count: int
+    statutory_compliance: str = "Complies with Sections 4, 8 & 9 Digital Personal Data Protection Act, 2023 (DPDP Act) PII redaction standards."
+
+
+class PseudonymizeFeedRequest(BaseModel):
+    feed_items: List[Dict[str, Any]] = Field(..., description="List of threat intelligence or incident feed records")
+    pseudonym_salt: Optional[str] = Field(default="kshemos_dpdp_master_salt", description="HMAC salt context for deterministic tokenization")
+
+
+class PseudonymizeFeedResponse(BaseModel):
+    sanitized_items: List[Dict[str, Any]]
+    total_redactions: int
+    entities_tokenized: int
+    graph_topology_preserved: bool = True
+    statutory_compliance: str = "DPDP Act 2023 § 8(5) Pseudonymized Threat Sharing Format"
+
+
+class UnmaskRequestCreate(BaseModel):
+    record_id: str = Field(..., description="Target citizen report or entity record ID")
+    field_name: str = Field(default="all_pii", description="Specific field: aadhaar, pan, bank_account, or all_pii")
+    case_fir_number: str = Field(..., description="Mandatory FIR or Crime Reference Number (e.g. FIR No. 142/2026)")
+    legal_basis: Literal[
+        "SECTION_91_CRPC",
+        "SECTION_102_CRPC",
+        "COURT_WARRANT_MAGISTRATE",
+        "SECTION_17_DPDP_INVESTIGATION_EXEMPTION",
+        "CFCFRMS_1930_EMERGENCY_FREEZE"
+    ] = Field(..., description="Statutory investigative authority")
+    justification: str = Field(..., min_length=15, description="Detailed investigative necessity for unmasking citizen identity")
+    requester_badge_id: str = Field(default="OFF-IO-4412", description="Investigating Officer Badge ID")
+    requester_name: str = Field(default="Inspector Rajesh Kumar", description="Investigating Officer Name")
+    requester_role: str = Field(default="INVESTIGATOR", description="Officer role")
+
+
+class UnmaskReviewAction(BaseModel):
+    request_id: str = Field(..., description="Target Unmask Request ID (e.g. UNMASK-REQ-2026-001)")
+    action: Literal["APPROVE", "REJECT"] = Field(..., description="Supervisory determination")
+    supervisor_badge_id: str = Field(default="SUP-DCP-9901", description="Supervisory Officer Badge ID")
+    supervisor_name: str = Field(default="DCP Cyber Crime Ops", description="Supervisory Officer Name")
+    approval_notes: str = Field(..., min_length=10, description="Formal supervisory concurrence and court compliance review")
+
+
+UnmaskApprovalRequest = UnmaskReviewAction
+
+
+class UnmaskRequestRecord(BaseModel):
+    request_id: str
+    record_id: str
+    field_name: str
+    case_fir_number: str
+    legal_basis: str
+    justification: str
+    requester_badge_id: str
+    requester_name: str
+    requester_role: str
+    status: Literal["PENDING_SUPERVISORY_APPROVAL", "APPROVED", "REJECTED", "EXPIRED"]
+    created_at: int
+    reviewed_at: Optional[int] = None
+    supervisor_badge_id: Optional[str] = None
+    supervisor_name: Optional[str] = None
+    approval_notes: Optional[str] = None
+    lease_expires_at: Optional[int] = None
+
+
+class UnmaskedValueResponse(BaseModel):
+    request_id: str
+    record_id: str
+    field_name: str
+    unmasked_value: str
+    masked_value: str
+    requester_badge_id: str
+    supervisor_badge_id: str
+    lease_expires_at: int
+    seconds_remaining: int
+    audit_transaction_id: str
+    statutory_warning: str = "CONFIDENTIAL: Unmasked under statutory court exemption. Unauthorized dissemination violates Section 17 DPDP Act & BNS § 316."
+
+
+class DpdpAuditLogEntry(BaseModel):
+    audit_id: str
+    timestamp: int
+    timestamp_iso: str
+    action: str
+    actor_badge_id: str
+    actor_role: str
+    record_id: str
+    legal_basis: str
+    outcome: str
+    details: str
+    client_ip: str
+
+
+# ======================================================
+# SECTION 63 BSA / 65B IEA ELECTRONIC EVIDENCE AFFIDAVIT COMPILER MODELS
+# ======================================================
+
+class DeviceHardwareSignature(BaseModel):
+    device_make_model: str = Field(default="KshemOS Cloud Forensic Vault Node")
+    hardware_id_type: str = Field(default="SYSTEM_UUID", description="IMEI, MAC_ADDRESS, SYSTEM_UUID, SERVER_SERIAL")
+    hardware_identifier: str = Field(default="550e8400-e29b-41d4-a716-446655440000")
+    operating_system: str = Field(default="Linux 6.8.0-45-generic x86_64")
+    acquisition_software: str = Field(default="KshemOS Cryptographic Custody Ingestion Agent v2.4.0 (FIPS-140-3)")
+    storage_media_type: str = Field(default="Encrypted NVMe Block Volume (AES-256-XTS)")
+
+
+class NtpSynchronizationRecord(BaseModel):
+    ntp_server_host: str = Field(default="time.nplindia.org", description="CSIR-National Physical Laboratory India Primary Reference")
+    stratum_level: int = Field(default=1, description="NTP stratum (Stratum 1 atomic/GPS primary reference)")
+    is_synchronized: bool = Field(default=True)
+    clock_offset_ms: float = Field(default=0.342, description="Clock offset in milliseconds against UTC(NPLI)")
+    jitter_ms: float = Field(default=0.084, description="Packet jitter in milliseconds")
+    round_trip_delay_ms: float = Field(default=1.25, description="Network round-trip delay in ms")
+    last_sync_timestamp: str = Field(default="2026-11-09T10:40:00.000Z")
+    leap_indicator: int = Field(default=0, description="0=no warning, 1=last minute has 61 seconds")
+    reference_clock_id: str = Field(default="NPLI-GPS", description="National Physical Laboratory Primary GPS Clock")
+    statutory_compliance: str = Field(
+        default="Complies with Section 63(2)(a) BSA 2023 & Rule 419A Indian Telegraph Rules temporal precision standards (<5.0ms forensic tolerance)"
+    )
+
+
+class SignatoryDeclaration(BaseModel):
+    signatory_role: Literal["SYSTEM_IN_CHARGE", "INVESTIGATING_OFFICER", "FORENSIC_EXPERT"]
+    officer_name: str
+    designation: str
+    badge_id: str
+    organization: str
+    declaration_text: str
+    fir_number: Optional[str] = None
+    police_station: Optional[str] = None
+    court_name: Optional[str] = None
+    esign_status: Literal["PENDING_SIGNATURE", "DSC_TOKEN_AFFIXED", "AADHAAR_ESIGN_VERIFIED", "EXEMPT_MANUAL_SEAL"] = "PENDING_SIGNATURE"
+    esign_placeholder: str
+    signed_at: Optional[str] = None
+
+
+class AffidavitArtifactExhibit(BaseModel):
+    exhibit_number: str
+    evidence_id: str
+    title: str
+    file_name: str
+    file_size_bytes: int
+    mime_type: str
+    sha256_hash: str
+    genesis_hash: str
+    ingested_at: int
+    ingested_at_iso: str
+    hardware_signature: DeviceHardwareSignature
+    rfc3161_token_serial: str
+    chain_of_custody_verified: bool
+    custodial_transactions_count: int
+
+
+class Section63AffidavitRequest(BaseModel):
+    case_id: str = Field(..., description="Target Case or Incident ID (e.g. CASE-2026-DELHI-01)")
+    evidence_ids: Optional[List[str]] = Field(default=None, description="Specific evidence IDs to include. If omitted, includes all case exhibits.")
+    investigating_officer: Optional[Dict[str, Any]] = Field(default=None, description="Investigating Officer (IO) details")
+    system_incharge: Optional[Dict[str, Any]] = Field(default=None, description="System In-Charge / Technical Custodian details")
+    court_name: Optional[str] = Field(default=None, description="Jurisdictional Magistrate or Sessions Court")
+    fir_crime_number: Optional[str] = Field(default=None, description="FIR / Crime Number and Police Station")
+    affix_digital_signature: bool = Field(default=False, description="Whether to simulate affixing DSC / Aadhaar eSign")
+
+
+class Section63AffidavitResponse(BaseModel):
+    affidavit_id: str
+    case_id: str
+    fir_crime_number: str
+    court_name: str
+    legal_framework: str = "Section 63 Bharatiya Sakshya Adhiniyam, 2023 (BSA) & Section 65B Indian Evidence Act, 1872 (IEA)"
+    generated_at: int
+    generated_at_iso: str
+    status: Literal["SEALED_CRYPTOGRAPHICALLY_VALID", "COMPILATION_BLOCKED_TAMPER_DETECTED"]
+    all_hash_chains_verified: bool
+    tampered_artifacts_count: int = 0
+    ntp_verification: NtpSynchronizationRecord
+    system_incharge_declaration: SignatoryDeclaration
+    investigating_officer_declaration: SignatoryDeclaration
+    exhibits: List[AffidavitArtifactExhibit]
+    master_manifest_sha256: str
+    total_exhibits: int
+    total_file_size_bytes: int
+    affidavit_title: str
+    court_printable_html: str
+    tamper_details: Optional[Dict[str, Any]] = None
+
+
+# ---------- SIM Box & Spoofed Calling Line Identification (CLI) Detection Engine ----------
+
+class SpoofAnomalyFlag(BaseModel):
+    flag_type: str
+    severity: Literal["CRITICAL", "HIGH", "MEDIUM", "LOW"]
+    description: str
+    statutory_reference: Optional[str] = None
+
+
+class TelephonyRouteVerificationRequest(BaseModel):
+    call_id: Optional[str] = Field(None, description="Optional telephony call identifier")
+    claimed_cli: str = Field(..., description="Incoming caller ID as displayed on handset / softphone")
+    claimed_entity: Optional[str] = Field(None, description="Caller's claimed organization (e.g. Mumbai Police, CBI HQ)")
+    call_channel: Literal[
+        "pstn_gsm", "whatsapp_voip", "skype_voip", "telegram_call", "sip_trunk", "unknown"
+    ] = "sip_trunk"
+    sip_headers: Optional[Dict[str, str]] = Field(default_factory=dict, description="Extracted SIP headers (From, Contact, User-Agent, PAI)")
+    carrier_ingress_ip: Optional[str] = Field(None, description="Ingress gateway IP of the incoming call stream")
+    audio_latency_ms: Optional[float] = Field(None, description="Round-trip audio latency measurement in milliseconds")
+    packet_jitter_ms: Optional[float] = Field(None, description="VoIP / RTP packet jitter in milliseconds")
+    packet_loss_pct: Optional[float] = Field(None, description="Packet loss percentage")
+    recipient_circle: Optional[str] = Field("MH", description="Recipient telecom circle (e.g. DL, MH, KA)")
+    officer_badge: Optional[str] = Field("OFFICER-SYS", description="Investigating officer identifier")
+
+
+class TelephonyRouteVerificationResponse(BaseModel):
+    verification_id: str
+    call_id: str
+    claimed_cli: str
+    normalized_cli: str
+    claimed_entity: str
+    is_spoofed: bool
+    spoof_confidence: float = Field(..., ge=0.0, le=1.0)
+    threat_tier: Literal["CRITICAL", "HIGH", "MEDIUM", "LOW", "VERIFIED_LEGITIMATE"]
+    carrier_legitimacy_score: float = Field(..., ge=0.0, le=100.0)
+    trai_circle_info: Dict[str, Any]
+    route_telemetry: Dict[str, Any]
+    anomaly_flags: List[SpoofAnomalyFlag] = Field(default_factory=list)
+    warning_banner: str
+    recommended_action: str
+    forwarded_to_telecom_triage: bool
+    ingress_point_id: Optional[str] = None
+    verified_at: str
+
+
+class TelecomTriageIncident(BaseModel):
+    triage_id: str
+    verification_id: str
+    claimed_cli: str
+    carrier_ingress_ip: Optional[str] = None
+    ingress_country: str
+    spoof_type: str
+    gateway_signature: str
+    status: Literal["DISPATCHED_TO_TELCO", "BLOCKED_AT_GATEWAY", "UNDER_INVESTIGATION", "RESOLVED"]
+    target_agency_spoofed: str
+    dot_reporting_payload: Dict[str, Any] = Field(default_factory=dict)
+    timestamp: str
+
+
+class TelecomTriageSummary(BaseModel):
+    total_calls_inspected: int
+    spoofed_calls_intercepted: int
+    simbox_gateways_isolated: int
+    international_grey_routes_blocked: int
+    high_risk_ingress_ips: List[str] = Field(default_factory=list)
+    recent_dispatches: List[TelecomTriageIncident] = Field(default_factory=list)
+
+
+# ---------- WhatsApp & Telegram Syndicate Group Parser and APK Triage ----------
+
+class SyndicateChatParseRequest(BaseModel):
+    raw_text: str = Field(..., description="Chat screenshot OCR text or exported chat log")
+    incident_id: Optional[str] = Field(None, description="Linked citizen report or incident ID")
+    source_platform: Optional[str] = Field("auto", description="Source platform: whatsapp, telegram, or auto")
+    officer_badge: Optional[str] = Field("OFFICER-SYS", description="Officer ID or badge number")
+
+
+class ExtractedInviteLink(BaseModel):
+    platform: str
+    url: str
+    code: str
+
+
+class ExtractedPhoneNumber(BaseModel):
+    number: str
+    country: str
+    is_syndicate_intl: bool
+    role: str  # "admin", "recruiter", "sender", "mentioned"
+
+
+class ExtractedCryptoWallet(BaseModel):
+    address: str
+    network: str  # "BTC", "ETH", "TRON"
+    standard: str  # "TRC-20", "ERC-20", "Native"
+
+
+class SyndicateChatParseResponse(BaseModel):
+    artifact_id: str
+    incident_id: Optional[str] = None
+    source_platform: str
+    invite_links: List[ExtractedInviteLink] = Field(default_factory=list)
+    phone_numbers: List[ExtractedPhoneNumber] = Field(default_factory=list)
+    crypto_wallets: List[ExtractedCryptoWallet] = Field(default_factory=list)
+    upi_ids: List[str] = Field(default_factory=list)
+    apk_urls: List[str] = Field(default_factory=list)
+    syndicate_keywords: List[str] = Field(default_factory=list)
+    risk_score: float
+    threat_band: str  # "CRITICAL", "HIGH", "MEDIUM", "LOW"
+    cluster_id: Optional[str] = None
+    graph_nodes_injected: int = 0
+    parsed_at: str
+    summary: str
+
+
+class ApkAnalyzeRequest(BaseModel):
+    filename: str = Field(..., description="File name of APK or mock payload")
+    file_bytes_base64: Optional[str] = Field(None, description="Base64 encoded APK or package manifest")
+    incident_id: Optional[str] = Field(None, description="Associated citizen incident ID")
+    officer_badge: Optional[str] = Field("OFFICER-SYS", description="Submitting officer badge")
+
+
+class DangerousPermission(BaseModel):
+    permission: str
+    risk_level: str  # "CRITICAL", "HIGH", "MEDIUM"
+    category: str
+    description: str
+
+
+class SuspiciousServiceOrIntent(BaseModel):
+    name: str
+    component_type: str  # "Service", "Receiver", "Activity"
+    flag_reason: str
+
+
+class C2Endpoint(BaseModel):
+    endpoint_type: str  # "telegram_bot", "ipv4", "domain", "dynamic_dns"
+    target: str
+    risk: str
+    notes: Optional[str] = None
+
+
+class ApkAnalyzeResponse(BaseModel):
+    artifact_id: str
+    incident_id: Optional[str] = None
+    filename: str
+    sha256: str
+    sha1: str
+    md5: str
+    filesize_bytes: int
+    package_name: str
+    version_code: str
+    version_name: str
+    app_label: str
+    is_quarantined: bool
+    quarantine_path: str
+    dangerous_permissions: List[DangerousPermission] = Field(default_factory=list)
+    suspicious_services_intents: List[SuspiciousServiceOrIntent] = Field(default_factory=list)
+    c2_endpoints: List[C2Endpoint] = Field(default_factory=list)
+    malware_family: str
+    overall_risk_score: float
+    threat_level: str  # "CRITICAL", "HIGH", "MEDIUM", "LOW"
+    analyzed_at: str
+    cluster_id: Optional[str] = None
+    graph_nodes_injected: int = 0
+    summary: str
+
+
+class LinkedIncident(BaseModel):
+    incident_id: str
+    shared_indicators: List[str]
+    indicator_types: List[str]
+    first_seen: str
+    last_seen: str
+
+
+class SyndicateClusterInfo(BaseModel):
+    cluster_id: str
+    cluster_name: str
+    threat_tier: str
+    indicators: Dict[str, List[str]]
+    linked_incidents: List[str]
+    total_nodes: int
+    mule_accounts: List[str]
+
+
+class SyndicateCorrelationResponse(BaseModel):
+    clusters: List[SyndicateClusterInfo]
+    cross_linked_incidents: List[LinkedIncident]
+    total_indicators_tracked: int
+
+
+class SyndicateStatsResponse(BaseModel):
+    total_chats_parsed: int
+    total_apks_quarantined: int
+    total_syndicate_clusters: int
+    total_linked_incidents: int
+    high_risk_admin_numbers: int
+    crypto_wallets_indexed: int
+    upi_handles_indexed: int
+
+
+# ---------- Automated UPI Mule Account Freeze Dispatch via CFCFRMS / 1930 ----------
+
+class ParseFinancialEntitiesRequest(BaseModel):
+    text: str = Field(..., description="Raw citizen complaint, chat log, or note text")
+
+
+class ParseFinancialEntitiesResponse(BaseModel):
+    vpas: List[str] = Field(default_factory=list)
+    phone_linked_vpas: List[str] = Field(default_factory=list)
+    utrs: List[str] = Field(default_factory=list)
+    ifsc_codes: List[str] = Field(default_factory=list)
+    account_numbers: List[str] = Field(default_factory=list)
+    extracted_count: int
+
+
+class FreezeEvaluationRequest(BaseModel):
+    vpa: str
+    account_number: Optional[str] = None
+    ifsc: Optional[str] = None
+    utr_number: Optional[str] = None
+    transaction_amount: float = 0.0
+    transaction_timestamp_iso: Optional[str] = None
+    recent_transactions: Optional[List[Dict[str, Any]]] = None
+    is_digital_arrest: bool = False
+
+
+class FreezeEvaluationResponse(BaseModel):
+    vpa: str
+    account_number: Optional[str] = None
+    ifsc: Optional[str] = None
+    utr_number: Optional[str] = None
+    transaction_amount: float
+    priority_tier: str
+    sla_minutes: int
+    action_directive: str
+    graph_hop_distance: Optional[int] = None
+    shortest_syndicate_path: List[str] = Field(default_factory=list)
+    mule_probability: float
+    velocity_score: float
+    has_rapid_burst: bool
+    total_volume: float
+    evaluation_rationale: str
+    evaluated_at: str
+
+
+class DispatchFreezeRequest(BaseModel):
+    incident_id: str
+    suspect_vpa: str
+    suspect_account: Optional[str] = None
+    suspect_ifsc: Optional[str] = None
+    utr_number: Optional[str] = None
+    transaction_amount: float = 0.0
+    transaction_timestamp_iso: Optional[str] = None
+    recent_transactions: Optional[List[Dict[str, Any]]] = None
+    officer_name: str = "Inspector R. K. Sharma"
+    officer_badge_id: str = "OFF-DELHI-101"
+    police_station: str = "Cyber Crime Police Station, Central Delhi"
+    is_digital_arrest: bool = False
+    victim_details: Optional[Dict[str, Any]] = None
+
+
+class RecordBankAcknowledgmentRequest(BaseModel):
+    bank_nodal_ref: str
+    freeze_outcome: Literal[
+        "FROZEN", "LIEN_MARKED", "REJECTED_INSUFFICIENT_FUNDS", "REJECTED_INVALID_ACCOUNT"
+    ] = "FROZEN"
+    notes: Optional[str] = None
+
+
+class RevokeFreezeRequest(BaseModel):
+    revoking_officer_badge_id: str
+    revocation_reason: str
+
+
+class FreezeRecordResponse(BaseModel):
+    freeze_id: str
+    incident_id: str
+    suspect_vpa: str
+    suspect_account: Optional[str] = None
+    suspect_ifsc: Optional[str] = None
+    utr_number: Optional[str] = None
+    transaction_amount: float
+    status: str
+    priority_tier: str
+    sla_minutes: int
+    action_directive: str
+    officer_badge_id: str
+    officer_name: str
+    police_station: str
+    dispatched_at: str
+    dispatched_at_ms: int
+    acknowledged_at: Optional[str] = None
+    acknowledged_at_ms: Optional[int] = None
+    bank_nodal_ref: Optional[str] = None
+    bank_response_time_ms: Optional[float] = None
+    evaluation: Dict[str, Any]
+    statutory_notice: Dict[str, Any]
+    cfcfrms_payload: Dict[str, Any]
+    audit_events: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class FreezeStatsResponse(BaseModel):
+    total_requests: int
+    dispatched: int
+    frozen: int
+    rejected: int
+    revoked: int
+    tier1_immediate_stop: int
+    tier2_provisional_freeze: int
+    tier3_monitor: int
+    average_bank_latency_ms: float
+    total_amount_protected_inr: float
+
+     # ============================================================
+# OFFLINE-FIRST FIELD SEIZURE & DEVICE TRIAGE COMPANION MODELS
+# ============================================================
+
+class FieldSeizureRecord(BaseModel):
+    seizure_id: str
+    case_id: str
+    incident_id: Optional[str] = None
+    officer_badge: str
+    officer_name: str
+    police_station: str = "Special Cyber Crime Cell, New Delhi"
+    device_category: str  # smartphone, laptop, tablet, hard_drive, crypto_hardware_wallet, sim_card, feature_phone
+    make_model: str
+    imei1: Optional[str] = None
+    imei2: Optional[str] = None
+    mac_address: Optional[str] = None
+    serial_number: Optional[str] = None
+    seizure_bag_barcode: str
+    faraday_bag_sealed: bool = True
+    power_state_at_seizure: str = "powered_off"  # powered_on, powered_off, airplane_mode_locked, damaged
+    sim_card_status: str = "removed_and_bagged"  # removed_and_bagged, kept_in_slot, no_sim
+    seizure_location: Dict[str, Any] = Field(default_factory=dict)
+    photo_hashes: List[str] = Field(default_factory=list)
+    photo_thumbnails: List[str] = Field(default_factory=list)
+    on_site_genesis_hash: str
+    offline_timestamp_iso: str
+    offline_timestamp_ms: int
+    rfc3161_token: Dict[str, Any] = Field(default_factory=dict)
+    genesis_receipt: Dict[str, Any] = Field(default_factory=dict)
+    sync_status: str = "queued_offline"  # queued_offline, synced_verified, synced_tamper_flagged
+    synced_at_iso: Optional[str] = None
+    central_intake_hash: Optional[str] = None
+    central_intake_at_iso: Optional[str] = None
+    intake_verified_by_badge: Optional[str] = None
+    tamper_flag: bool = False
+    tamper_reason: Optional[str] = None
+    chain_of_custody_events: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class FieldSeizureCreateRequest(BaseModel):
+    case_id: str
+    officer_badge: str
+    officer_name: str
+    police_station: str = "Special Cyber Crime Cell, New Delhi"
+    incident_id: Optional[str] = None
+    device_category: str
+    make_model: str
+    imei1: Optional[str] = None
+    imei2: Optional[str] = None
+    mac_address: Optional[str] = None
+    serial_number: Optional[str] = None
+    seizure_bag_barcode: str
+    faraday_bag_sealed: bool = True
+    power_state_at_seizure: str = "powered_off"
+    sim_card_status: str = "removed_and_bagged"
+    seizure_location: Optional[Dict[str, Any]] = None
+    photo_hashes: Optional[List[str]] = None
+    photo_thumbnails: Optional[List[str]] = None
+    offline_timestamp_ms: Optional[int] = None
+
+
+class FieldSeizureSyncRequest(BaseModel):
+    records: List[FieldSeizureRecord]
+    sync_source: str = "kshemos_pwa_companion"
+    synced_by_badge: str = "OFF-FIELD-01"
+
+
+class CentralIntakeVerificationRequest(BaseModel):
+    seizure_id: str
+    verified_by_badge: str
+    received_bag_barcode: str
+    verified_imei1: Optional[str] = None
+    verified_serial: Optional[str] = None
+    verified_mac: Optional[str] = None
+    verified_make_model: Optional[str] = None
+    bag_seal_intact: bool = True
+    intake_notes: Optional[str] = None
+
+
+class FieldSeizureSyncResponse(BaseModel):
+    synced_count: int
+    conflict_count: int
+    tamper_flagged_count: int
+    records: List[FieldSeizureRecord]
+    sync_timestamp_iso: str
+
+
+class FieldSeizureStatsResponse(BaseModel):
+    total_seizures: int
+    offline_queued: int
+    synced_clean: int
+    tamper_flagged: int
+    faraday_sealed_percent: float
+
+
+# ============================================================
+# EMERGENCY FINANCIAL KILL-SWITCH & AADHAAR LOCK MODELS
+# ============================================================
+
+class EmergencyKillSwitchBankInfo(BaseModel):
+    bank_id: str
+    bank_name: str
+    category: str
+    ussd_code: str = "*99#"
+    ussd_instructions: str
+    sms_card_block_syntax: str
+    sms_card_block_number: str
+    sms_acc_freeze_syntax: Optional[str] = None
+    sms_acc_freeze_number: Optional[str] = None
+    sms_upi_disable_syntax: Optional[str] = None
+    sms_upi_disable_number: Optional[str] = None
+    phone_hotline: str
+    phone_alt: Optional[str] = None
+    netbanking_url: str
+    mobile_app_name: str
+    official_portal_guidance: str
+
+
+class AadhaarBiometricLockStep(BaseModel):
+    step_number: int
+    title: str
+    instruction: str
+    warning: Optional[str] = None
+    official_url: Optional[str] = None
+
+
+class AadhaarBiometricLockGuide(BaseModel):
+    overview: str
+    why_lock_biometrics: str
+    aeps_vulnerability_explanation: str
+    myaadhaar_portal_url: str = "https://myaadhaar.uidai.gov.in"
+    uidai_helpline: str = "1947"
+    sms_1947_syntax: Dict[str, str] = Field(default_factory=dict)
+    steps: List[AadhaarBiometricLockStep] = Field(default_factory=list)
+    temporary_unlock_guidance: str
+
+
+class EmergencyMitigationReceiptRequest(BaseModel):
+    citizen_name: Optional[str] = "Citizen (Protected)"
+    selected_bank_id: str
+    bank_name: str
+    card_last_4: Optional[str] = None
+    account_last_4: Optional[str] = None
+    actions_attempted: List[str] = Field(default_factory=list)
+    reported_to_1930: bool = False
+    reported_to_portal: bool = False
+    aadhaar_biometrics_locked: bool = False
+    incident_description: Optional[str] = None
+
+
+class EmergencyMitigationReceipt(BaseModel):
+    receipt_id: str
+    citizen_name: str
+    selected_bank_id: str
+    bank_name: str
+    timestamp_iso: str
+    timestamp_ist: str
+    timestamp_ms: int
+    card_last_4: Optional[str] = None
+    account_last_4: Optional[str] = None
+    actions_attempted: List[str]
+    reported_to_1930: bool
+    reported_to_portal: bool
+    aadhaar_biometrics_locked: bool
+    rbi_circular_reference: str
+    legal_disclaimer: str
+    sha256_hash: str
+    verification_token: str
+
+
+# ============================================================
+# SYNDICATE MULE RING MONEY-TRAIL & FLOW HOP RECONSTRUCTOR
+# ============================================================
+
+# ---------- Privacy-Preserving Regional Threat Broadcast & Micro-Advisory Mesh ----------
+
+MicroAdvisoryStatus = Literal[
+    "DRAFTED_PENDING_APPROVAL",
+    "PUBLISHED_ACTIVE",
+    "DISMISSED",
+    "EXPIRED",
+]
+
+
+class RegionalThreatCluster(BaseModel):
+    cluster_id: str = Field(..., description="Unique cluster ID, e.g. CLUST-DELHI-NORTH-01")
+    service_area_id: str = Field(..., description="Target service area ID, e.g. SA-NORTH-01")
+    service_area_name: str = Field(..., description="Metropolitan service area name")
+    police_station_circle: str = Field(..., description="Designated police station jurisdiction")
+    postal_pincodes: List[str] = Field(default_factory=list, description="Target postal pin codes")
+    scam_category: str = Field(..., description="Category: electricity_bill_scam, digital_arrest, etc.")
+    scam_category_label: str = Field(..., description="Human-readable scam label")
+    complaint_count: int = Field(..., ge=3, description="Aggregated report count within 24h window (3+ required)")
+    first_complaint_timestamp: int
+    last_complaint_timestamp: int
+    window_hours: float = Field(..., le=24.0, description="Elapsed hours of cluster window (<= 24.0h)")
+    privacy_guarantee: str = Field(default="K-Anonymity Verified: Zero PII or individual loss figures retained")
+    anonymized_report_refs: List[str] = Field(default_factory=list)
+
+
+class RegionalMicroAdvisory(BaseModel):
+    advisory_id: str = Field(..., description="Unique micro-advisory identifier e.g. ADV-MESH-2026-101")
+    cluster_id: str = Field(..., description="Associated threat cluster reference")
+    title: str = Field(..., description="Headline alert, e.g. 'Notice: Fake electricity bill payment SMS active in North Delhi area.'")
+    summary_guidance: str = Field(..., description="Human-readable plain language advisory guidance")
+    scam_category: str
+    service_area_id: str
+    service_area_name: str
+    police_station_circle: str
+    target_pincodes: List[str]
+    geofence_center: Dict[str, float] = Field(default_factory=lambda: {"lat": 28.6920, "lng": 77.2150})
+    geofence_radius_km: float = Field(default=5.5)
+    complaints_aggregated: int
+    window_hours: float
+    status: MicroAdvisoryStatus = Field(default="DRAFTED_PENDING_APPROVAL")
+    urgency: Literal["low", "medium", "high", "critical"] = "high"
+    action_checklist: List[str] = Field(default_factory=list)
+    drafted_at: int
+    published_at: Optional[int] = None
+    approved_by_commander_badge: Optional[str] = None
+    approved_by_commander_name: Optional[str] = None
+    active_portal_banner_text: str
+
+
+class CommanderSignoffRequest(BaseModel):
+    commander_badge_id: str = Field(default="CMD-DELHI-NORTH", description="Authorizing commander badge")
+    commander_name: str = Field(default="DCP Vikram Malhotra", description="Commanding officer name")
+    action: Literal["approve_publish", "dismiss"] = "approve_publish"
+    notes: Optional[str] = None
+
+class SankeyLink(BaseModel):
+    source: str
+    target: str
+    value: float
+    utr: str
+
+class CitizenMeshAdvisoryQuery(BaseModel):
+    pincode: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    service_area_id: Optional[str] = None
+
+class SankeyDiagramData(BaseModel):
+    nodes: List[SankeyNode]
+    links: List[SankeyLink]
+
+import { useState, useRef, useEffect } from 'react';
+import EmergencyPortalBanner from './EmergencyPortalBanner';
+import Footer from './Footer';
+
+function ShieldMark({ size = 28 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+      <path
+        d="M20 3 L34 9 V19 C34 28 28 34 20 37 C12 34 6 28 6 19 V9 Z"
+        fill="var(--navy)"
+      />
+      <path
+        d="M13 20 L18 25 L28 13"
+        stroke="var(--saffron)"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+export default function Shell({
+  portal,
+  setPortal,
+  activeView,
+  setActiveView,
+  children,
+}) {
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const navRef = useRef(null);
+
+  // Close dropdown on click outside or escape key
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (navRef.current && !navRef.current.contains(e.target)) {
+        setOpenDropdown(null);
+      }
+    }
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        setOpenDropdown(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const navigateTo = (view, portalMode = null) => {
+    if (portalMode) {
+      setPortal(portalMode);
+    }
+    setActiveView(view);
+    setOpenDropdown(null);
+  };
+
+  const navButton = (key, label, onClick, extraClass = '', isDirectActive = false) => {
+    const isActive =
+      isDirectActive ||
+      activeView === key ||
+      (key === 'contributors' && activeView === 'meet') ||
+      (key === 'meet' && activeView === 'contributors');
+
+    const buttonClass = [
+      'px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer',
+      isActive
+        ? 'bg-[var(--ink)] text-white shadow-sm'
+        : 'text-[var(--ink-text)]/70 hover:text-[var(--ink)] hover:bg-white',
+      extraClass,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    return (
+      <button
+        key={key}
+        type="button"
+        onClick={onClick}
+        className={buttonClass}
+      >
+        {label}
+      </button>
+    );
+  };
+
+  const dropdownMenu = (menuId, label, items) => {
+    const isOpen = openDropdown === menuId;
+    const hasActiveChild = items.some(
+      (item) =>
+        activeView === item.key ||
+        (item.key === 'contributors' && activeView === 'meet') ||
+        (item.key === 'meet' && activeView === 'contributors')
+    );
+
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+          aria-label={label}
+          onClick={() => setOpenDropdown(isOpen ? null : menuId)}
+          className={[
+            'px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 flex items-center gap-1 cursor-pointer',
+            hasActiveChild
+              ? 'bg-[var(--ink)] text-white shadow-sm'
+              : 'text-[var(--ink-text)]/70 hover:text-[var(--ink)] hover:bg-white',
+          ].join(' ')}
+        >
+          <span>{label}</span>
+          <svg
+            className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+
+        {isOpen && (
+          <div
+            role="menu"
+            className="absolute left-0 mt-2 w-56 rounded-2xl bg-white border border-[var(--paper-line)] shadow-xl shadow-[var(--ink)]/10 p-1.5 z-30 animate-fade-up"
+          >
+            {items.map((item) => {
+              const isItemActive =
+                activeView === item.key ||
+                (item.key === 'contributors' && activeView === 'meet') ||
+                (item.key === 'meet' && activeView === 'contributors');
+
+              return (
+                <button
+                  key={item.key}
+                  role="menuitem"
+                  type="button"
+                  onClick={() => navigateTo(item.key, item.portal)}
+                  className={[
+                    'w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all flex items-center justify-between gap-2 cursor-pointer',
+                    isItemActive
+                      ? 'bg-[var(--ink)] text-white font-semibold'
+                      : 'text-[var(--ink-text)]/80 hover:bg-[var(--paper)] hover:text-[var(--ink)]',
+                  ].join(' ')}
+                >
+                  <span className="flex items-center gap-1.5">
+                    {item.dotColor && (
+                      <span className={`w-1.5 h-1.5 rounded-full ${item.dotColor}`} />
+                    )}
+                    {item.label}
+                  </span>
+                  {item.badge && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--paper)] text-[var(--ink-text)]/60 font-mono">
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col w-full overflow-x-hidden">
+      {/* Skip to Main Content Link for Keyboard & Screen Reader Users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--ink)] focus:text-white focus:rounded-full focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] font-semibold text-xs"
+      >
+        Skip to main content
+      </a>
+
+      {/* Emergency Banner */}
+      <EmergencyPortalBanner
+        onOpenAdvisory={() => navigateTo('advisory')}
+      />
+
+      {/* Header */}
+      <header className="border-b border-[var(--paper-line)] bg-white/90 backdrop-blur sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
+
+          {/* Brand */}
+          <button
+            type="button"
+            onClick={() => navigateTo('home')}
+            className="flex items-center gap-2 shrink-0 text-left cursor-pointer focus:outline-none"
+          >
+            <ShieldMark />
+            <div>
+              <div className="font-display font-semibold leading-none tracking-tight">
+                KSHEM<span className="text-[var(--saffron)]">OS</span>
+              </div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--ink-text)]/50">
+                Digital public safety
+              </div>
+            </div>
+          </button>
+
+          {/* Grouped Navigation */}
+          <nav
+            ref={navRef}
+            aria-label="Main navigation"
+            className="flex flex-wrap items-center gap-2"
+          >
+            {/* Group 1: Home */}
+            <div className="flex items-center bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {navButton('home', 'Home', () => navigateTo('home'))}
+            </div>
+
+            {/* Group 2: Citizen Safety (High-Priority Direct Actions + Tools Menu) */}
+            <div className="flex flex-wrap items-center gap-1.5 bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {/* Citizen Verify */}
+              {navButton(
+                'portal',
+                'Verify',
+                () => navigateTo('portal', 'citizen'),
+                '',
+                activeView === 'portal' && portal === 'citizen'
+              )}
+
+              {/* Live Call Shield */}
+              <button
+                type="button"
+                onClick={() => navigateTo('live-call-safety')}
+                className={[
+                  'px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 cursor-pointer',
+                  activeView === 'live-call-safety'
+                    ? 'bg-red-600 text-white shadow-sm'
+                    : 'text-red-700 bg-red-50 hover:bg-red-100',
+                ].join(' ')}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                Live Call Shield
+              </button>
+
+              {/* Citizen Tools Dropdown */}
+              {dropdownMenu('citizen-tools', 'Citizen Tools', [
+                {
+                  key: 'takedown-generator',
+                  label: 'Domain Abuse Takedown',
+                  dotColor: 'bg-blue-600',
+                },
+                {
+                  key: 'field-seizure',
+                  label: 'Field Seizure Companion',
+                  dotColor: 'bg-emerald-600',
+                },
+                {
+                  key: 'emergency-killswitch',
+                  label: 'Emergency Kill-Switch',
+                  dotColor: 'bg-red-600',
+                },
+                {
+                  key: 'voice-deepfake',
+                  label: 'Voice Deepfake Detector',
+                  dotColor: 'bg-indigo-600',
+                },
+                {
+                  key: 'multilingual-speech',
+                  label: 'Indic Speech ASR',
+                  dotColor: 'bg-purple-600',
+                },
+                {
+                  key: 'incident-notifications',
+                  label: 'Incident Notifications',
+                  dotColor: 'bg-indigo-500',
+                },
+                {
+                  key: 'toolbox',
+                  label: 'Cyber Toolbox',
+                },
+              ])}
+            </div>
+
+            {/* Group 3: Officer Operations */}
+            <div className="flex flex-wrap items-center gap-1.5 bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {/* Officer Command Center */}
+              {navButton(
+                'officer',
+                'Officer',
+                () => navigateTo('officer', 'officer'),
+                '',
+                activeView === 'officer' || (activeView === 'portal' && portal === 'officer')
+              )}
+
+              {/* Operations Dropdown */}
+              {dropdownMenu('officer-operations', 'Operations', [
+                { key: 'takedown-generator', label: 'Abuse Takedown Notice' },
+                { key: 'field-seizure', label: 'Field Seizure Companion' },
+                { key: 'voice-deepfake', label: 'Voice Deepfake Detector' },
+                { key: 'mule-freeze', label: 'Mule Account Freeze' },
+                { key: 'money-trail', label: 'Money Trail & Hop Reconstructor' },
+                { key: 'triage', label: 'Triage Engine' },
+                { key: 'evidence-affidavit-compiler', label: 'Section 63 BSA Affidavit' },
+                { key: 'cli-spoof-detector', label: 'CLI Spoof & Telecom Triage' },
+                { key: 'syndicate-triage', label: 'Syndicate & APK Triage' },
+                { key: 'advisory', label: 'Advisory Composer' },
+                { key: 'evidence', label: 'Evidence Vault' },
+                { key: 'alerts', label: 'Alert Dispatch' },
+                { key: 'jurisdiction', label: 'Jurisdiction Config' },
+                { key: 'dpdp-redaction', label: 'DPDP Redaction & Masking' },
+                { key: 'stage-inspector', label: 'Stage & Uniform Inspector' },
+              ])}
+            </div>
+
+            {/* Group 4: Resources */}
+            <div className="flex items-center bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {dropdownMenu('resources', 'Resources', [
+                { key: 'awareness', label: 'Awareness' },
+                { key: 'safety-tips', label: 'Safety Tips' },
+                { key: 'scam-examples', label: 'Scam Examples' },
+                { key: 'rule-library', label: 'Threat Library' },
+              ])}
+            </div>
+
+            {/* Group 5: Project */}
+            <div className="flex items-center bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {dropdownMenu('project', 'Project', [
+                { key: 'about', label: 'About KshemOS' },
+                { key: 'how-it-works', label: 'How It Works' },
+                { key: 'meet', label: 'Contributors & Team' },
+                { key: 'contact', label: 'Contact' },
+              ])}
+            </div>
+          </nav>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main id="main-content" tabIndex="-1" className="flex-1 focus:outline-none w-full overflow-x-hidden">
+        {children}
+      </main>
+
+      {/* Global Footer */}
+      <Footer setActiveView={setActiveView} />
+    </div>
+  );
+}

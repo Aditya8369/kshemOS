@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 
 import RiskGauge from './RiskGauge';
@@ -79,6 +78,20 @@ function ScamCheck() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem('kshemos_demo_prefill');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.transcript) setTranscript(parsed.transcript);
+        if (parsed.claim) setClaim(parsed.claim);
+        sessionStorage.removeItem('kshemos_demo_prefill');
+      }
+    } catch {
+      // Ignore storage access errors
+    }
+  }, []);
+
   async function run() {
     setLoading(true);
     setError(null);
@@ -113,13 +126,14 @@ function ScamCheck() {
           <button
             key={sample.id}
             type="button"
+            aria-pressed={transcript === sample.transcript}
             onClick={() => {
               setTranscript(sample.transcript);
               setClaim(sample.claim);
               setResult(null);
               setError(null);
             }}
-            className="rounded-full border border-[var(--paper-line)] px-3 py-1 text-xs font-semibold text-[var(--ink)] hover:border-[var(--saffron)]"
+            className="rounded-full border border-[var(--paper-line)] px-3 py-1.5 text-xs font-semibold text-[var(--ink)] hover:border-[var(--saffron)] min-h-[36px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
           >
             {sample.label}
           </button>
@@ -127,6 +141,8 @@ function ScamCheck() {
       </div>
 
       <textarea
+        id="citizen-call-transcript"
+        aria-label="Paste the suspicious call transcript"
         className="w-full h-28 rounded-lg border border-[var(--paper-line)] p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--saffron)]"
         value={transcript}
         onChange={(e) => setTranscript(e.target.value)}
@@ -134,7 +150,9 @@ function ScamCheck() {
       />
 
       <input
-        className="w-full mt-2 rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+        id="citizen-caller-claim"
+        aria-label="Caller claimed identity"
+        className="w-full mt-2 rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)]"
         placeholder="Caller claims to be (e.g. CBI officer)"
         value={claim}
         onChange={(e) => setClaim(e.target.value)}
@@ -144,7 +162,8 @@ function ScamCheck() {
         type="button"
         onClick={run}
         disabled={loading || !transcript.trim()}
-        className="mt-3 bg-[var(--ink)] text-white rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-40"
+        aria-label={loading ? 'Analyzing call transcript...' : 'Check this call'}
+        className="mt-3 bg-[var(--ink)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
       >
         {loading ? 'Analyzing…' : 'Check this call'}
       </button>
@@ -297,6 +316,7 @@ function CurrencyScanner() {
           <input
             type="file"
             accept="image/*"
+            aria-label="Upload currency note image to scan"
             className="hidden"
             onChange={onFile}
           />
@@ -307,7 +327,8 @@ function CurrencyScanner() {
             type="button"
             onClick={run}
             disabled={!file || loading}
-            className="bg-[var(--ink)] text-white rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-40"
+            aria-label={loading ? 'Scanning currency note...' : 'Scan note'}
+            className="bg-[var(--ink)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
           >
             {loading ? 'Scanning…' : 'Scan note'}
           </button>
@@ -319,23 +340,62 @@ function CurrencyScanner() {
           )}
 
           {result && (
-            <div className="mt-3 text-sm">
+            <div className="mt-3 text-sm space-y-3">
               <div
-                className="inline-block font-display font-semibold uppercase text-xs px-3 py-1 rounded-full mb-2"
+                className="inline-block font-display font-semibold uppercase text-xs px-3 py-1 rounded-full"
                 style={{
                   color: verdictColor,
                   border: `1px solid ${verdictColor}`,
                 }}
               >
-                {(result.verdict || 'unknown').replace('_', ' ')} ·{' '}
-                {((result.confidence ?? 0) * 100).toFixed(0)}% confidence
+                {(result.verdict || 'unknown').replace(/_/g, ' ')}
               </div>
 
-              <ul className="list-disc list-inside space-y-0.5 text-[var(--ink-text)]/80">
-                {(result.reasons || []).map((r) => (
-                  <li key={r}>{r}</li>
-                ))}
-              </ul>
+              <div>
+                <p className="font-semibold text-[var(--ink)]">
+                  Image quality:{' '}
+                  {(result.quality_status || 'unknown').replace(/_/g, ' ')}
+                </p>
+
+                {Object.keys(result.quality_checks || {}).length > 0 && (
+                  <ul className="list-disc list-inside space-y-0.5 text-[var(--ink-text)]/80 mt-1">
+                    {Object.entries(result.quality_checks).map(([key, value]) => (
+                      <li key={key}>
+                        {key.replace(/_/g, ' ')}: {value ? 'Passed' : 'Needs attention'}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <p className="font-semibold text-[var(--ink)]">
+                  Analysis reasons
+                </p>
+                <ul className="list-disc list-inside space-y-0.5 text-[var(--ink-text)]/80 mt-1">
+                  {(result.reasons || []).map((reason, index) => (
+                    <li key={`${index}-${reason}`}>{reason}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="text-xs text-[var(--ink-text)]/70 space-y-1">
+                <p>
+                  Model version: {result.model_version || 'Unknown'}
+                </p>
+                <p>
+                  Analysis status:{' '}
+                  {(result.analysis_status || 'Unknown').replace(/_/g, ' ')}
+                </p>
+              </div>
+
+              <p className="rounded-lg border border-[var(--caution)]/40 bg-[var(--caution)]/10 p-3 text-sm text-[var(--ink-text)]">
+                <strong>Important:</strong> This scan checks image quality only
+                when an authenticity model is unavailable. It does not confirm
+                whether the currency note is genuine or counterfeit. Do not
+                rely on this result alone. For verification, consult an
+                authorized bank or financial institution.
+              </p>
             </div>
           )}
         </div>
@@ -380,7 +440,8 @@ function Assistant() {
         <select
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+          aria-label="Select assistant language"
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
         >
           {LANGUAGES.map((l) => (
             <option key={l} value={l}>
@@ -390,8 +451,9 @@ function Assistant() {
         </select>
 
         <input
-          className="flex-1 rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+          className="flex-1 rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
           placeholder="e.g. Is a video call from 'income tax department' normal?"
+          aria-label="Question for citizen assistant"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
         />
@@ -400,9 +462,10 @@ function Assistant() {
           type="button"
           onClick={run}
           disabled={loading || !question.trim()}
-          className="bg-[var(--ink)] text-white rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-40"
+          aria-label={loading ? 'Submitting question to assistant...' : 'Ask citizen assistant'}
+          className="bg-[var(--ink)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
         >
-          {loading ? '…' : 'Ask'}
+          {loading ? 'Asking…' : 'Ask'}
         </button>
       </div>
 
@@ -512,15 +575,17 @@ function ReportForm({ addReport }) {
     >
       <div className="grid sm:grid-cols-2 gap-3 mb-2">
         <input
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
           placeholder="Your name"
+          aria-label="Your full name"
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
 
         <input
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
           placeholder="Your email for confirmation"
+          aria-label="Your email address for confirmation"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
@@ -531,7 +596,8 @@ function ReportForm({ addReport }) {
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+          aria-label="Incident category"
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
         >
           <option value="scam_call">Digital arrest / scam call</option>
           <option value="counterfeit">Counterfeit currency</option>
@@ -542,7 +608,7 @@ function ReportForm({ addReport }) {
         <select
           value={region}
           onChange={(e) => setRegion(e.target.value)}
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm"
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
           aria-label="Your region"
         >
           <option value="">Select your region</option>
@@ -556,8 +622,9 @@ function ReportForm({ addReport }) {
       </div>
 
       <textarea
-        className="w-full h-20 rounded-lg border border-[var(--paper-line)] p-3 text-sm"
+        className="w-full h-20 rounded-lg border border-[var(--paper-line)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)]"
         placeholder="What happened?"
+        aria-label="Describe what happened"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
       />
@@ -566,7 +633,8 @@ function ReportForm({ addReport }) {
         type="button"
         onClick={submit}
         disabled={loading}
-        className="mt-2 bg-[var(--saffron)] text-white rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-40"
+        aria-label={loading ? 'Submitting citizen report...' : 'Submit citizen report'}
+        className="mt-2 bg-[var(--saffron)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
       >
         {loading ? 'Submitting…' : 'Submit report'}
       </button>
@@ -710,17 +778,17 @@ export default function CitizenPortal({ setActiveView }) {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-6 sm:space-y-8 w-full">
       <div>
         <p className="font-mono text-xs uppercase tracking-widest text-[var(--saffron)] mb-2">
           Citizen Portal
         </p>
 
-        <h1 className="font-display text-3xl font-semibold leading-tight">
+        <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-[var(--ink)] leading-tight">
           Verify before you trust it.
         </h1>
 
-        <p className="text-[var(--ink-text)]/70 mt-1">
+        <p className="text-sm sm:text-base text-[var(--ink-text)]/75 mt-1 max-w-2xl leading-relaxed">
           Check a call, a note, or a payment request — before you act on it,
           not after.
         </p>
@@ -798,6 +866,216 @@ export default function CitizenPortal({ setActiveView }) {
         >
           <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
           Launch Live Call Shield
+        </button>
+      </div>
+
+{/* Regional Threat Mesh Quick Launch Banner */}
+      <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+            🌐
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-sm text-[var(--ink)]">
+                Local Area Threat Advisories
+              </span>
+
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-600 text-white">
+                Geofenced Mesh
+              </span>
+            </div>
+
+            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+              View real-time privacy-preserving threat clusters and micro-advisories based on your immediate regional location.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setActiveView && setActiveView('regional-threat-mesh')
+          }
+          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          Open Threat Mesh
+        </button>
+      </div>
+
+      {/* Field Device Seizure Verification Banner */}
+      <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+            📱
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-sm text-[var(--ink)]">
+                Field Seizure & Device Triage Companion
+              </span>
+
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-600 text-white">
+                Offline PWA
+              </span>
+            </div>
+
+            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+              Field officer tool: Photograph seized hardware, log IMEIs/serials, generate offline SHA-256 genesis receipts, and sync to vault.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setActiveView && setActiveView('field-seizure')
+          }
+          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          Open Seizure Companion
+        </button>
+      </div>
+
+      {/* Emergency Financial Kill-Switch & Aadhaar Lock Quick Launch Banner */}
+      <div className="bg-gradient-to-r from-red-600/10 via-amber-500/10 to-transparent border border-red-300 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+            ⚡
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-sm text-[var(--ink)]">
+                Suspect unauthorized debit or shared your credentials?
+              </span>
+
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-red-600 text-white">
+                Kill-Switch & AePS Defense
+              </span>
+            </div>
+
+            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+              Access verified one-tap USSD (*99#) & SMS freeze commands for all major banks, lock Aadhaar biometrics against AePS fraud, and generate certified RBI Zero-Liability mitigation receipts.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setActiveView && setActiveView('emergency-killswitch')
+          }
+          className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          Open Emergency Kill-Switch
+        </button>
+      </div>
+
+      {/* Voice Deepfake & Cloned Audio Inspector Banner */}
+      <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent border border-indigo-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+            🎙️
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-sm text-[var(--ink)]">
+                Received a suspicious voice note or family emergency call?
+              </span>
+
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-indigo-600 text-white">
+                Deepfake Detector
+              </span>
+            </div>
+
+            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+              Verify synthetic voice clones, robotic pitch flatlines, and neural vocoder artifacts before transferring funds.
+              Perform immediate reverse verification.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setActiveView && setActiveView('voice-deepfake')
+          }
+          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          Inspect Voice Deepfake
+        </button>
+      </div>
+      {/* Regional Threat Mesh quick-launch banner */}
+      <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+            📡
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-sm text-[var(--ink)]">
+                Local Area Threat Advisories
+              </span>
+
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-600 text-white">
+                Geofenced Mesh
+              </span>
+            </div>
+
+            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+              Check commander-authorized, privacy-preserving micro-advisories for your postal PIN code and police circle without exposing citizen data.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setActiveView && setActiveView('regional-threat-mesh')
+          }
+          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          Check Local Advisories
+        </button>
+      </div>
+
+      {/* Phishing Website Takedown Quick Launch Banner */}
+      <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent border border-blue-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+            🌐
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-sm text-[var(--ink)]">
+                Spotted a fake bank or police phishing website?
+              </span>
+
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-600 text-white">
+                Abuse Takedown
+              </span>
+            </div>
+
+            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+              Generate certified CERT-In and registrar abuse takedown packages to suspend rogue domains and hosting servers within hours.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setActiveView && setActiveView('takedown-generator')
+          }
+          className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          Generate Abuse Takedown
         </button>
       </div>
 
