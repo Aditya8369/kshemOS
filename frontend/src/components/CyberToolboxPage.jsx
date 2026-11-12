@@ -70,7 +70,7 @@ const TOOLBOX_ITEMS = [
   { key: 'cli-spoof-detector', title: 'CLI Spoof & SIM Box Detector', description: 'Cross-reference caller ID metadata, TRAI numbering plans, and VoIP gateways to detect spoofed calls.', accent: 'var(--saffron)' },
   { key: 'takedown-generator', title: 'Abuse Takedown Notice Generator', description: 'Assemble certified CERT-In compliant abuse takedown packages, resolve DNS/WHOIS hosts, and monitor domain suspension.', accent: 'var(--saffron)' },
   { key: 'syndicate-triage', title: 'Syndicate & APK Triage', description: 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK trojan permissions.', accent: 'var(--alert)' },
-  { key: 'voice-hotline', title: 'Multilingual Automated Voice Safety Hotline', description: 'Interactive voice response (IVR) state machine in 8 Indic languages with 1930 SMS summary dispatch and regional triage.', accent: 'var(--saffron)' },
+  { key: 'stage-inspector', title: 'Video Call Stage & Uniform Inspector', description: 'Analyze screenshots of suspicious video calls for synthetic blur, green-screen chroma fringes, perspective warps, and forged uniforms.', accent: 'var(--alert)' },
 ];
 
 function ToolCard({ item, index, setActiveView }) {
