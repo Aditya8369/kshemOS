@@ -1009,6 +1009,8 @@ export default function CitizenPortal({ setActiveView }) {
           Inspect Voice Deepfake
         </button>
       </div>
+      {/* Regional Threat Mesh quick-launch banner */}
+      <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
             📡
