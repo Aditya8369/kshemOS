@@ -869,6 +869,112 @@ export default function CitizenPortal({ setActiveView }) {
         </button>
       </div>
 
+      {/* Field Device Seizure Verification Banner */}
+      <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+            📱
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-sm text-[var(--ink)]">
+                Field Seizure & Device Triage Companion
+              </span>
+
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-600 text-white">
+                Offline PWA
+              </span>
+            </div>
+
+            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+              Field officer tool: Photograph seized hardware, log IMEIs/serials, generate offline SHA-256 genesis receipts, and sync to vault.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setActiveView && setActiveView('field-seizure')
+          }
+          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          Open Seizure Companion
+        </button>
+      </div>
+
+      {/* Emergency Financial Kill-Switch & Aadhaar Lock Quick Launch Banner */}
+      <div className="bg-gradient-to-r from-red-600/10 via-amber-500/10 to-transparent border border-red-300 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+            ⚡
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-sm text-[var(--ink)]">
+                Suspect unauthorized debit or shared your credentials?
+              </span>
+
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-red-600 text-white">
+                Kill-Switch & AePS Defense
+              </span>
+            </div>
+
+            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+              Access verified one-tap USSD (*99#) & SMS freeze commands for all major banks, lock Aadhaar biometrics against AePS fraud, and generate certified RBI Zero-Liability mitigation receipts.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setActiveView && setActiveView('emergency-killswitch')
+          }
+          className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          Open Emergency Kill-Switch
+        </button>
+      </div>
+
+      {/* Voice Deepfake & Cloned Audio Inspector Banner */}
+      <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent border border-indigo-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+            🎙️
+          </div>
+
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="font-bold text-sm text-[var(--ink)]">
+                Received a suspicious voice note or family emergency call?
+              </span>
+
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-indigo-600 text-white">
+                Deepfake Detector
+              </span>
+            </div>
+
+            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+              Verify synthetic voice clones, robotic pitch flatlines, and neural vocoder artifacts before transferring funds.
+              Perform immediate reverse verification.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setActiveView && setActiveView('voice-deepfake')
+          }
+          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+        >
+          Inspect Voice Deepfake
+        </button>
+      </div>
+
       {/* Phishing Website Takedown Quick Launch Banner */}
       <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent border border-blue-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-start gap-3">

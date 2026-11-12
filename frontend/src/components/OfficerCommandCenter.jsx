@@ -17,6 +17,8 @@ import CliSpoofDetectorView from './CliSpoofDetectorView';
 import SyndicateTriageView from './SyndicateTriageView';
 import MuleFreezeDispatchView from './MuleFreezeDispatchView';
 import TakedownNoticeGeneratorView from './TakedownNoticeGeneratorView';
+import FieldSeizureCompanionView from './evidence/FieldSeizureCompanionView';
+import VoiceDeepfakeDetectorView from './VoiceDeepfakeDetectorView';
 
 import {
   lookupFraudRing,
@@ -663,6 +665,8 @@ function CaseSummaryPanel() {
 const TABS = [
   { key: 'incidents', label: 'Incident dashboard' },
   { key: 'takedown', label: 'Domain Abuse Takedown' },
+  { key: 'field-seizure', label: 'Field Device Seizure' },
+  { key: 'voice-deepfake', label: 'Voice Deepfake Detector' },
   { key: 'freeze', label: 'UPI Mule Freeze (1930)' },
   { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
   { key: 'copilot', label: 'Officer Copilot (Grounded)' },
@@ -746,6 +750,10 @@ export default function OfficerCommandCenter() {
   ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
   : tab === 'takedown'
   ? 'Automated WHOIS/DNS query, certified CERT-In takedown notice generation, and domain offline watchdog monitoring.'
+  : tab === 'field-seizure'
+  ? 'Offline-first PWA for field officers: SHA-256 genesis hardware receipts, Faraday seal tracking, and central vault sync.'
+  : tab === 'voice-deepfake'
+  ? 'Acoustic micro-tremor analysis (jitter/shimmer), neural vocoder phase smearing, and explainable deepfake confidence scoring.'
   : tab === 'freeze'
   ? 'Automated Section 102 CrPC provisional debit freeze dispatch to bank nodal desks and CFCFRMS priority stop protocol.'
   : tab === 'jurisdiction'
@@ -955,6 +963,10 @@ export default function OfficerCommandCenter() {
   <IncidentDashboardView />
 ) : tab === 'takedown' ? (
   <TakedownNoticeGeneratorView />
+) : tab === 'field-seizure' ? (
+  <FieldSeizureCompanionView />
+) : tab === 'voice-deepfake' ? (
+  <VoiceDeepfakeDetectorView />
 ) : tab === 'freeze' ? (
   <MuleFreezeDispatchView />
 ) : tab === 'jurisdiction' ? (
