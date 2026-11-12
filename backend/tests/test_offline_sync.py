@@ -1,4 +1,12 @@
 import pytest
+from app.security import Principal
+
+ADMIN_PRINCIPAL = Principal(
+    subject="ADMIN-TEST",
+    role="admin",
+    jurisdictions=frozenset(),
+    case_ids=frozenset(),
+)
 from app.routers import incidents as router
 from app.models import (
     IncidentCreateRequest,
@@ -16,7 +24,8 @@ def test_incident_versioning_and_concurrency():
             category="scam_call",
             description="Field officer reported ongoing digital arrest scam.",
             region="North Zone",
-        )
+        ),
+    principal=ADMIN_PRINCIPAL,
     )
     assert created["version"] == 1
     assert created["updated_at"] is not None
@@ -25,6 +34,7 @@ def test_incident_versioning_and_concurrency():
     u1 = router.update(
         created["id"],
         IncidentUpdateRequest(status="in_progress", assigned_to="OFF-FIELD-1"),
+         principal=ADMIN_PRINCIPAL,
     )
     assert u1["version"] == 2
     assert u1["status"] == "in_progress"
@@ -38,6 +48,7 @@ def test_incident_versioning_and_concurrency():
                 status="escalated",
                 expected_version=1,  # Stale: server is already v2
             ),
+             principal=ADMIN_PRINCIPAL,
         )
     assert exc_info.value.status_code == 409
     conflict_detail = exc_info.value.detail
@@ -54,6 +65,7 @@ def test_incident_versioning_and_concurrency():
             expected_version=1,
             force=True,
         ),
+        principal=ADMIN_PRINCIPAL,
     )
     assert forced["version"] == 3
     assert forced["status"] == "escalated"
@@ -67,12 +79,17 @@ def test_batch_offline_sync():
             category="other",
             description="HQ incident reported earlier.",
             region="West Zone",
-        )
+        ),
+         principal=ADMIN_PRINCIPAL,
     )
     assert hq_inc["version"] == 1
 
     # Simulate HQ update to version 2
-    router.update(hq_inc["id"], IncidentUpdateRequest(severity="high"))
+    router.update(
+    hq_inc["id"],
+    IncidentUpdateRequest(severity="high"),
+    principal=ADMIN_PRINCIPAL,
+)
 
     # Now field unit reconnects with a batch of 3 items:
     # Item 1: new incident created while field unit was offline
@@ -109,7 +126,7 @@ def test_batch_offline_sync():
         ]
     )
 
-    res = router.sync_batch(batch)
+    res = router.sync_batch(batch, principal=ADMIN_PRINCIPAL)
     assert res["applied_count"] == 1
     assert res["conflict_count"] == 1
     assert res["failed_count"] == 1
