@@ -16,6 +16,7 @@ import Section63AffidavitCompilerView from './evidence/Section63AffidavitCompile
 import CliSpoofDetectorView from './CliSpoofDetectorView';
 import SyndicateTriageView from './SyndicateTriageView';
 import MuleFreezeDispatchView from './MuleFreezeDispatchView';
+import StageUniformInspectorView from './StageUniformInspectorView';
 import useIncidentFeed from './incidentDashboard/useIncidentFeed';
 import { getDashboardSnapshot } from '../incidentDashboard';
 import { CARD_SURFACES, CONTAINER_VARIANTS, HEADER_TYPOGRAPHY } from '../layoutStyles';
@@ -744,7 +745,6 @@ export default function OfficerCommandCenter() {
 
         {/* =========================================================================
             SECTION I: Operational Summary & Time-Sensitive Alert Ticker
-            Fulfills Criterion 2: Make the most time-sensitive information visually prominent
             ========================================================================= */}
         <section
           role="region"
@@ -828,7 +828,6 @@ export default function OfficerCommandCenter() {
 
         {/* =========================================================================
             SECTION II: Functional Grouping & Section Category Filter
-            Fulfills Criterion 1: Group operational summary, active incidents, and investigation tools
             ========================================================================= */}
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -858,7 +857,7 @@ export default function OfficerCommandCenter() {
             </div>
           </div>
 
-          {/* Standardized Tablist Navigation (Preserves accessibilityPolish.test.js requirement) */}
+          {/* Standardized Tablist Navigation */}
           <div className="overflow-x-auto max-w-full pb-1 scrollbar-none">
             <div
               role="tablist"
@@ -902,7 +901,6 @@ export default function OfficerCommandCenter() {
 
         {/* =========================================================================
             SECTION III: Active Module Context Header
-            Standardizes section headings and descriptions across all modules
             ========================================================================= */}
         <div className="rounded-xl border border-[var(--navy-line)] bg-[var(--navy)]/50 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -929,7 +927,6 @@ export default function OfficerCommandCenter() {
 
         {/* =========================================================================
             SECTION IV: Module Views
-            Preserves 100% of existing workflows and component wiring
             ========================================================================= */}
         {tab === 'incidents' ? (
           <IncidentDashboardView />
@@ -949,6 +946,8 @@ export default function OfficerCommandCenter() {
           <Section63AffidavitCompilerView />
         ) : tab === 'syndicate' ? (
           <SyndicateTriageView />
+        ) : tab === 'stage-inspector' ? (
+          <StageUniformInspectorView />
         ) : (
           <div className="space-y-6">
             <EvidenceGroundedCopilotView />
