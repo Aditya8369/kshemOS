@@ -8,6 +8,7 @@ const TOOLBOX_ITEMS = [
   { key: 'phish-detect', title: 'PhishDetect', description: 'Analyze suspicious emails for spoofed senders, aggressive subjects, and risky links.', accent: 'var(--safe)' },
   { key: 'upi-fraud-shield', title: 'UPI Fraud Shield', description: 'Evaluate UPI payments for odd amounts, suspect handles, and unusual reasons.', accent: 'var(--caution)' },
   { key: 'mule-freeze', title: 'UPI Mule Freeze (1930)', description: 'Fast-track Section 102 CrPC provisional debit freeze mandates and CFCFRMS dispatch.', accent: 'var(--alert)' },
+  { key: 'money-trail', title: 'Money Trail & Hop Reconstructor', description: 'Reconstruct multi-hop money flow graph, pinpoint Mule Hubs, and generate Section 102 CrPC attachment schedules.', accent: 'var(--saffron)' },
   { key: 'job-scam-radar', title: 'JobScam Radar', description: 'Spot fake job offers that ask for upfront fees or pressure you to act fast.', accent: 'var(--saffron)' },
   { key: 'invest-scan', title: 'InvestScan', description: 'Flag investment pitches with guaranteed returns and Ponzi-style pressure.', accent: 'var(--navy)' },
   { key: 'loan-trap-alert', title: 'LoanTrap Alert', description: 'Review loan offers for fake approvals, processing fees, and payment demands.', accent: 'var(--alert)' },
@@ -68,8 +69,10 @@ const TOOLBOX_ITEMS = [
   { key: 'dpdp-redaction', title: 'DPDP Act Redaction & Identity Masking', description: 'Detect, mask, and tokenize citizen identifiers (Aadhaar, PAN, Bank accounts) with supervisory unmask workflows.', accent: 'var(--saffron)' },
   { key: 'evidence-affidavit-compiler', title: 'Section 63 BSA Affidavit Compiler', description: 'Compile court-ready electronic evidence certificates with SHA-256 hashes, Stratum 1 NTP records, and dual-officer declarations.', accent: 'var(--saffron)' },
   { key: 'cli-spoof-detector', title: 'CLI Spoof & SIM Box Detector', description: 'Cross-reference caller ID metadata, TRAI numbering plans, and VoIP gateways to detect spoofed calls.', accent: 'var(--saffron)' },
+  { key: 'voice-deepfake', title: 'Voice Deepfake & Audio Detector', description: 'Analyze pitch jitter, amplitude shimmer, neural vocoder artifacts, and receive reverse verification guidance for cloned voices.', accent: 'var(--saffron)' },
   { key: 'syndicate-triage', title: 'Syndicate & APK Triage', description: 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK trojan permissions.', accent: 'var(--alert)' },
   { key: 'emergency-killswitch', title: 'Aadhaar Lock & Financial Kill-Switch', description: 'Instant bank freeze codes, *99# USSD block, Aadhaar biometric lock, and RBI Zero-Liability mitigation receipts.', accent: 'var(--alert)' },
+  { key: 'stage-inspector', title: 'Video Call Stage & Uniform Inspector', description: 'Analyze screenshots of suspicious video calls for synthetic blur, green-screen chroma fringes, perspective warps, and forged uniforms.', accent: 'var(--alert)' },
 ];
 
 function ToolCard({ item, index, setActiveView }) {

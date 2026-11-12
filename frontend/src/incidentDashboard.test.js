@@ -150,15 +150,19 @@ test('marks demand as rising only when recent intake clearly exceeds the prior w
 
 test('filters the drill-down list without losing active-only scope', () => {
   const incidents = [
-    incident({ id: 'a', region: 'North', severity: 'critical', assigned_to: null }),
-    incident({ id: 'b', region: 'North', severity: 'low' }),
-    incident({ id: 'c', region: 'South', severity: 'critical' }),
-    incident({ id: 'd', region: 'North', severity: 'critical', status: 'resolved' }),
+    incident({ id: 'a', title: 'Digital arrest coercion scam', region: 'North', severity: 'critical', assigned_to: null }),
+    incident({ id: 'b', title: 'Fake electricity bill SMS', region: 'North', severity: 'low', assigned_to: 'OFF-1' }),
+    incident({ id: 'c', title: 'Part-time job Ponzi lure', region: 'South', severity: 'critical', assigned_to: null }),
+    incident({ id: 'd', title: 'Phishing refund email', region: 'North', severity: 'critical', status: 'resolved' }),
   ];
 
   assert.deepEqual(filterIncidents(incidents, { region: 'North' }, NOW).map((i) => i.id), ['a', 'b']);
   assert.deepEqual(filterIncidents(incidents, { region: 'North', severity: 'critical' }, NOW).map((i) => i.id), ['a']);
-  assert.deepEqual(filterIncidents(incidents, { unassignedOnly: true }, NOW).map((i) => i.id), ['a']);
+  assert.deepEqual(filterIncidents(incidents, { unassignedOnly: true }, NOW).map((i) => i.id), ['a', 'c']);
+  assert.deepEqual(filterIncidents(incidents, { query: 'digital arrest' }, NOW).map((i) => i.id), ['a']);
+  assert.deepEqual(filterIncidents(incidents, { query: 'OFF-1' }, NOW).map((i) => i.id), ['b']);
+  assert.deepEqual(filterIncidents(incidents, { region: 'North', query: 'electricity' }, NOW).map((i) => i.id), ['b']);
+  assert.deepEqual(filterIncidents(incidents, { region: 'South', query: 'electricity' }, NOW), [], 'returns empty array when filters match no incidents');
 });
 
 test('creates new incidents from citizen reports with no response yet', () => {

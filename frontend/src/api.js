@@ -1021,3 +1021,14 @@ export async function generateEmergencyMitigationReceiptApi(payload) {
   }
   return null;
 }
+
+// -----------------------------------------------------------------------------
+// Voice Deepfake & Synthetic Audio Impersonation Detector
+// -----------------------------------------------------------------------------
+
+export {
+  analyzeVoiceRecordingApi,
+  listVoiceDeepfakeInspectionsApi,
+  getVoiceDeepfakeInspectionApi,
+  fetchVoiceDeepfakeStatsApi,
+} from './voiceDeepfakeStore.js';

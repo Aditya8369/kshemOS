@@ -2012,7 +2012,6 @@ class FreezeStatsResponse(BaseModel):
     average_bank_latency_ms: float
     total_amount_protected_inr: float
 
-
 # ============================================================
 # EMERGENCY FINANCIAL KILL-SWITCH & AADHAAR LOCK MODELS
 # ============================================================
@@ -2086,3 +2085,176 @@ class EmergencyMitigationReceipt(BaseModel):
     legal_disclaimer: str
     sha256_hash: str
     verification_token: str
+
+
+# ============================================================
+# SYNDICATE MULE RING MONEY-TRAIL & FLOW HOP RECONSTRUCTOR
+# ============================================================
+
+class MoneyTrailTransaction(BaseModel):
+    utr_number: str
+    timestamp_iso: str
+    sender_account: str
+    sender_bank: Optional[str] = "Originating Bank"
+    sender_ifsc: Optional[str] = None
+    receiver_account: str
+    receiver_bank: Optional[str] = "Beneficiary Bank"
+    receiver_ifsc: Optional[str] = None
+    amount: float
+    txn_type: str = "IMPS"  # IMPS, RTGS, NEFT, UPI, ATM_CASH, CRYPTO_OTC
+    hop_level: Optional[int] = None
+
+
+class MoneyTrailNode(BaseModel):
+    account_id: str
+    label: str
+    bank_name: str
+    ifsc_code: Optional[str] = None
+    node_type: str  # victim, primary_mule, mule_hub, splitter_mule, exit_channel
+    hop_level: int
+    total_inflow: float
+    total_outflow: float
+    resting_balance: float
+    inflow_count: int
+    outflow_count: int
+    is_mule_hub: bool = False
+    mule_hub_score: float = 0.0
+    transfer_velocity_minutes: Optional[float] = None
+    freeze_priority: str = "TIER_3_MONITOR"  # TIER_1_CRITICAL_RESTING, TIER_2_HIGH_VELOCITY, TIER_3_MONITOR
+
+
+class MoneyTrailHopFlow(BaseModel):
+    from_hop: int
+    to_hop: int
+    source_node: str
+    target_node: str
+    amount: float
+    utr_number: str
+    timestamp_iso: str
+    velocity_minutes: Optional[float] = None
+
+
+class SankeyNode(BaseModel):
+    id: str
+    name: str
+    hop: int
+    category: str
+    amount: float
+
+
+class SankeyLink(BaseModel):
+    source: str
+    target: str
+    value: float
+    utr: str
+
+
+class SankeyDiagramData(BaseModel):
+    nodes: List[SankeyNode]
+    links: List[SankeyLink]
+
+
+class Section102CrPCScheduleItem(BaseModel):
+    schedule_index: int
+    beneficiary_account: str
+    bank_name: str
+    ifsc_code: str
+    branch_name: Optional[str] = None
+    suspect_name: Optional[str] = None
+    seized_amount_resting_inr: float
+    total_fraud_received_inr: float
+    utr_references: List[str]
+    freeze_mandate_priority: str
+    statutory_grounds: str
+
+
+class Section102CrPCScheduleResponse(BaseModel):
+    schedule_id: str
+    case_id: str
+    investigating_officer: str
+    police_station: str
+    total_resting_amount_inr: float
+    total_dispersed_amount_inr: float
+    accounts_count: int
+    mule_hubs_count: int
+    items: List[Section102CrPCScheduleItem]
+    statutory_declaration: str
+    generated_at_iso: str
+    schedule_hash: str
+
+
+class MoneyTrailIngestionRequest(BaseModel):
+    case_id: str = "CASE-2026-DELHI-01"
+    raw_csv: Optional[str] = None
+    transactions: Optional[List[MoneyTrailTransaction]] = None
+    format: str = "CSV"  # CSV | CFCFRMS_JSON
+
+
+class MoneyTrailAnalysisResponse(BaseModel):
+    case_id: str
+    total_volume_inr: float
+    total_victims: int
+    total_mules: int
+    mule_hubs: List[str]
+    active_resting_balance_inr: float
+    nodes: List[MoneyTrailNode]
+    edges: List[MoneyTrailHopFlow]
+    sankey_data: SankeyDiagramData
+    section_102_schedule: Section102CrPCScheduleResponse
+
+
+# ---------- Voice Deepfake & Synthetic Audio Impersonation Detector ----------
+
+class AcousticAnomalySpan(BaseModel):
+    start_ms: float = Field(..., description="Start offset of acoustic anomaly in milliseconds")
+    end_ms: float = Field(..., description="End offset of acoustic anomaly in milliseconds")
+    anomaly_type: str = Field(..., description="Category of anomaly, e.g. PITCH_FREEZE_FLATLINING, VOCODER_HIGH_FREQ_SMEARING")
+    confidence_score: float = Field(..., ge=0.0, le=1.0, description="Detection confidence for this span")
+    explanation: str = Field(..., description="Forensic acoustic reason for anomaly")
+    severity: Literal["low", "medium", "high", "critical"] = "medium"
+
+
+class SpectralMetrics(BaseModel):
+    jitter_pct: float = Field(..., description="Cycle-to-cycle fundamental frequency perturbation percentage (Normal: 0.5% - 1.2%)")
+    shimmer_pct: float = Field(..., description="Cycle-to-cycle amplitude perturbation percentage (Normal: 1.5% - 3.8%)")
+    hnr_db: float = Field(..., description="Harmonics-to-Noise Ratio in decibels (Normal human voiced: 14 - 24 dB)")
+    spectral_rolloff_hz: float = Field(..., description="High-frequency rolloff / Nyquist attenuation cutoff in Hertz")
+    vocoder_footprint_score: float = Field(..., ge=0.0, le=1.0, description="Neural vocoder checkerboard / transposed-conv artifact likelihood")
+    pitch_stability_index: float = Field(..., ge=0.0, le=1.0, description="Robotic unnatural pitch rigidity index (1.0 = completely frozen F0)")
+
+
+class VoiceDeepfakeInspectionRequest(BaseModel):
+    audio_data: str = Field(..., description="Base64-encoded audio bytes, audio data URI, or sample content")
+    file_name: str = Field(default="voice_evidence.wav", description="File name with extension (.wav, .mp3, .m4a)")
+    duration_seconds: Optional[float] = Field(default=None, description="Optional audio duration in seconds")
+    case_id: Optional[str] = Field(default="CASE-2026-ARREST-VOICE", description="Associated investigation or triage case ID")
+    caller_claimed_identity: Optional[str] = Field(default=None, description="Claimed identity (e.g. Grandson, CBI Officer, Mumbai Police)")
+    scam_context: Optional[str] = Field(default="Digital Arrest / Family Extortion", description="Scenario context")
+    save_to_evidence_vault: bool = Field(default=True, description="Whether to ingest directly into Evidence Vault")
+    officer_badge_id: Optional[str] = Field(default="CITIZEN-SAFETY-PORTAL", description="Reporting citizen or inspecting officer badge ID")
+
+
+class VoiceDeepfakeInspectionResponse(BaseModel):
+    inspection_id: str
+    file_name: str
+    file_sha256: str
+    file_size_bytes: int
+    duration_seconds: float
+    synthetic_probability_score: float = Field(..., ge=0.0, le=1.0, description="Score 0.0 to 1.0 (0=natural, 1=synthetic)")
+    risk_band: Literal["LOW_PROBABILITY_NATURAL", "SUSPICIOUS", "HIGH_PROBABILITY_SYNTHETIC"]
+    verdict_summary: str
+    spectral_metrics: SpectralMetrics
+    anomaly_spans: List[AcousticAnomalySpan]
+    tactical_guidance: str
+    tactical_checklist: List[str]
+    vaulted_evidence_id: Optional[str] = None
+    inspection_timestamp: int
+    caller_claimed_identity: Optional[str] = None
+
+
+class VoiceDeepfakeStatsResponse(BaseModel):
+    total_evaluated: int
+    high_synthetic_detected: int
+    suspicious_detected: int
+    natural_confirmed: int
+    vault_evidence_preserved: int

@@ -64,12 +64,28 @@ export default function SeverityRegionTable({ breakdown, filters, onSelect }) {
               All regions
             </th>
             {SEVERITIES.map((s) => (
-              <td key={s} className="text-center font-mono pt-1 border-t border-[var(--navy-line)]">
-                {breakdown.totals[s]}
+              <td key={s} className="text-center pt-1 border-t border-[var(--navy-line)]">
+                {breakdown.totals[s] > 0 ? (
+                  <button
+                    className={cellClass(!filters.region && filters.severity === s)}
+                    onClick={() => onSelect({ region: null, severity: s })}
+                    aria-label={`All ${breakdown.totals[s]} ${s} incidents across all regions`}
+                  >
+                    {breakdown.totals[s]}
+                  </button>
+                ) : (
+                  <span className="font-mono text-sm text-[var(--mist)]/40">·</span>
+                )}
               </td>
             ))}
-            <td className="text-center font-mono font-semibold text-white pt-1 border-t border-[var(--navy-line)]">
-              {breakdown.totals.total}
+            <td className="text-center pt-1 border-t border-[var(--navy-line)]">
+              <button
+                className={cellClass(!filters.region && !filters.severity)}
+                onClick={() => onSelect({ region: null, severity: null })}
+                aria-label={`All ${breakdown.totals.total} active incidents`}
+              >
+                <span className="font-semibold">{breakdown.totals.total}</span>
+              </button>
             </td>
           </tr>
         </tfoot>
