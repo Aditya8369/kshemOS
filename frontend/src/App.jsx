@@ -84,6 +84,7 @@ import JurisdictionConfigView from './components/jurisdiction/JurisdictionConfig
 import MultilingualSpeechSafetyView from './components/speech/MultilingualSpeechSafetyView';
 import LiveCallSafetyView from './components/livecall/LiveCallSafetyView';
 import IncidentNotificationConsole from './components/incidentDashboard/IncidentNotificationConsole';
+import ContributorsPage from './components/ContributorsPage';
 import SyndicateTriageView from './components/SyndicateTriageView';
 import MuleFreezeDispatchView from './components/MuleFreezeDispatchView';
 import MoneyTrailVisualizerView from './components/MoneyTrailVisualizerView';
@@ -91,6 +92,7 @@ import MeetPage from './components/MeetPage';
 import DpdpRedactionView from './components/DpdpRedactionView';
 import Section63AffidavitCompilerView from './components/evidence/Section63AffidavitCompilerView';
 import CliSpoofDetectorView from './components/CliSpoofDetectorView';
+import StageUniformInspectorView from './components/StageUniformInspectorView';
 
 export default function App() {
   const [portal, setPortal] = useState('citizen');
@@ -99,6 +101,9 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       if (params.get('token') || params.get('view') === 'evidence-upload') {
         return 'evidence-upload';
+      }
+      if (params.get('view')) {
+        return params.get('view');
       }
     }
     return 'home';
@@ -113,7 +118,7 @@ export default function App() {
     if (activeView === 'how-it-works') return <HowItWorksPage setActiveView={setActiveView} />;
     if (activeView === 'scam-examples') return <ScamExamplesPage setActiveView={setActiveView} />;
     if (activeView === 'rule-library') return <ThreatLibraryPage setActiveView={setActiveView} />;
-    if (activeView === 'meet') return <MeetPage />;
+    if (activeView === 'meet' || activeView === 'contributors') return <ContributorsPage setActiveView={setActiveView} />;
     if (activeView === 'intelligence') return <ScamIntelligencePage setActiveView={setActiveView} />;
     if (activeView === 'safety-tips') return <SafetyTipsPage setActiveView={setActiveView} />;
     if (activeView === 'toolbox') return <CyberToolboxPage setActiveView={setActiveView} />;
@@ -193,6 +198,7 @@ export default function App() {
     if (activeView === 'cli-spoof-detector') return <CliSpoofDetectorView />;
     if (activeView === 'jurisdiction') return <JurisdictionConfigView />;
     if (activeView === 'dpdp-redaction') return <DpdpRedactionView />;
+    if (activeView === 'stage-inspector') return <StageUniformInspectorView />;
     if (activeView === 'officer') return <OfficerCommandCenter />;
     if (activeView === 'portal') {
       return portal === 'citizen' ? <CitizenPortal setActiveView={setActiveView} /> : <OfficerCommandCenter />;

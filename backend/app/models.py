@@ -2012,7 +2012,6 @@ class FreezeStatsResponse(BaseModel):
     average_bank_latency_ms: float
     total_amount_protected_inr: float
 
-
 # ============================================================
 # SYNDICATE MULE RING MONEY-TRAIL & FLOW HOP RECONSTRUCTOR
 # ============================================================
@@ -2127,3 +2126,69 @@ class MoneyTrailAnalysisResponse(BaseModel):
     edges: List[MoneyTrailHopFlow]
     sankey_data: SankeyDiagramData
     section_102_schedule: Section102CrPCScheduleResponse
+
+
+# =============================================================================
+# DIGITAL ARREST VIDEO CALL STAGE & UNIFORM ARTIFACT INSPECTOR MODELS
+# =============================================================================
+
+class VisualArtifactHallmark(BaseModel):
+    hallmark_type: str = Field(..., description="e.g. virtual_chroma_fringe, perspective_warp, non_standard_stars")
+    severity: str = Field(..., description="critical, high, medium, low")
+    confidence_score: float = Field(..., ge=0.0, le=1.0)
+    title: str
+    description: str
+    bounding_box: Optional[Dict[str, float]] = Field(default=None, description="Normalized coordinates x, y, width, height")
+    regulation_reference: Optional[str] = None
+
+
+class UniformInspectionResult(BaseModel):
+    claimed_agency: str
+    claimed_rank: Optional[str] = None
+    uniform_matches_agency: bool
+    insignia_validity: str = Field(..., description="forged, suspicious, compliant, inconclusive")
+    star_count_discrepancy: Optional[str] = None
+    discrepancies: List[str] = Field(default_factory=list)
+    official_regulation_summary: str
+
+
+class StageUniformInspectionRequest(BaseModel):
+    image_data: str = Field(..., description="Base64 encoded screenshot data or image URL")
+    file_name: str = Field(default="video_call_screenshot.png")
+    claimed_agency: Optional[str] = Field(default="CBI", description="Claimed agency e.g. CBI, Mumbai Police, Delhi Police, Customs, Supreme Court")
+    claimed_officer_name: Optional[str] = Field(default=None, description="Name claimed on video call")
+    case_id: Optional[str] = Field(default=None, description="Associated KshemOS Case ID")
+    save_to_evidence_vault: bool = Field(default=True, description="Automatically preserve in Evidence Vault")
+    notes: Optional[str] = None
+
+
+class StageUniformInspectionResponse(BaseModel):
+    inspection_id: str
+    image_sha256: str
+    is_synthetic_stage: bool
+    stage_forgery_score: float = Field(..., ge=0.0, le=1.0)
+    risk_verdict: str = Field(..., description="CRITICAL_FORGERY_DETECTED, HIGH_RISK_STAGE, SUSPICIOUS, INCONCLUSIVE")
+    detected_hallmarks: List[VisualArtifactHallmark]
+    uniform_evaluation: UniformInspectionResult
+    exif_metadata: Dict[str, Any] = Field(default_factory=dict)
+    statutory_bnss_notice: str
+    vaulted_evidence_id: Optional[str] = None
+    inspection_timestamp: int
+
+
+class UniformRegulationRecord(BaseModel):
+    agency_id: str
+    agency_name: str
+    authorized_attire: str
+    shoulder_rank_insignia: str
+    collar_insignia_rules: str
+    official_id_credential: str
+    common_scam_forgeries: List[str]
+
+
+class StageInspectionStatsResponse(BaseModel):
+    total_inspected: int
+    critical_forgeries_detected: int
+    cbi_impersonations: int
+    police_uniform_forgeries: int
+    vault_evidence_preserved: int

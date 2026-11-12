@@ -28,6 +28,7 @@ from app.routers import (
     syndicate_triage,
     mule_freeze,
     money_trail,
+    stage_uniform_inspector,
 )
 
 app = FastAPI(
@@ -75,6 +76,7 @@ app.include_router(cli_spoof.router)
 app.include_router(syndicate_triage.router)
 app.include_router(mule_freeze.router)
 app.include_router(money_trail.router)
+app.include_router(stage_uniform_inspector.router)
 
 
 @app.get("/", tags=["Health"])

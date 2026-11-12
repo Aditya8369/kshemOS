@@ -1038,3 +1038,19 @@ export async function fetchSampleMoneyTrailCsvApi() {
     csv_data: defaultMoneyTrailStore.getSampleCsv(),
   };
 }
+
+// ======================================================
+// DIGITAL ARREST VIDEO CALL STAGE & UNIFORM INSPECTOR APIs
+// ======================================================
+
+export {
+  STATUTORY_BNSS_NOTICE,
+  OFFICIAL_UNIFORM_REGULATIONS,
+  DEMO_STAGE_PRESETS,
+  inspectVideoCallStageLocally,
+  listLocalStageInspections,
+  inspectVideoCallStageApi,
+  fetchUniformRegulationsApi,
+  listStageInspectionsApi,
+  fetchStageInspectionStatsApi,
+} from './stageUniformInspectorStore.js';
