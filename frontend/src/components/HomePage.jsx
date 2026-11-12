@@ -1,7 +1,7 @@
 export default function HomePage({ setActiveView }) {
   return (
     <div className="relative min-h-[calc(100vh-140px)] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(255,198,77,0.25),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(24,41,75,0.15),_transparent_24%),linear-gradient(135deg,_#ffffff_0%,_#f7f7f3_100%)] px-4 py-8 sm:py-10">
-      <div className="absolute inset-0 overflow-hidden">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
         <div className="absolute left-[-8%] top-[-10%] h-40 w-40 rounded-full bg-[var(--saffron)]/20 blur-3xl animate-float-soft" />
         <div className="absolute bottom-[-8%] right-[5%] h-56 w-56 rounded-full bg-[var(--navy)]/10 blur-3xl animate-drift-slow" />
         <div className="absolute left-[45%] top-[15%] h-4 w-4 rounded-full bg-[var(--saffron)]/80 animate-glow-pulse" />
@@ -26,21 +26,23 @@ export default function HomePage({ setActiveView }) {
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => setActiveView('portal')}
-              className="rounded-full bg-[var(--ink)] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[var(--ink)]/15 transition duration-200 hover:-translate-y-0.5 animate-float-soft"
+              className="rounded-full bg-[var(--ink)] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[var(--ink)]/15 transition duration-200 motion-safe:hover:-translate-y-0.5 motion-reduce:transition-none animate-float-soft"
             >
               Try the verification demo
             </button>
             <button
               onClick={() => setActiveView('awareness')}
-              className="rounded-full border border-[var(--paper-line)] bg-white/90 px-5 py-3 text-sm font-semibold text-[var(--ink)] shadow-sm transition duration-200 hover:-translate-y-0.5"
+              className="rounded-full border border-[var(--paper-line)] bg-white/90 px-5 py-3 text-sm font-semibold text-[var(--ink)] shadow-sm transition duration-200 motion-safe:hover:-translate-y-0.5 motion-reduce:transition-none"
             >
               Learn the warning signs
-            </button>            <button
+            </button>
+            <button
               onClick={() => setActiveView('rule-library')}
-              className="rounded-full border border-[var(--paper-line)] bg-white/90 px-5 py-3 text-sm font-semibold text-[var(--ink-text)] shadow-sm transition duration-200 hover:-translate-y-0.5"
+              className="rounded-full border border-[var(--paper-line)] bg-white/90 px-5 py-3 text-sm font-semibold text-[var(--ink-text)] shadow-sm transition duration-200 motion-safe:hover:-translate-y-0.5 motion-reduce:transition-none"
             >
               Explore rule library
-            </button>          </div>
+            </button>
+          </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
             {[
@@ -48,7 +50,7 @@ export default function HomePage({ setActiveView }) {
               ['02', 'Clear guidance for citizens'],
               ['03', 'Support for officers and reports'],
             ].map(([num, label]) => (
-              <div key={num} className="rounded-2xl border border-[var(--paper-line)] bg-white/80 p-4 backdrop-blur transition duration-200 hover:-translate-y-1 animate-fade-up">
+              <div key={num} className="rounded-2xl border border-[var(--paper-line)] bg-white/80 p-4 backdrop-blur transition duration-200 motion-safe:hover:-translate-y-1 motion-reduce:transition-none animate-fade-up">
                 <div className="font-display text-xl font-semibold">{num}</div>
                 <div className="mt-1 text-sm text-[var(--ink-text)]/70">{label}</div>
               </div>
