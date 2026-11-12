@@ -15,6 +15,7 @@ from app.models import (
     UnmaskApprovalRequest,
     UnmaskRequestCreate,
     UnmaskRequestRecord,
+    UnmaskReviewAction,
     UnmaskedValueResponse,
 )
 from app.services import dpdp_sanitization as dpdp_service
