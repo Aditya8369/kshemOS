@@ -82,7 +82,7 @@ export default function Footer({ setActiveView = () => {} }) {
               <li>
                 <button
                   type="button"
-                  onClick={() => setActiveView('meet')}
+                  onClick={() => setActiveView('contributors')}
                   className={linkClass}
                 >
                   Contributors & Team

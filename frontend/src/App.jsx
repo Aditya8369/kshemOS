@@ -84,6 +84,7 @@ import JurisdictionConfigView from './components/jurisdiction/JurisdictionConfig
 import MultilingualSpeechSafetyView from './components/speech/MultilingualSpeechSafetyView';
 import LiveCallSafetyView from './components/livecall/LiveCallSafetyView';
 import IncidentNotificationConsole from './components/incidentDashboard/IncidentNotificationConsole';
+import ContributorsPage from './components/ContributorsPage';
 import SyndicateTriageView from './components/SyndicateTriageView';
 import MuleFreezeDispatchView from './components/MuleFreezeDispatchView';
 import MeetPage from './components/MeetPage';
@@ -100,6 +101,9 @@ export default function App() {
       if (params.get('token') || params.get('view') === 'evidence-upload') {
         return 'evidence-upload';
       }
+      if (params.get('view')) {
+        return params.get('view');
+      }
     }
     return 'home';
   });
@@ -113,7 +117,7 @@ export default function App() {
     if (activeView === 'how-it-works') return <HowItWorksPage setActiveView={setActiveView} />;
     if (activeView === 'scam-examples') return <ScamExamplesPage setActiveView={setActiveView} />;
     if (activeView === 'rule-library') return <ThreatLibraryPage setActiveView={setActiveView} />;
-    if (activeView === 'meet') return <MeetPage />;
+    if (activeView === 'meet' || activeView === 'contributors') return <ContributorsPage setActiveView={setActiveView} />;
     if (activeView === 'intelligence') return <ScamIntelligencePage setActiveView={setActiveView} />;
     if (activeView === 'safety-tips') return <SafetyTipsPage setActiveView={setActiveView} />;
     if (activeView === 'toolbox') return <CyberToolboxPage setActiveView={setActiveView} />;
