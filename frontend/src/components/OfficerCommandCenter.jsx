@@ -16,6 +16,7 @@ import Section63AffidavitCompilerView from './evidence/Section63AffidavitCompile
 import CliSpoofDetectorView from './CliSpoofDetectorView';
 import SyndicateTriageView from './SyndicateTriageView';
 import MuleFreezeDispatchView from './MuleFreezeDispatchView';
+import MoneyTrailVisualizerView from './MoneyTrailVisualizerView';
 import StageUniformInspectorView from './StageUniformInspectorView';
 import useIncidentFeed from './incidentDashboard/useIncidentFeed';
 import { getDashboardSnapshot } from '../incidentDashboard';
@@ -739,7 +740,27 @@ export default function OfficerCommandCenter() {
             </div>
           </div>
           <p className={HEADER_TYPOGRAPHY.descriptionOfficer + ' mt-1'}>
-            Unified operational command: incident dispatch, real-time threat response, and forensic investigation.
+            {tab === 'incidents'
+              ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
+              : tab === 'freeze'
+              ? 'Automated Section 102 CrPC provisional debit freeze dispatch to bank nodal desks and CFCFRMS priority stop protocol.'
+              : tab === 'money-trail'
+              ? 'Multi-hop money trail reconstruction, Mule Hub bottleneck detection, layering velocity calculation, and Section 102 CrPC asset attachment schedules.'
+              : tab === 'jurisdiction'
+              ? 'Operational zone boundaries, service areas, automated dispatch routing, and multi-officer change review.'
+              : tab === 'copilot'
+              ? 'Evidence-grounded investigative next steps with 4-tier separation, source citations, and human approval guardrails.'
+              : tab === 'cli-spoof'
+              ? 'Calling Line Identification (CLI) spoof detection, TRAI circle cross-referencing, and rogue GSM SIM Box ingress triage.'
+              : tab === 'evidence'
+              ? 'Immutable chain of custody, Section 65B forensic bundles, and legal hold verification.'
+              : tab === 'affidavit'
+              ? 'Sealed court-ready Section 63 BSA / 65B IEA certificates with Stratum 1 NTP records and dual-officer legal declarations.'
+              : tab === 'syndicate'
+              ? 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK sandbox triage.'
+              : tab === 'stage-inspector'
+              ? 'Computer vision inspection of suspicious video call stages, virtual chroma fringing, perspective logo warps, and uniform insignia.'
+              : 'Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.'}
           </p>
         </div>
 
@@ -932,6 +953,8 @@ export default function OfficerCommandCenter() {
           <IncidentDashboardView />
         ) : tab === 'freeze' ? (
           <MuleFreezeDispatchView />
+        ) : tab === 'money-trail' ? (
+          <MoneyTrailVisualizerView />
         ) : tab === 'jurisdiction' ? (
           <JurisdictionConfigView />
         ) : tab === 'copilot' ? (

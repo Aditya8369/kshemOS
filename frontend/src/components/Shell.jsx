@@ -277,6 +277,7 @@ export default function Shell({
               {/* Operations Dropdown */}
               {dropdownMenu('officer-operations', 'Operations', [
                 { key: 'mule-freeze', label: 'Mule Account Freeze' },
+                { key: 'money-trail', label: 'Money Trail & Hop Reconstructor' },
                 { key: 'triage', label: 'Triage Engine' },
                 { key: 'evidence-affidavit-compiler', label: 'Section 63 BSA Affidavit' },
                 { key: 'cli-spoof-detector', label: 'CLI Spoof & Telecom Triage' },

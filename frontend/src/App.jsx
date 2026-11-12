@@ -87,6 +87,7 @@ import IncidentNotificationConsole from './components/incidentDashboard/Incident
 import ContributorsPage from './components/ContributorsPage';
 import SyndicateTriageView from './components/SyndicateTriageView';
 import MuleFreezeDispatchView from './components/MuleFreezeDispatchView';
+import MoneyTrailVisualizerView from './components/MoneyTrailVisualizerView';
 import MeetPage from './components/MeetPage';
 import DpdpRedactionView from './components/DpdpRedactionView';
 import Section63AffidavitCompilerView from './components/evidence/Section63AffidavitCompilerView';
@@ -188,6 +189,7 @@ export default function App() {
     if (activeView === 'incident-notifications') return <IncidentNotificationConsole />;
     if (activeView === 'evidence') return <EvidenceVaultView/>;
     if (activeView === 'mule-freeze') return <MuleFreezeDispatchView />;
+    if (activeView === 'money-trail') return <MoneyTrailVisualizerView />;
     if (activeView === 'evidence-upload') return <CitizenEvidenceUploadPortal setActiveView={setActiveView} />;
     if (activeView === 'syndicate-triage') return <SyndicateTriageView />;
     if (activeView === 'alerts') return <AlertDispatchView />;
