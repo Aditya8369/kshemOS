@@ -2012,6 +2012,121 @@ class FreezeStatsResponse(BaseModel):
     average_bank_latency_ms: float
     total_amount_protected_inr: float
 
+# ============================================================
+# SYNDICATE MULE RING MONEY-TRAIL & FLOW HOP RECONSTRUCTOR
+# ============================================================
+
+class MoneyTrailTransaction(BaseModel):
+    utr_number: str
+    timestamp_iso: str
+    sender_account: str
+    sender_bank: Optional[str] = "Originating Bank"
+    sender_ifsc: Optional[str] = None
+    receiver_account: str
+    receiver_bank: Optional[str] = "Beneficiary Bank"
+    receiver_ifsc: Optional[str] = None
+    amount: float
+    txn_type: str = "IMPS"  # IMPS, RTGS, NEFT, UPI, ATM_CASH, CRYPTO_OTC
+    hop_level: Optional[int] = None
+
+
+class MoneyTrailNode(BaseModel):
+    account_id: str
+    label: str
+    bank_name: str
+    ifsc_code: Optional[str] = None
+    node_type: str  # victim, primary_mule, mule_hub, splitter_mule, exit_channel
+    hop_level: int
+    total_inflow: float
+    total_outflow: float
+    resting_balance: float
+    inflow_count: int
+    outflow_count: int
+    is_mule_hub: bool = False
+    mule_hub_score: float = 0.0
+    transfer_velocity_minutes: Optional[float] = None
+    freeze_priority: str = "TIER_3_MONITOR"  # TIER_1_CRITICAL_RESTING, TIER_2_HIGH_VELOCITY, TIER_3_MONITOR
+
+
+class MoneyTrailHopFlow(BaseModel):
+    from_hop: int
+    to_hop: int
+    source_node: str
+    target_node: str
+    amount: float
+    utr_number: str
+    timestamp_iso: str
+    velocity_minutes: Optional[float] = None
+
+
+class SankeyNode(BaseModel):
+    id: str
+    name: str
+    hop: int
+    category: str
+    amount: float
+
+
+class SankeyLink(BaseModel):
+    source: str
+    target: str
+    value: float
+    utr: str
+
+
+class SankeyDiagramData(BaseModel):
+    nodes: List[SankeyNode]
+    links: List[SankeyLink]
+
+
+class Section102CrPCScheduleItem(BaseModel):
+    schedule_index: int
+    beneficiary_account: str
+    bank_name: str
+    ifsc_code: str
+    branch_name: Optional[str] = None
+    suspect_name: Optional[str] = None
+    seized_amount_resting_inr: float
+    total_fraud_received_inr: float
+    utr_references: List[str]
+    freeze_mandate_priority: str
+    statutory_grounds: str
+
+
+class Section102CrPCScheduleResponse(BaseModel):
+    schedule_id: str
+    case_id: str
+    investigating_officer: str
+    police_station: str
+    total_resting_amount_inr: float
+    total_dispersed_amount_inr: float
+    accounts_count: int
+    mule_hubs_count: int
+    items: List[Section102CrPCScheduleItem]
+    statutory_declaration: str
+    generated_at_iso: str
+    schedule_hash: str
+
+
+class MoneyTrailIngestionRequest(BaseModel):
+    case_id: str = "CASE-2026-DELHI-01"
+    raw_csv: Optional[str] = None
+    transactions: Optional[List[MoneyTrailTransaction]] = None
+    format: str = "CSV"  # CSV | CFCFRMS_JSON
+
+
+class MoneyTrailAnalysisResponse(BaseModel):
+    case_id: str
+    total_volume_inr: float
+    total_victims: int
+    total_mules: int
+    mule_hubs: List[str]
+    active_resting_balance_inr: float
+    nodes: List[MoneyTrailNode]
+    edges: List[MoneyTrailHopFlow]
+    sankey_data: SankeyDiagramData
+    section_102_schedule: Section102CrPCScheduleResponse
+
 
 # ---------- Automated Registrar & Hosting Abuse Takedown Notice Generator ----------
 
