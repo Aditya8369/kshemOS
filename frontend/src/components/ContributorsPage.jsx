@@ -4,23 +4,32 @@ import {
   GitPullRequest,
   Shield,
   Users,
-  Code2,
   BookOpen,
-  Sparkles,
   Heart,
   Search,
   CheckCircle2,
-  Filter,
+  Info,
+  Layers,
 } from 'lucide-react';
+import { CONTAINER_VARIANTS } from '../layoutStyles.js';
 import {
-  CORE_TEAM,
-  COMMUNITY_CONTRIBUTORS,
   ALL_CONTRIBUTORS,
-  CONTRIBUTION_DOMAINS,
+  CONTRIBUTION_CATEGORIES,
+  CONTRIBUTION_CATEGORY_MAP,
   CONTRIBUTION_AREAS_GUIDE,
   filterContributors,
+  getContributionCategory,
   getContributorAvatarUrl,
 } from '../data/contributorsData.js';
+
+const CATEGORY_BADGE_STYLES = {
+  frontend: 'border-sky-200 bg-sky-50 text-sky-900',
+  backend: 'border-violet-200 bg-violet-50 text-violet-900',
+  'ai-research': 'border-amber-200 bg-amber-50 text-amber-900',
+  documentation: 'border-teal-200 bg-teal-50 text-teal-900',
+  testing: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+  accessibility: 'border-rose-200 bg-rose-50 text-rose-900',
+};
 
 function ShieldMark({ size = 32 }) {
   return (
@@ -58,7 +67,7 @@ function GitHubMark({ size = 16, className = '' }) {
   );
 }
 
-function ContributorAvatar({ contributor, size = 64 }) {
+function ContributorAvatar({ contributor, size = 56 }) {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
   const avatarUrl = getContributorAvatarUrl(contributor.github, 160);
@@ -70,7 +79,7 @@ function ContributorAvatar({ contributor, size = 64 }) {
         backgroundColor: contributor.color,
         width: size,
         height: size,
-        fontSize: size * 0.38,
+        fontSize: size * 0.36,
       }}
       aria-label={`${contributor.name} avatar`}
     >
@@ -85,7 +94,7 @@ function ContributorAvatar({ contributor, size = 64 }) {
           loading="lazy"
           onLoad={() => setImgLoaded(true)}
           onError={() => setImgError(true)}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
             imgLoaded ? 'opacity-100' : 'opacity-0'
           }`}
         />
@@ -96,137 +105,154 @@ function ContributorAvatar({ contributor, size = 64 }) {
 
 function ContributorCard({ contributor }) {
   const isCore = contributor.type === 'core';
+  const categories = contributor.categories || [];
 
   return (
-    <div
-      className={`group flex flex-col justify-between rounded-3xl border bg-white p-7 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg ${
+    <article
+      className={`group flex min-w-0 flex-col justify-between rounded-3xl border bg-white p-5 sm:p-6 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${
         isCore
-          ? 'border-[var(--saffron)]/40 ring-1 ring-[var(--saffron)]/20'
+          ? 'border-[var(--saffron)]/40 ring-1 ring-[var(--saffron)]/15'
           : 'border-[var(--paper-line)] hover:border-[var(--ink)]/30'
       }`}
     >
-      <div>
-        {/* Top Header: Avatar & Badges */}
-        <div className="flex items-start justify-between gap-4">
-          <ContributorAvatar contributor={contributor} size={64} />
+      <div className="min-w-0">
+        {/* Top Header: Avatar, Identity & Role Pill */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="flex min-w-[200px] flex-1 items-start gap-3.5">
+            <ContributorAvatar contributor={contributor} size={56} />
 
-          <div className="flex flex-col items-end gap-1.5">
-            <span
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-mono text-xs font-semibold uppercase tracking-wider ${
-                isCore
-                  ? 'bg-amber-50 text-[var(--saffron)] border border-[var(--saffron)]/30'
-                  : 'bg-emerald-50 text-[var(--safe)] border border-[var(--safe)]/30'
-              }`}
-            >
-              {isCore ? (
-                <>
-                  <Shield size={12} aria-hidden="true" />
-                  Core Maintainer
-                </>
-              ) : (
-                <>
-                  <GitPullRequest size={12} aria-hidden="true" />
-                  Contributor
-                </>
-              )}
-            </span>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-display text-lg sm:text-xl font-bold leading-snug text-[var(--ink)] break-words group-hover:text-[var(--navy)]">
+                {contributor.name}
+              </h3>
 
-            <span className="font-mono text-[11px] text-[var(--ink-text)]/50">
-              {contributor.domain}
-            </span>
-          </div>
-        </div>
+              <a
+                href={contributor.githubUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex max-w-full items-center gap-1.5 font-mono text-xs sm:text-sm text-[var(--ink-text)]/80 hover:text-[var(--ink)] transition-colors break-all"
+                title={`View @${contributor.github} on GitHub`}
+              >
+                <GitHubMark size={14} className="shrink-0" />
+                <span>@{contributor.github}</span>
+              </a>
 
-        {/* Identity & Role */}
-        <div className="mt-5">
-          <h3 className="font-display text-xl font-bold text-[var(--ink)] group-hover:text-[var(--navy)]">
-            {contributor.name}
-          </h3>
-
-          <div className="mt-1 flex items-center gap-2">
-            <a
-              href={contributor.githubUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 font-mono text-xs text-[var(--ink-text)]/60 hover:text-[var(--ink)] transition-colors"
-              title={`View @${contributor.github} on GitHub`}
-            >
-              <GitHubMark size={13} />
-              <span>@{contributor.github}</span>
-            </a>
+              <p className="mt-1 text-xs sm:text-sm font-medium text-[var(--ink-text)]/75">
+                {contributor.role}
+              </p>
+            </div>
           </div>
 
-          <p className="mt-2 text-xs font-mono font-medium tracking-wide text-[var(--ink-text)]/80">
-            {contributor.role}
-          </p>
+          <span
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-xs font-semibold ${
+              isCore
+                ? 'border-[var(--saffron)]/35 bg-amber-50 text-[var(--ink)]'
+                : 'border-[var(--safe)]/35 bg-emerald-50 text-[var(--ink)]'
+            }`}
+          >
+            {isCore ? (
+              <>
+                <Shield size={13} className="text-[var(--saffron)]" aria-hidden="true" />
+                <span>Core Maintainer</span>
+              </>
+            ) : (
+              <>
+                <GitPullRequest size={13} className="text-[var(--safe)]" aria-hidden="true" />
+                <span>Contributor</span>
+              </>
+            )}
+          </span>
         </div>
 
-        {/* Contribution Area */}
-        <div className="mt-4 rounded-2xl bg-[var(--paper)] p-3.5 border border-[var(--paper-line)]">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-text)]/60">
-            Contribution Area
+        {/* Contribution Categories */}
+        {categories.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Contribution categories">
+            {categories.map((catId) => {
+              const cat = CONTRIBUTION_CATEGORY_MAP[catId];
+              const badgeStyle =
+                CATEGORY_BADGE_STYLES[catId] || 'border-[var(--paper-line)] bg-[var(--paper)] text-[var(--ink)]';
+              return (
+                <span
+                  key={catId}
+                  className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium ${badgeStyle}`}
+                >
+                  {cat ? cat.label : catId}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Contribution Focus Area */}
+        <div className="mt-4 rounded-2xl border border-[var(--paper-line)] bg-[var(--paper)] p-3.5 sm:p-4">
+          <p className="font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink-text)]/70">
+            Contribution Focus
           </p>
-          <p className="mt-1 text-xs leading-relaxed font-medium text-[var(--ink)]">
+          <p className="mt-1.5 text-sm leading-relaxed font-medium text-[var(--ink)]">
             {contributor.area}
           </p>
         </div>
 
-        {/* Bio */}
+        {/* Profile Details */}
         {contributor.bio && (
-          <p className="mt-4 text-xs leading-relaxed text-[var(--ink-text)]/70 line-clamp-3">
+          <p className="mt-4 text-xs sm:text-sm leading-relaxed text-[var(--ink-text)]/80">
             {contributor.bio}
           </p>
         )}
 
-        {/* Highlights / PR Tags */}
+        {/* Notable Work Areas (no fabricated issue/PR numbers or rank prefixes) */}
         {contributor.highlights && contributor.highlights.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-1.5">
-            {contributor.highlights.map((tag) => (
+            {contributor.highlights.map((item) => (
               <span
-                key={tag}
-                className="rounded-lg border border-[var(--paper-line)] bg-white px-2 py-0.5 font-mono text-[11px] text-[var(--ink-text)]/70"
+                key={item}
+                className="rounded-lg border border-[var(--paper-line)] bg-[var(--paper)]/60 px-2.5 py-1 text-xs text-[var(--ink-text)]/80"
               >
-                #{tag}
+                {item}
               </span>
             ))}
           </div>
         )}
       </div>
 
-      {/* Footer Link */}
-      <div className="mt-6 border-t border-[var(--paper-line)] pt-4 flex items-center justify-between">
-        <span className="font-mono text-[11px] text-[var(--ink-text)]/50">
-          Verified in git log
+      {/* Card Footer */}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--paper-line)] pt-4">
+        <span className="text-xs font-medium text-[var(--ink-text)]/70">
+          {contributor.domain}
         </span>
 
         <a
           href={contributor.githubUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-full bg-[var(--paper)] px-3 py-1.5 font-mono text-xs font-semibold text-[var(--ink)] transition-all hover:bg-[var(--ink)] hover:text-white"
+          className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-[var(--paper)] px-3.5 py-1.5 font-mono text-xs font-semibold text-[var(--ink)] transition-all hover:bg-[var(--ink)] hover:text-white"
           aria-label={`Visit ${contributor.name}'s GitHub profile`}
         >
-          <span>Profile</span>
+          <span>GitHub Profile</span>
           <ExternalLink size={12} aria-hidden="true" />
         </a>
       </div>
-    </div>
+    </article>
   );
 }
 
 export default function ContributorsPage() {
   const [filterType, setFilterType] = useState('all'); // 'all', 'core', 'community'
-  const [selectedDomain, setSelectedDomain] = useState('All Domains');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filtered contributors based on controls
+  const activeCategory = useMemo(
+    () => getContributionCategory(selectedCategory),
+    [selectedCategory]
+  );
+
   const filteredContributors = useMemo(() => {
     return filterContributors(ALL_CONTRIBUTORS, {
       type: filterType,
-      domain: selectedDomain,
+      category: selectedCategory,
       query: searchQuery,
     });
-  }, [filterType, selectedDomain, searchQuery]);
+  }, [filterType, selectedCategory, searchQuery]);
 
   const coreList = useMemo(
     () => filteredContributors.filter((c) => c.type === 'core'),
@@ -238,180 +264,171 @@ export default function ContributorsPage() {
     [filteredContributors]
   );
 
+  const hasActiveFilters = filterType !== 'all' || selectedCategory !== 'all' || Boolean(searchQuery.trim());
+
+  const resetFilters = () => {
+    setFilterType('all');
+    setSelectedCategory('all');
+    setSearchQuery('');
+  };
+
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
+    <div className={CONTAINER_VARIANTS.public}>
       {/* Hero Section */}
       <header className="text-center">
-        <div className="inline-flex items-center gap-2.5 rounded-full border border-[var(--paper-line)] bg-white px-5 py-2 shadow-sm">
+        <div className="inline-flex items-center gap-2.5 rounded-full border border-[var(--paper-line)] bg-white px-4 py-2 shadow-sm">
           <div className="text-[var(--saffron)]">
             <ShieldMark size={20} />
           </div>
-          <span className="font-mono text-xs uppercase tracking-[0.25em] font-semibold text-[var(--ink)]">
+          <span className="font-mono text-xs uppercase tracking-[0.2em] font-semibold text-[var(--ink)]">
             Open Source Contributors Hub
           </span>
         </div>
 
-        <h1 className="mt-6 font-display text-4xl sm:text-5xl font-bold tracking-tight text-[var(--ink)]">
+        <h1 className="mt-6 font-display text-3xl sm:text-5xl font-bold tracking-tight text-[var(--ink)] leading-tight">
           Building Digital Public Safety Together
         </h1>
 
-        <p className="mx-auto mt-5 max-w-3xl text-base sm:text-lg leading-relaxed text-[var(--ink-text)]/75">
-          KshemOS is a community-driven, privacy-first cybersecurity operating system.
-          Our platform brings together open-source contributors, cybersecurity researchers,
-          and maintainers to protect citizens across India from online fraud, impersonation,
-          and emerging digital threats.
+        <p className="mx-auto mt-4 max-w-3xl text-sm sm:text-lg leading-relaxed text-[var(--ink-text)]/80">
+          KshemOS is a community-driven, privacy-first cybersecurity workspace.
+          Explore listed maintainers and community contributors by contribution focus
+          across frontend, backend, AI/research, documentation, testing, and accessibility.
         </p>
 
-        {/* Quick Stats Bar */}
-        <div className="mt-12 grid grid-cols-2 sm:grid-cols-4 gap-4 max-w-4xl mx-auto">
-          <div className="rounded-2xl border border-[var(--paper-line)] bg-white p-5 text-center shadow-sm">
-            <div className="flex items-center justify-center gap-1.5 text-[var(--saffron)]">
-              <Shield size={18} />
-              <span className="font-display text-3xl font-bold">{CORE_TEAM.length}</span>
-            </div>
-            <p className="mt-1 font-mono text-xs text-[var(--ink-text)]/60 uppercase tracking-wider">
-              Core Maintainers
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-[var(--paper-line)] bg-white p-5 text-center shadow-sm">
-            <div className="flex items-center justify-center gap-1.5 text-[var(--safe)]">
-              <Users size={18} />
-              <span className="font-display text-3xl font-bold">{COMMUNITY_CONTRIBUTORS.length}</span>
-            </div>
-            <p className="mt-1 font-mono text-xs text-[var(--ink-text)]/60 uppercase tracking-wider">
-              Community Contributors
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-[var(--paper-line)] bg-white p-5 text-center shadow-sm">
-            <div className="flex items-center justify-center gap-1.5 text-[var(--navy)]">
-              <Code2 size={18} />
-              <span className="font-display text-3xl font-bold">{ALL_CONTRIBUTORS.length}</span>
-            </div>
-            <p className="mt-1 font-mono text-xs text-[var(--ink-text)]/60 uppercase tracking-wider">
-              Verified Contributors
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-[var(--paper-line)] bg-white p-5 text-center shadow-sm">
-            <div className="flex items-center justify-center gap-1.5 text-indigo-600">
-              <Sparkles size={18} />
-              <span className="font-display text-3xl font-bold">100%</span>
-            </div>
-            <p className="mt-1 font-mono text-xs text-[var(--ink-text)]/60 uppercase tracking-wider">
-              Open Source (MIT)
-            </p>
-          </div>
+        {/* Scope Disclaimer (avoids implying unverified totals/rankings are official metrics) */}
+        <div
+          role="note"
+          className="mx-auto mt-8 flex max-w-3xl items-start gap-3 rounded-2xl border border-[var(--paper-line)] bg-white px-4 py-3.5 text-left shadow-xs sm:px-5"
+        >
+          <Info size={18} className="mt-0.5 shrink-0 text-[var(--navy)]" aria-hidden="true" />
+          <p className="text-xs sm:text-sm leading-relaxed text-[var(--ink-text)]/80">
+            This recognition area highlights listed project contributions by discipline.
+            It is not an automated leaderboard or exhaustive count—no rankings, commit totals,
+            or unverified activity badges are shown.
+          </p>
         </div>
       </header>
 
-      {/* Filter and Search Navigation Bar */}
+      {/* Category, Role & Search Controls */}
       <section
-        className="mt-14 rounded-3xl border border-[var(--paper-line)] bg-white p-5 sm:p-6 shadow-sm"
+        className="rounded-3xl border border-[var(--paper-line)] bg-white p-4 sm:p-6 shadow-sm space-y-5"
         aria-label="Filter contributors"
       >
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          {/* Category Tabs */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setFilterType('all')}
-              className={`rounded-full px-4 py-2 font-mono text-xs font-semibold transition-all ${
-                filterType === 'all'
-                  ? 'bg-[var(--ink)] text-white shadow-sm'
-                  : 'bg-[var(--paper)] text-[var(--ink-text)]/70 hover:bg-[var(--paper-line)]'
-              }`}
+        {/* Contribution Categories */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Layers size={15} className="text-[var(--saffron)]" aria-hidden="true" />
+            <span
+              id="contribution-categories-label"
+              className="font-mono text-xs font-semibold uppercase tracking-wider text-[var(--ink)]"
             >
-              All Contributors ({ALL_CONTRIBUTORS.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterType('core')}
-              className={`rounded-full px-4 py-2 font-mono text-xs font-semibold transition-all ${
-                filterType === 'core'
-                  ? 'bg-[var(--saffron)] text-white shadow-sm'
-                  : 'bg-[var(--paper)] text-[var(--ink-text)]/70 hover:bg-[var(--paper-line)]'
-              }`}
-            >
-              Core Maintainers ({CORE_TEAM.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setFilterType('community')}
-              className={`rounded-full px-4 py-2 font-mono text-xs font-semibold transition-all ${
-                filterType === 'community'
-                  ? 'bg-[var(--safe)] text-white shadow-sm'
-                  : 'bg-[var(--paper)] text-[var(--ink-text)]/70 hover:bg-[var(--paper-line)]'
-              }`}
-            >
-              Community ({COMMUNITY_CONTRIBUTORS.length})
-            </button>
+              Contribution Categories
+            </span>
           </div>
 
-          {/* Search & Domain Dropdown */}
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            {/* Domain Filter Dropdown */}
-            <div className="relative w-full sm:w-auto">
-              <div className="flex items-center gap-1.5 rounded-xl border border-[var(--paper-line)] bg-[var(--paper)] px-3 py-2">
-                <Filter size={14} className="text-[var(--ink-text)]/50 shrink-0" />
-                <select
-                  value={selectedDomain}
-                  onChange={(e) => setSelectedDomain(e.target.value)}
-                  className="bg-transparent font-mono text-xs text-[var(--ink-text)] focus:outline-none cursor-pointer pr-2"
-                  aria-label="Filter by contribution domain"
-                >
-                  {CONTRIBUTION_DOMAINS.map((domain) => (
-                    <option key={domain} value={domain}>
-                      {domain}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Search Input */}
-            <div className="relative w-full sm:w-64">
-              <Search
-                size={15}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--ink-text)]/40 pointer-events-none"
-              />
-              <input
-                type="text"
-                placeholder="Search name, area, PR..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-[var(--paper-line)] bg-[var(--paper)] pl-9 pr-4 py-2 font-mono text-xs text-[var(--ink-text)] placeholder:text-[var(--ink-text)]/40 focus:border-[var(--ink)] focus:bg-white focus:outline-none transition-all"
-                aria-label="Search contributors"
-              />
-              {searchQuery && (
+          <div
+            role="group"
+            aria-labelledby="contribution-categories-label"
+            className="flex flex-wrap gap-2"
+          >
+            {CONTRIBUTION_CATEGORIES.map((category) => {
+              const isSelected = selectedCategory === category.id;
+              return (
                 <button
+                  key={category.id}
                   type="button"
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-mono text-[var(--ink-text)]/50 hover:text-[var(--ink)]"
-                  aria-label="Clear search"
+                  aria-pressed={isSelected}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`min-h-[40px] rounded-full px-3.5 py-2 text-xs sm:text-sm font-medium transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-[var(--ink)] text-white shadow-sm'
+                      : 'border border-[var(--paper-line)] bg-[var(--paper)] text-[var(--ink-text)] hover:border-[var(--ink)]/30 hover:bg-white'
+                  }`}
                 >
-                  ×
+                  {category.label}
                 </button>
-              )}
-            </div>
+              );
+            })}
+          </div>
+
+          <p className="mt-2.5 text-xs sm:text-sm text-[var(--ink-text)]/75 leading-relaxed">
+            {activeCategory.description}
+          </p>
+        </div>
+
+        {/* Role Filter & Search Input */}
+        <div className="flex flex-col gap-3 border-t border-[var(--paper-line)] pt-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by contributor role">
+            {[
+              { id: 'all', label: 'All Roles' },
+              { id: 'core', label: 'Core Maintainers' },
+              { id: 'community', label: 'Community Contributors' },
+            ].map((tab) => {
+              const isActive = filterType === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  aria-pressed={isActive}
+                  onClick={() => setFilterType(tab.id)}
+                  className={`min-h-[38px] rounded-full px-3.5 py-1.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-[var(--navy)] text-white shadow-sm'
+                      : 'bg-[var(--paper)] text-[var(--ink-text)]/80 hover:bg-[var(--paper-line)]'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Search Input */}
+          <div className="relative w-full md:w-72">
+            <label htmlFor="contributors-search" className="sr-only">
+              Search contributors
+            </label>
+            <Search
+              size={15}
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--ink-text)]/50"
+              aria-hidden="true"
+            />
+            <input
+              id="contributors-search"
+              name="contributors-search"
+              type="text"
+              placeholder="Search name, @handle, or focus..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="min-h-[40px] w-full rounded-xl border border-[var(--paper-line)] bg-[var(--paper)] pl-9 pr-8 py-2 text-xs sm:text-sm text-[var(--ink-text)] placeholder:text-[var(--ink-text)]/50 focus:border-[var(--ink)] focus:bg-white focus:outline-none transition-all"
+              aria-label="Search contributors"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded px-1.5 py-0.5 font-mono text-sm text-[var(--ink-text)]/60 hover:text-[var(--ink)]"
+                aria-label="Clear search"
+              >
+                ×
+              </button>
+            )}
           </div>
         </div>
 
-        {/* Results summary bar */}
-        <div className="mt-4 pt-3 border-t border-[var(--paper-line)] flex items-center justify-between font-mono text-xs text-[var(--ink-text)]/60">
+        {/* Active Scope Bar (no fabricated totals or rankings) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--paper-line)] pt-3 text-xs sm:text-sm text-[var(--ink-text)]/75">
           <span>
-            Showing {filteredContributors.length} of {ALL_CONTRIBUTORS.length} verified contributors
+            {selectedCategory === 'all'
+              ? 'Browsing listed contributors across all contribution categories'
+              : `Category focus: ${activeCategory.label}`}
           </span>
-          {(filterType !== 'all' || selectedDomain !== 'All Domains' || searchQuery) && (
+
+          {hasActiveFilters && (
             <button
               type="button"
-              onClick={() => {
-                setFilterType('all');
-                setSelectedDomain('All Domains');
-                setSearchQuery('');
-              }}
-              className="text-[var(--saffron)] hover:underline"
+              onClick={resetFilters}
+              className="font-semibold text-amber-800 hover:underline cursor-pointer"
             >
               Reset filters
             </button>
@@ -419,18 +436,18 @@ export default function ContributorsPage() {
         </div>
       </section>
 
-      {/* Section 1: Core Team (when visible in current filter) */}
+      {/* Section 1: Core Team */}
       {coreList.length > 0 && (
-        <section className="mt-16" aria-labelledby="core-team-heading">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-[var(--saffron)]">
-              <Shield size={18} />
+        <section aria-labelledby="core-team-heading">
+          <div className="mb-6 flex items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-[var(--saffron)]">
+              <Shield size={18} aria-hidden="true" />
             </span>
             <div>
-              <h2 id="core-team-heading" className="font-display text-2xl font-bold text-[var(--ink)]">
-                Core Maintainers & Leadership
+              <h2 id="core-team-heading" className="font-display text-xl sm:text-2xl font-bold text-[var(--ink)]">
+                Core Maintainers &amp; Leadership
               </h2>
-              <p className="text-xs font-mono text-[var(--ink-text)]/60 mt-0.5">
+              <p className="mt-1 text-xs sm:text-sm text-[var(--ink-text)]/75">
                 Project stewards steering system architecture, threat intelligence, and core platform capabilities
               </p>
             </div>
@@ -444,22 +461,22 @@ export default function ContributorsPage() {
         </section>
       )}
 
-      {/* Section 2: Community Contributors (when visible in current filter) */}
+      {/* Section 2: Community Contributors */}
       {communityList.length > 0 && (
-        <section className="mt-16" aria-labelledby="community-contributors-heading">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-100 text-[var(--safe)]">
-              <Users size={18} />
+        <section aria-labelledby="community-contributors-heading">
+          <div className="mb-6 flex items-start gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-[var(--safe)]">
+              <Users size={18} aria-hidden="true" />
             </span>
             <div>
               <h2
                 id="community-contributors-heading"
-                className="font-display text-2xl font-bold text-[var(--ink)]"
+                className="font-display text-xl sm:text-2xl font-bold text-[var(--ink)]"
               >
                 Community Contributors
               </h2>
-              <p className="text-xs font-mono text-[var(--ink-text)]/60 mt-0.5">
-                Open-source developers and researchers engineering key features, security modules, and APIs
+              <p className="mt-1 text-xs sm:text-sm text-[var(--ink-text)]/75">
+                Open-source developers and researchers building citizen safety tools, security modules, and APIs
               </p>
             </div>
           </div>
@@ -472,112 +489,147 @@ export default function ContributorsPage() {
         </section>
       )}
 
-      {/* Empty State */}
+      {/* Meaningful Empty State */}
       {filteredContributors.length === 0 && (
-        <div className="mt-16 rounded-3xl border border-dashed border-[var(--paper-line)] bg-white p-12 text-center">
-          <p className="font-display text-lg font-bold text-[var(--ink)]">
-            No contributors matched your filters
+        <section
+          aria-live="polite"
+          className="rounded-3xl border border-dashed border-[var(--paper-line)] bg-white p-6 sm:p-10 text-center shadow-xs"
+        >
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--paper)] text-[var(--ink)]">
+            <Users size={22} aria-hidden="true" />
+          </div>
+
+          <h2 className="mt-4 font-display text-xl sm:text-2xl font-bold text-[var(--ink)]">
+            {searchQuery.trim()
+              ? `No listed contributors matched "${searchQuery.trim()}"`
+              : filterType !== 'all'
+                ? `No listed ${filterType === 'core' ? 'core maintainers' : 'community contributors'} in ${activeCategory.label} yet`
+                : `No listed contributors in ${activeCategory.label} yet`}
+          </h2>
+
+          <p className="mx-auto mt-2.5 max-w-xl text-xs sm:text-sm leading-relaxed text-[var(--ink-text)]/75">
+            {searchQuery.trim()
+              ? 'Try another name, GitHub handle, or topic, or reset filters to browse all listed contributors.'
+              : `We only display listed contributions rather than placeholder profiles. ${activeCategory.description}`}
           </p>
-          <p className="mt-2 font-mono text-xs text-[var(--ink-text)]/60">
-            Try adjusting your search query or selecting &quot;All Domains&quot;.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              setFilterType('all');
-              setSelectedDomain('All Domains');
-              setSearchQuery('');
-            }}
-            className="mt-5 rounded-full bg-[var(--ink)] px-5 py-2 font-mono text-xs font-semibold text-white hover:bg-[var(--navy)]"
-          >
-            Clear Filters
-          </button>
-        </div>
+
+          <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+            {filterType !== 'all' && !searchQuery.trim() && (
+              <button
+                type="button"
+                onClick={() => setFilterType('all')}
+                className="min-h-[40px] rounded-full bg-[var(--navy)] px-5 py-2 text-xs sm:text-sm font-semibold text-white transition-colors hover:bg-[var(--ink)] cursor-pointer"
+              >
+                Show all roles in {activeCategory.label}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={resetFilters}
+              className="min-h-[40px] rounded-full bg-[var(--ink)] px-5 py-2 text-xs sm:text-sm font-semibold text-white transition-colors hover:bg-[var(--navy)] cursor-pointer"
+            >
+              Show all categories
+            </button>
+
+            {selectedCategory !== 'all' && !searchQuery.trim() && (
+              <a
+                href={activeCategory.issuesUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-[40px] items-center gap-1.5 rounded-full border border-[var(--paper-line)] bg-[var(--paper)] px-5 py-2 text-xs sm:text-sm font-semibold text-[var(--ink)] transition-colors hover:bg-white"
+              >
+                <span>Explore {activeCategory.label} tasks</span>
+                <ExternalLink size={14} aria-hidden="true" />
+              </a>
+            )}
+          </div>
+        </section>
       )}
 
       {/* Contribution Call-To-Action (CTA) & Guidance Section */}
       <section
-        className="mt-20 rounded-[32px] border border-[var(--paper-line)] bg-gradient-to-b from-white to-[var(--paper)] p-8 sm:p-12 shadow-sm"
+        className="rounded-[32px] border border-[var(--paper-line)] bg-gradient-to-b from-white to-[var(--paper)] p-6 sm:p-12 shadow-sm"
         aria-labelledby="how-to-contribute-heading"
       >
-        <div className="text-center max-w-3xl mx-auto">
+        <div className="mx-auto max-w-3xl text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-[var(--safe)]/30 bg-emerald-50 px-4 py-1.5 text-xs font-mono font-semibold text-[var(--safe)]">
-            <Heart size={14} className="fill-[var(--safe)]" />
+            <Heart size={14} className="fill-[var(--safe)]" aria-hidden="true" />
             <span>Join the Community</span>
           </div>
 
           <h2
             id="how-to-contribute-heading"
-            className="mt-4 font-display text-3xl sm:text-4xl font-bold text-[var(--ink)]"
+            className="mt-4 font-display text-2xl sm:text-4xl font-bold text-[var(--ink)]"
           >
             How to Contribute to KshemOS
           </h2>
 
-          <p className="mt-4 text-sm sm:text-base leading-relaxed text-[var(--ink-text)]/75">
-            We welcome developers, UI/UX designers, cybersecurity researchers, and technical writers.
-            KshemOS encourages participation in community initiatives including the annual
-            <strong className="text-[var(--ink)]"> Winter of Code (Nov 1 – Jan 31)</strong>.
+          <p className="mt-4 text-sm sm:text-base leading-relaxed text-[var(--ink-text)]/80">
+            We welcome developers, UI/UX designers, cybersecurity researchers, testers, and technical writers.
+            KshemOS encourages participation in community initiatives including the annual{' '}
+            <strong className="text-[var(--ink)]">Winter of Code (Nov 1 – Jan 31)</strong>.
           </p>
         </div>
 
         {/* 4-Step Contribution Process */}
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-2xl border border-[var(--paper-line)] bg-white p-6 shadow-sm">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600 font-mono font-bold text-sm">
+        <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-2xl border border-[var(--paper-line)] bg-white p-5 sm:p-6 shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-700 font-mono font-bold text-sm">
               01
             </div>
             <h3 className="mt-4 font-display font-bold text-[var(--ink)] text-base">
               Find an Issue
             </h3>
-            <p className="mt-2 text-xs leading-relaxed text-[var(--ink-text)]/70">
+            <p className="mt-2 text-xs sm:text-sm leading-relaxed text-[var(--ink-text)]/75">
               Browse the repository issue tracker for issues tagged with{' '}
-              <code className="rounded bg-[var(--paper)] px-1 py-0.5 font-mono text-[11px]">
+              <code className="rounded bg-[var(--paper)] px-1 py-0.5 font-mono text-xs">
                 good first issue
               </code>{' '}
               or feature enhancements.
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[var(--paper-line)] bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-[var(--paper-line)] bg-white p-5 sm:p-6 shadow-sm">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-[var(--saffron)] font-mono font-bold text-sm">
               02
             </div>
             <h3 className="mt-4 font-display font-bold text-[var(--ink)] text-base">
               Fork &amp; Branch
             </h3>
-            <p className="mt-2 text-xs leading-relaxed text-[var(--ink-text)]/70">
+            <p className="mt-2 text-xs sm:text-sm leading-relaxed text-[var(--ink-text)]/75">
               Fork the repository to your account and create a focused topic branch:{' '}
-              <code className="rounded bg-[var(--paper)] px-1 py-0.5 font-mono text-[11px]">
+              <code className="rounded bg-[var(--paper)] px-1 py-0.5 font-mono text-xs">
                 feature/your-topic
               </code>
               .
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[var(--paper-line)] bg-white p-6 shadow-sm">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-600 font-mono font-bold text-sm">
+          <div className="rounded-2xl border border-[var(--paper-line)] bg-white p-5 sm:p-6 shadow-sm">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-purple-50 text-purple-700 font-mono font-bold text-sm">
               03
             </div>
             <h3 className="mt-4 font-display font-bold text-[var(--ink)] text-base">
               Build &amp; Test
             </h3>
-            <p className="mt-2 text-xs leading-relaxed text-[var(--ink-text)]/70">
+            <p className="mt-2 text-xs sm:text-sm leading-relaxed text-[var(--ink-text)]/75">
               Implement your changes according to coding guidelines, run automated tests (
-              <code className="rounded bg-[var(--paper)] px-1 py-0.5 font-mono text-[11px]">
+              <code className="rounded bg-[var(--paper)] px-1 py-0.5 font-mono text-xs">
                 npm test
               </code>
               ), and verify UI responsiveness.
             </p>
           </div>
 
-          <div className="rounded-2xl border border-[var(--paper-line)] bg-white p-6 shadow-sm">
+          <div className="rounded-2xl border border-[var(--paper-line)] bg-white p-5 sm:p-6 shadow-sm">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-[var(--safe)] font-mono font-bold text-sm">
               04
             </div>
             <h3 className="mt-4 font-display font-bold text-[var(--ink)] text-base">
               Open a PR
             </h3>
-            <p className="mt-2 text-xs leading-relaxed text-[var(--ink-text)]/70">
+            <p className="mt-2 text-xs sm:text-sm leading-relaxed text-[var(--ink-text)]/75">
               Submit a well-documented pull request explaining your problem statement, solution,
               and testing evidence.
             </p>
@@ -586,11 +638,11 @@ export default function ContributorsPage() {
 
         {/* Contribution Areas Grid */}
         <div className="mt-12">
-          <h3 className="font-display text-xl font-bold text-[var(--ink)] text-center mb-6">
+          <h3 className="mb-6 text-center font-display text-xl font-bold text-[var(--ink)]">
             Key Contribution Pathways
           </h3>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {CONTRIBUTION_AREAS_GUIDE.map((area) => (
               <a
                 key={area.title}
@@ -599,16 +651,16 @@ export default function ContributorsPage() {
                 rel="noopener noreferrer"
                 className="group block rounded-2xl border border-[var(--paper-line)] bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-[var(--ink)]/40 hover:shadow-md"
               >
-                <div className="flex items-center justify-between">
-                  <h4 className="font-display font-bold text-[var(--ink)] text-sm group-hover:text-[var(--navy)]">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="font-display font-bold text-[var(--ink)] text-sm sm:text-base group-hover:text-[var(--navy)]">
                     {area.title}
                   </h4>
-                  <ExternalLink size={14} className="text-[var(--ink-text)]/40 group-hover:text-[var(--ink)]" />
+                  <ExternalLink size={14} className="shrink-0 text-[var(--ink-text)]/50 group-hover:text-[var(--ink)]" aria-hidden="true" />
                 </div>
-                <p className="mt-1 font-mono text-[11px] text-[var(--saffron)]">
+                <p className="mt-1.5 font-mono text-xs font-medium text-amber-800">
                   {area.tech}
                 </p>
-                <p className="mt-2 text-xs leading-relaxed text-[var(--ink-text)]/70">
+                <p className="mt-2 text-xs sm:text-sm leading-relaxed text-[var(--ink-text)]/75">
                   {area.description}
                 </p>
               </a>
@@ -617,54 +669,54 @@ export default function ContributorsPage() {
         </div>
 
         {/* Action Buttons / Repository Links */}
-        <div className="mt-12 pt-8 border-t border-[var(--paper-line)] flex flex-wrap items-center justify-center gap-4">
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-3 border-t border-[var(--paper-line)] pt-8">
           <a
             href="https://github.com/GoldRay19/kshemOS/blob/main/CONTRIBUTING.md"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full bg-[var(--ink)] px-6 py-3 font-mono text-xs font-semibold text-white shadow-sm transition-all hover:bg-[var(--navy)] hover:shadow-md"
+            className="inline-flex min-h-[42px] items-center gap-2 rounded-full bg-[var(--ink)] px-5 py-2.5 font-mono text-xs font-semibold text-white shadow-sm transition-all hover:bg-[var(--navy)] hover:shadow-md"
           >
-            <BookOpen size={15} />
+            <BookOpen size={15} aria-hidden="true" />
             <span>Read Contribution Guidelines (CONTRIBUTING.md)</span>
-            <ExternalLink size={13} />
+            <ExternalLink size={13} aria-hidden="true" />
           </a>
 
           <a
             href="https://github.com/GoldRay19/kshemOS/issues"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--paper-line)] bg-white px-6 py-3 font-mono text-xs font-semibold text-[var(--ink)] shadow-sm transition-all hover:bg-[var(--paper)]"
+            className="inline-flex min-h-[42px] items-center gap-2 rounded-full border border-[var(--paper-line)] bg-white px-5 py-2.5 font-mono text-xs font-semibold text-[var(--ink)] shadow-sm transition-all hover:bg-[var(--paper)]"
           >
-            <GitPullRequest size={15} />
+            <GitPullRequest size={15} aria-hidden="true" />
             <span>Browse Open Issues on GitHub</span>
-            <ExternalLink size={13} />
+            <ExternalLink size={13} aria-hidden="true" />
           </a>
 
           <a
             href="https://github.com/GoldRay19/kshemOS/blob/main/CODE_OF_CONDUCT.md"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full border border-[var(--paper-line)] bg-white px-5 py-3 font-mono text-xs font-semibold text-[var(--ink-text)]/80 shadow-sm transition-all hover:bg-[var(--paper)]"
+            className="inline-flex min-h-[42px] items-center gap-2 rounded-full border border-[var(--paper-line)] bg-white px-5 py-2.5 font-mono text-xs font-semibold text-[var(--ink-text)]/80 shadow-sm transition-all hover:bg-[var(--paper)]"
           >
-            <CheckCircle2 size={15} />
+            <CheckCircle2 size={15} aria-hidden="true" />
             <span>Code of Conduct</span>
-            <ExternalLink size={13} />
+            <ExternalLink size={13} aria-hidden="true" />
           </a>
         </div>
       </section>
 
       {/* Mission Footer */}
-      <footer className="mt-16 rounded-[28px] border border-[var(--paper-line)] bg-[var(--paper)] p-8 text-center">
-        <h3 className="font-display text-2xl font-bold text-[var(--ink)]">
+      <footer className="rounded-[28px] border border-[var(--paper-line)] bg-[var(--paper)] p-6 sm:p-8 text-center">
+        <h3 className="font-display text-xl sm:text-2xl font-bold text-[var(--ink)]">
           Our Public Safety Commitment
         </h3>
-        <p className="mx-auto mt-3 max-w-2xl text-xs sm:text-sm leading-relaxed text-[var(--ink-text)]/75">
+        <p className="mx-auto mt-3 max-w-2xl text-xs sm:text-sm leading-relaxed text-[var(--ink-text)]/80">
           We believe cybersecurity should be explainable, transparent, and universally accessible.
-          Every feature contributed to KshemOS helps protect real citizens against evolving scams,
+          Every feature contributed to KshemOS helps protect citizens against evolving scams,
           digital arrest coercion, and financial exploitation.
         </p>
         <div className="mt-6 inline-flex items-center gap-2.5 rounded-full border border-[var(--paper-line)] bg-white px-5 py-2 shadow-sm">
-          <span className="h-2.5 w-2.5 rounded-full bg-[var(--safe)] animate-pulse"></span>
+          <span className="h-2.5 w-2.5 rounded-full bg-[var(--safe)]"></span>
           <span className="font-mono text-xs text-[var(--ink-text)]/80">
             Together for a Safer Digital India 🇮🇳
           </span>
@@ -673,4 +725,3 @@ export default function ContributorsPage() {
     </div>
   );
 }
-

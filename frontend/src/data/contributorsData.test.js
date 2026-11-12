@@ -4,7 +4,10 @@ import {
   CORE_TEAM,
   COMMUNITY_CONTRIBUTORS,
   ALL_CONTRIBUTORS,
+  CONTRIBUTION_CATEGORIES,
+  CONTRIBUTION_CATEGORY_MAP,
   filterContributors,
+  getContributionCategory,
   getContributorAvatarUrl,
 } from './contributorsData.js';
 
@@ -82,5 +85,53 @@ test('filtering contributors by domain and search query works', () => {
 
   const searchArea = filterContributors(ALL_CONTRIBUTORS, { query: 'triage' });
   assert.ok(searchArea.some((c) => c.github === 'CoderSoham345'));
+});
+
+test('supports required contribution categories without fabricated metrics', () => {
+  const categoryIds = CONTRIBUTION_CATEGORIES.map((cat) => cat.id);
+  for (const required of [
+    'all',
+    'frontend',
+    'backend',
+    'ai-research',
+    'documentation',
+    'testing',
+    'accessibility',
+  ]) {
+    assert.ok(categoryIds.includes(required), `Missing category: ${required}`);
+  }
+
+  for (const c of ALL_CONTRIBUTORS) {
+    assert.ok(Array.isArray(c.categories) && c.categories.length > 0, `${c.name} must have categories`);
+    for (const catId of c.categories) {
+      assert.ok(catId !== 'all' && CONTRIBUTION_CATEGORY_MAP[catId], `Invalid category ${catId} on ${c.name}`);
+    }
+    for (const metricKey of ['rank', 'ranking', 'commitCount', 'prCount', 'score', 'points', 'total']) {
+      assert.equal(c[metricKey], undefined, `${c.name} must not expose fabricated metric ${metricKey}`);
+    }
+  }
+});
+
+test('filtering by contribution category works and supports empty categories', () => {
+  const frontend = filterContributors(ALL_CONTRIBUTORS, { category: 'frontend' });
+  assert.ok(frontend.some((c) => c.github === 'Khushi-agarwal1401'));
+
+  const backend = filterContributors(ALL_CONTRIBUTORS, { category: 'backend' });
+  assert.ok(backend.some((c) => c.github === 'bhavesh-patil2007'));
+
+  const aiResearch = filterContributors(ALL_CONTRIBUTORS, { category: 'ai-research' });
+  assert.ok(aiResearch.some((c) => c.github === 'Eshitajha19'));
+
+  const testing = filterContributors(ALL_CONTRIBUTORS, { category: 'testing' });
+  assert.ok(testing.some((c) => c.github === 'Roxyh-code'));
+
+  const accessibility = filterContributors(ALL_CONTRIBUTORS, { category: 'accessibility' });
+  assert.ok(accessibility.some((c) => c.github === 'Khushi-agarwal1401'));
+
+  const documentation = filterContributors(ALL_CONTRIBUTORS, { category: 'documentation' });
+  assert.deepEqual(documentation, []);
+
+  assert.equal(getContributionCategory('accessibility').label, 'Accessibility');
+  assert.equal(getContributionCategory('unknown').id, 'all');
 });
 
