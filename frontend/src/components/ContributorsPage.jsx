@@ -21,6 +21,7 @@ import {
   filterContributors,
   getContributorAvatarUrl,
 } from '../data/contributorsData.js';
+import GitHubContributorsSection from './GitHubContributorsSection';
 
 function ShieldMark({ size = 32 }) {
   return (
@@ -494,6 +495,9 @@ export default function ContributorsPage() {
           </button>
         </div>
       )}
+
+      {/* Resilient Live GitHub Contributors Section */}
+      <GitHubContributorsSection />
 
       {/* Contribution Call-To-Action (CTA) & Guidance Section */}
       <section
