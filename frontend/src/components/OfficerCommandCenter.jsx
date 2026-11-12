@@ -3,6 +3,13 @@ import FraudGraphView from './FraudGraphView';
 import IncidentDashboardView from './IncidentDashboardView';
 import JurisdictionConfigView from './jurisdiction/JurisdictionConfigView';
 import EvidenceGroundedCopilotView from './officer/EvidenceGroundedCopilotView';
+import EvidenceVaultView from './EvidenceVaultView';
+import DpdpRedactionView from './DpdpRedactionView';
+import Section63AffidavitCompilerView from './evidence/Section63AffidavitCompilerView';
+import CliSpoofDetectorView from './CliSpoofDetectorView';
+import SyndicateTriageView from './SyndicateTriageView';
+import MuleFreezeDispatchView from './MuleFreezeDispatchView';
+import StageUniformInspectorView from './StageUniformInspectorView';
 
 import {
   lookupFraudRing,
@@ -236,7 +243,8 @@ function GraphPanel() {
     >
       <div className="flex gap-2 mb-3">
         <input
-          className="flex-1 rounded-lg bg-[var(--ink)] border border-[var(--navy-line)] text-white p-2 text-sm font-mono"
+          aria-label="Account ID to trace fraud ring"
+          className="flex-1 rounded-lg bg-[var(--ink)] border border-[var(--navy-line)] text-white p-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
           value={accountId}
           onChange={(e) => setAccountId(e.target.value)}
           placeholder="ACC-1002"
@@ -245,7 +253,8 @@ function GraphPanel() {
         <button
           onClick={() => run()}
           disabled={loading}
-          className="bg-[var(--saffron)] text-white rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-40"
+          aria-label={loading ? 'Tracing account fraud ring...' : 'Trace account fraud ring'}
+          className="bg-[var(--saffron)] text-white rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-white"
         >
           {loading ? 'Loading...' : 'Trace'}
         </button>
@@ -361,12 +370,14 @@ function GraphPanel() {
           </label>
 
           <input
+            id="analyst-token"
+            aria-label="Analyst access token"
             type="password"
             autoComplete="off"
             value={analystToken}
             onChange={(e) => setAnalystToken(e.target.value)}
             placeholder="Enter server-configured analyst token"
-            className="w-full rounded-lg bg-[var(--ink)] border border-[var(--navy-line)] text-white p-2 text-sm"
+            className="w-full rounded-lg bg-[var(--ink)] border border-[var(--navy-line)] text-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
           />
 
           <p className="text-[10px] text-[var(--mist)] mt-1">
@@ -624,13 +635,15 @@ function CaseSummaryPanel() {
       </p>
       <div className="flex flex-col sm:flex-row gap-2 mb-3">
         <input
-          className="rounded-lg bg-[var(--ink)] border border-[var(--navy-line)] text-white p-2 text-sm font-mono flex-1"
+          aria-label="Report ID to summarize"
+          className="rounded-lg bg-[var(--ink)] border border-[var(--navy-line)] text-white p-2 text-sm font-mono flex-1 focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
           value={reportId}
           onChange={(e) => setReportId(e.target.value)}
           placeholder="RPT-0001"
         />
         <input
-          className="rounded-lg bg-[var(--ink)] border border-[var(--navy-line)] text-white p-2 text-sm font-mono flex-1"
+          aria-label="Linked account ID (optional)"
+          className="rounded-lg bg-[var(--ink)] border border-[var(--navy-line)] text-white p-2 text-sm font-mono flex-1 focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
           value={accountId}
           onChange={(e) => setAccountId(e.target.value)}
           placeholder="Linked account (optional)"
@@ -638,9 +651,10 @@ function CaseSummaryPanel() {
         <button
           onClick={run}
           disabled={loading}
-          className="bg-[var(--saffron)] text-white rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-40"
+          aria-label={loading ? 'Generating case summary...' : 'Generate case summary'}
+          className="bg-[var(--saffron)] text-white rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-white"
         >
-          {loading ? 'ΓÇª' : 'Summarize'}
+          {loading ? 'Summarizing...' : 'Summarize'}
         </button>
       </div>
       {error && <p className="text-sm text-[var(--alert)]">{error}</p>}
@@ -663,9 +677,15 @@ function CaseSummaryPanel() {
 
 const TABS = [
   { key: 'incidents', label: 'Incident dashboard' },
+  { key: 'freeze', label: 'UPI Mule Freeze (1930)' },
   { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
   { key: 'copilot', label: 'Officer Copilot (Grounded)' },
+  { key: 'cli-spoof', label: 'CLI Spoof & Telecom Triage' },
   { key: 'evidence', label: 'Evidence Vault' },
+  { key: 'dpdp', label: 'DPDP Redaction & Masking' },
+  { key: 'affidavit', label: 'Section 63 BSA Compiler' },
+  { key: 'syndicate', label: 'Syndicate & APK Triage' },
+  { key: 'stage-inspector', label: 'Video Call Stage Inspector' },
   { key: 'tools', label: 'Investigation tools' },
 ];
 
@@ -673,56 +693,81 @@ export default function OfficerCommandCenter() {
   const [tab, setTab] = useState('incidents');
 
   return (
-    <div className="min-h-full bg-[var(--ink)] px-4 py-8">
-      <div className={`${tab === 'incidents' || tab === 'jurisdiction' || tab === 'evidence' || tab === 'copilot' ? 'max-w-6xl' : 'max-w-4xl'} mx-auto space-y-6`}>
+    <div className="min-h-full bg-[var(--ink)] w-full overflow-x-hidden">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 w-full text-white">
         <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-[var(--saffron)] mb-2">
+          <p className="font-mono text-xs uppercase tracking-[0.25em] font-semibold text-[var(--saffron)] mb-2">
             Officer Command Center
           </p>
-          <h1 className="font-display text-3xl font-semibold text-white leading-tight">
+          <h1 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-white leading-tight">
             One console, every signal.
           </h1>
-          <p className="text-[var(--mist)] mt-1">
+          <p className="text-sm text-[var(--mist)] mt-1 max-w-2xl leading-relaxed">
             {tab === 'incidents'
   ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
+  : tab === 'freeze'
+  ? 'Automated Section 102 CrPC provisional debit freeze dispatch to bank nodal desks and CFCFRMS priority stop protocol.'
   : tab === 'jurisdiction'
   ? 'Operational zone boundaries, service areas, automated dispatch routing, and multi-officer change review.'
   : tab === 'copilot'
   ? 'Evidence-grounded investigative next steps with 4-tier separation, source citations, and human approval guardrails.'
+  : tab === 'cli-spoof'
+  ? 'Calling Line Identification (CLI) spoof detection, TRAI circle cross-referencing, and rogue GSM SIM Box ingress triage.'
   : tab === 'evidence'
   ? 'Immutable chain of custody, Section 65B forensic bundles, and legal hold verification.'
+  : tab === 'affidavit'
+  ? 'Sealed court-ready Section 63 BSA / 65B IEA certificates with Stratum 1 NTP records and dual-officer legal declarations.'
+  : tab === 'syndicate'
+  ? 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK sandbox triage.'
+  : tab === 'stage-inspector'
+  ? 'Computer vision inspection of suspicious video call stages, virtual chroma fringing, perspective logo warps, and uniform insignia.'
   : 'Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.'}
           </p>
         </div>
-        <div
-          role="tablist"
-          className="inline-flex gap-1 bg-[var(--navy)] border border-[var(--navy-line)] rounded-full p-1 text-sm"
-        >
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              role="tab"
-              aria-selected={tab === t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-4 py-1.5 rounded-full font-semibold transition-colors ${
-                tab === t.key
-                  ? 'bg-[var(--saffron)] text-white'
-                  : 'text-[var(--mist)] hover:text-white'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div className="overflow-x-auto max-w-full pb-1 scrollbar-none">
+          <div
+            role="tablist"
+            aria-label="Officer Workspace Sections"
+            className="inline-flex min-w-max gap-1 bg-[var(--navy)] border border-[var(--navy-line)] rounded-full p-1 text-sm"
+          >
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                role="tab"
+                aria-selected={tab === t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-4 py-2 rounded-full font-semibold transition-colors min-h-[40px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-white ${
+                  tab === t.key
+                    ? 'bg-[var(--saffron)] text-white'
+                    : 'text-[var(--mist)] hover:text-white'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {tab === 'incidents' ? (
   <IncidentDashboardView />
+) : tab === 'freeze' ? (
+  <MuleFreezeDispatchView />
 ) : tab === 'jurisdiction' ? (
   <JurisdictionConfigView />
 ) : tab === 'copilot' ? (
   <EvidenceGroundedCopilotView />
+) : tab === 'cli-spoof' ? (
+  <CliSpoofDetectorView />
 ) : tab === 'evidence' ? (
   <EvidenceVaultView />
+) : tab === 'dpdp' ? (
+  <DpdpRedactionView />
+) : tab === 'affidavit' ? (
+  <Section63AffidavitCompilerView />
+) : tab === 'syndicate' ? (
+  <SyndicateTriageView />
+) : tab === 'stage-inspector' ? (
+  <StageUniformInspectorView />
 ) : (
   <div className="space-y-6">
     <EvidenceGroundedCopilotView />

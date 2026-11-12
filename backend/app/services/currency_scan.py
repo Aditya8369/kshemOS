@@ -1,16 +1,10 @@
+
 """
 Counterfeit Currency Agent.
 
-Hackathon-real implementation: lightweight image heuristics (edge density,
-texture uniformity, resolution/sharpness, colour-channel variance) computed
-with Pillow + numpy — chosen so the service runs anywhere with zero model
-downloads. It is explicitly a stand-in for a trained YOLOv11 note-detector +
-OpenCV security-feature pipeline; see PRODUCTION UPGRADE notes.
-
-The verdict is intentionally conservative: this heuristic detects "does this
-image look like a clean, well-lit, high-detail photo of a note with expected
-texture/edge complexity", not real security-thread/microprint/watermark
-verification. It's honest scaffolding to plug a trained model into.
+Uses lightweight image heuristics to assess image quality.
+These heuristics do NOT establish whether a banknote is genuine or counterfeit.
+A validated model can be integrated later.
 """
 from __future__ import annotations
 
@@ -20,6 +14,9 @@ import numpy as np
 from PIL import Image, ImageFilter
 
 
+MODEL_VERSION = "not-configured"
+
+
 def _edge_density(gray: np.ndarray) -> float:
     # Simple Sobel-like gradient magnitude via numpy diff (no OpenCV needed).
     gx = np.diff(gray.astype(np.float32), axis=1)
@@ -27,14 +24,17 @@ def _edge_density(gray: np.ndarray) -> float:
     gx = gx[:-1, :]
     gy = gy[:, :-1]
     magnitude = np.sqrt(gx**2 + gy**2)
+
+    if magnitude.size == 0:
+        return 0.0
+
     threshold = magnitude.mean() + magnitude.std()
     edge_pixels = (magnitude > threshold).sum()
     return float(edge_pixels / magnitude.size)
 
 
 def _texture_uniformity(gray: np.ndarray) -> float:
-    # Local variance as a texture-richness proxy; genuine notes have fine,
-    # irregular print texture rather than large flat/uniform regions.
+    # Basic image texture indicator.
     std = gray.astype(np.float32).std()
     return float(std)
 
@@ -47,20 +47,27 @@ def _sharpness(image: Image.Image) -> float:
 
 def analyze_currency_image(image_bytes: bytes) -> dict:
     """
-    PRODUCTION UPGRADE: replace this heuristic bundle with a YOLOv11 model
-    fine-tuned to localize note region + security thread + watermark area +
-    serial number, followed by OCR (serial) and per-region texture/feature
-    matching against a genuine-note reference bank, as described in the
-    architecture document's Counterfeit Currency Module.
+    Analyze image quality using lightweight heuristics.
+
+    Authenticity prediction is unavailable until a validated
+    currency authentication model is integrated.
     """
     try:
-        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        image = Image.open(io.BytesIO(image_bytes))
+        image_format = image.format
+        image = image.convert("RGB")
     except Exception:
         return {
             "verdict": "inconclusive",
             "confidence": 0.0,
-            "reasons": ["Could not read image data — please upload a clear JPEG/PNG photo."],
+            "reasons": [
+                "Could not read image data. Please upload a valid JPEG or PNG image."
+            ],
             "signals": {},
+            "quality_status": "invalid",
+            "quality_checks": {"image_readable": False},
+            "model_version": MODEL_VERSION,
+            "analysis_status": "quality_only_model_unavailable",
         }
 
     width, height = image.size
@@ -69,59 +76,63 @@ def analyze_currency_image(image_bytes: bytes) -> dict:
     edge_density = _edge_density(gray)
     texture = _texture_uniformity(gray)
     sharpness = _sharpness(image)
-    resolution_score = min(1.0, (width * height) / (1200 * 600))  # normalize vs a decent photo
+    resolution_score = min(1.0, (width * height) / (1200 * 600))
 
     reasons = []
-    signal_score = 0.0
-    weight_total = 0.0
 
-    # Resolution / capture quality
-    weight_total += 1
-    if resolution_score >= 0.5:
-        signal_score += 1
-    else:
-        reasons.append("Image resolution is low — retake photo in better light and closer focus.")
-
-    # Edge density (fine print detail expected on genuine notes)
-    weight_total += 1
-    if edge_density >= 0.08:
-        signal_score += 1
-    else:
-        reasons.append("Low fine-detail edge density detected — may indicate a low-quality print or photocopy.")
-
-    # Texture richness
-    weight_total += 1
-    if texture >= 30:
-        signal_score += 1
-    else:
-        reasons.append("Texture appears unusually flat/uniform for a genuine note's print pattern.")
-
-    # Sharpness (blurry copies often smear fine security features)
-    weight_total += 1
-    if sharpness >= 800:
-        signal_score += 1
-    else:
-        reasons.append("Image is soft/blurry — fine security features (microprint, thread) cannot be verified.")
-
-    confidence = round(signal_score / weight_total, 2)
-
-    if confidence >= 0.75:
-        verdict = "likely_genuine"
-        if not reasons:
-            reasons.append("Image quality and texture/edge signals are consistent with a genuine note photo.")
-    elif confidence >= 0.4:
-        verdict = "inconclusive"
-        reasons.append("Some signals are borderline — retake the photo in better lighting for a clearer verdict.")
-    else:
-        verdict = "suspicious"
+    # Image resolution check
+    resolution_ok = resolution_score >= 0.5
+    if not resolution_ok:
         reasons.append(
-            "Multiple signals below expected thresholds for a genuine note. "
-            "Do not accept this note without further verification."
+            "Image resolution is low. Retake the photo closer to the note."
+        )
+
+    # Edge detail check
+    edge_detail_ok = edge_density >= 0.08
+    if not edge_detail_ok:
+        reasons.append(
+            "Limited fine-detail information detected in the image."
+        )
+
+    # Texture check
+    texture_ok = texture >= 30
+    if not texture_ok:
+        reasons.append(
+            "Image texture detail is limited."
+        )
+
+    # Sharpness check
+    sharpness_ok = sharpness >= 800
+    if not sharpness_ok:
+        reasons.append(
+            "Image may be blurry. Fine details cannot be assessed reliably."
+        )
+
+    quality_checks = {
+        "image_readable": True,
+        "supported_format": image_format in ("JPEG", "PNG", "WEBP"),
+        "sufficient_resolution": resolution_ok,
+        "edge_detail_available": edge_detail_ok,
+        "texture_detail_available": texture_ok,
+        "sharpness_acceptable": sharpness_ok,
+    }
+
+    quality_ok = (
+        resolution_ok
+        and edge_detail_ok
+        and texture_ok
+        and sharpness_ok
+    )
+
+    if not reasons:
+        reasons.append(
+            "Basic image-quality checks passed. Banknote authenticity has not been verified."
         )
 
     signals = {
         "width": width,
         "height": height,
+        "format": image_format,
         "edge_density": round(edge_density, 4),
         "texture_std": round(texture, 2),
         "sharpness_variance": round(sharpness, 2),
@@ -129,8 +140,13 @@ def analyze_currency_image(image_bytes: bytes) -> dict:
     }
 
     return {
-        "verdict": verdict,
-        "confidence": confidence,
+        # Heuristic image checks cannot determine authenticity.
+        "verdict": "inconclusive",
+        "confidence": 0.0,
         "reasons": reasons,
         "signals": signals,
+        "quality_status": "acceptable" if quality_ok else "needs_retake",
+        "quality_checks": quality_checks,
+        "model_version": MODEL_VERSION,
+        "analysis_status": "quality_only_model_unavailable",
     }
