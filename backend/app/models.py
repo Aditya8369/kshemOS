@@ -2128,67 +2128,58 @@ class MoneyTrailAnalysisResponse(BaseModel):
     section_102_schedule: Section102CrPCScheduleResponse
 
 
-# =============================================================================
-# DIGITAL ARREST VIDEO CALL STAGE & UNIFORM ARTIFACT INSPECTOR MODELS
-# =============================================================================
+# ---------- Voice Deepfake & Synthetic Audio Impersonation Detector ----------
 
-class VisualArtifactHallmark(BaseModel):
-    hallmark_type: str = Field(..., description="e.g. virtual_chroma_fringe, perspective_warp, non_standard_stars")
-    severity: str = Field(..., description="critical, high, medium, low")
-    confidence_score: float = Field(..., ge=0.0, le=1.0)
-    title: str
-    description: str
-    bounding_box: Optional[Dict[str, float]] = Field(default=None, description="Normalized coordinates x, y, width, height")
-    regulation_reference: Optional[str] = None
+class AcousticAnomalySpan(BaseModel):
+    start_ms: float = Field(..., description="Start offset of acoustic anomaly in milliseconds")
+    end_ms: float = Field(..., description="End offset of acoustic anomaly in milliseconds")
+    anomaly_type: str = Field(..., description="Category of anomaly, e.g. PITCH_FREEZE_FLATLINING, VOCODER_HIGH_FREQ_SMEARING")
+    confidence_score: float = Field(..., ge=0.0, le=1.0, description="Detection confidence for this span")
+    explanation: str = Field(..., description="Forensic acoustic reason for anomaly")
+    severity: Literal["low", "medium", "high", "critical"] = "medium"
 
 
-class UniformInspectionResult(BaseModel):
-    claimed_agency: str
-    claimed_rank: Optional[str] = None
-    uniform_matches_agency: bool
-    insignia_validity: str = Field(..., description="forged, suspicious, compliant, inconclusive")
-    star_count_discrepancy: Optional[str] = None
-    discrepancies: List[str] = Field(default_factory=list)
-    official_regulation_summary: str
+class SpectralMetrics(BaseModel):
+    jitter_pct: float = Field(..., description="Cycle-to-cycle fundamental frequency perturbation percentage (Normal: 0.5% - 1.2%)")
+    shimmer_pct: float = Field(..., description="Cycle-to-cycle amplitude perturbation percentage (Normal: 1.5% - 3.8%)")
+    hnr_db: float = Field(..., description="Harmonics-to-Noise Ratio in decibels (Normal human voiced: 14 - 24 dB)")
+    spectral_rolloff_hz: float = Field(..., description="High-frequency rolloff / Nyquist attenuation cutoff in Hertz")
+    vocoder_footprint_score: float = Field(..., ge=0.0, le=1.0, description="Neural vocoder checkerboard / transposed-conv artifact likelihood")
+    pitch_stability_index: float = Field(..., ge=0.0, le=1.0, description="Robotic unnatural pitch rigidity index (1.0 = completely frozen F0)")
 
 
-class StageUniformInspectionRequest(BaseModel):
-    image_data: str = Field(..., description="Base64 encoded screenshot data or image URL")
-    file_name: str = Field(default="video_call_screenshot.png")
-    claimed_agency: Optional[str] = Field(default="CBI", description="Claimed agency e.g. CBI, Mumbai Police, Delhi Police, Customs, Supreme Court")
-    claimed_officer_name: Optional[str] = Field(default=None, description="Name claimed on video call")
-    case_id: Optional[str] = Field(default=None, description="Associated KshemOS Case ID")
-    save_to_evidence_vault: bool = Field(default=True, description="Automatically preserve in Evidence Vault")
-    notes: Optional[str] = None
+class VoiceDeepfakeInspectionRequest(BaseModel):
+    audio_data: str = Field(..., description="Base64-encoded audio bytes, audio data URI, or sample content")
+    file_name: str = Field(default="voice_evidence.wav", description="File name with extension (.wav, .mp3, .m4a)")
+    duration_seconds: Optional[float] = Field(default=None, description="Optional audio duration in seconds")
+    case_id: Optional[str] = Field(default="CASE-2026-ARREST-VOICE", description="Associated investigation or triage case ID")
+    caller_claimed_identity: Optional[str] = Field(default=None, description="Claimed identity (e.g. Grandson, CBI Officer, Mumbai Police)")
+    scam_context: Optional[str] = Field(default="Digital Arrest / Family Extortion", description="Scenario context")
+    save_to_evidence_vault: bool = Field(default=True, description="Whether to ingest directly into Evidence Vault")
+    officer_badge_id: Optional[str] = Field(default="CITIZEN-SAFETY-PORTAL", description="Reporting citizen or inspecting officer badge ID")
 
 
-class StageUniformInspectionResponse(BaseModel):
+class VoiceDeepfakeInspectionResponse(BaseModel):
     inspection_id: str
-    image_sha256: str
-    is_synthetic_stage: bool
-    stage_forgery_score: float = Field(..., ge=0.0, le=1.0)
-    risk_verdict: str = Field(..., description="CRITICAL_FORGERY_DETECTED, HIGH_RISK_STAGE, SUSPICIOUS, INCONCLUSIVE")
-    detected_hallmarks: List[VisualArtifactHallmark]
-    uniform_evaluation: UniformInspectionResult
-    exif_metadata: Dict[str, Any] = Field(default_factory=dict)
-    statutory_bnss_notice: str
+    file_name: str
+    file_sha256: str
+    file_size_bytes: int
+    duration_seconds: float
+    synthetic_probability_score: float = Field(..., ge=0.0, le=1.0, description="Score 0.0 to 1.0 (0=natural, 1=synthetic)")
+    risk_band: Literal["LOW_PROBABILITY_NATURAL", "SUSPICIOUS", "HIGH_PROBABILITY_SYNTHETIC"]
+    verdict_summary: str
+    spectral_metrics: SpectralMetrics
+    anomaly_spans: List[AcousticAnomalySpan]
+    tactical_guidance: str
+    tactical_checklist: List[str]
     vaulted_evidence_id: Optional[str] = None
     inspection_timestamp: int
+    caller_claimed_identity: Optional[str] = None
 
 
-class UniformRegulationRecord(BaseModel):
-    agency_id: str
-    agency_name: str
-    authorized_attire: str
-    shoulder_rank_insignia: str
-    collar_insignia_rules: str
-    official_id_credential: str
-    common_scam_forgeries: List[str]
-
-
-class StageInspectionStatsResponse(BaseModel):
-    total_inspected: int
-    critical_forgeries_detected: int
-    cbi_impersonations: int
-    police_uniform_forgeries: int
+class VoiceDeepfakeStatsResponse(BaseModel):
+    total_evaluated: int
+    high_synthetic_detected: int
+    suspicious_detected: int
+    natural_confirmed: int
     vault_evidence_preserved: int

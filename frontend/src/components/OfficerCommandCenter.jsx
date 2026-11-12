@@ -16,20 +16,7 @@ import Section63AffidavitCompilerView from './evidence/Section63AffidavitCompile
 import CliSpoofDetectorView from './CliSpoofDetectorView';
 import SyndicateTriageView from './SyndicateTriageView';
 import MuleFreezeDispatchView from './MuleFreezeDispatchView';
-import MoneyTrailVisualizerView from './MoneyTrailVisualizerView';
-import StageUniformInspectorView from './StageUniformInspectorView';
-import useIncidentFeed from './incidentDashboard/useIncidentFeed';
-import { getDashboardSnapshot } from '../incidentDashboard';
-import { CARD_SURFACES, CONTAINER_VARIANTS, HEADER_TYPOGRAPHY } from '../layoutStyles';
-import {
-  SAMPLE_ACCOUNTS,
-  WORKSPACE_SECTIONS,
-  TABS,
-  getVisibleTabs,
-  getTabMeta,
-} from '../officerCommandCenterData';
-
-export { WORKSPACE_SECTIONS, TABS };
+import VoiceDeepfakeDetectorView from './VoiceDeepfakeDetectorView';
 
 import {
   lookupFraudRing,
@@ -673,6 +660,21 @@ function CaseSummaryPanel() {
   );
 }
 
+const TABS = [
+  { key: 'incidents', label: 'Incident dashboard' },
+  { key: 'voice-deepfake', label: 'Voice Deepfake Detector' },
+  { key: 'freeze', label: 'UPI Mule Freeze (1930)' },
+  { key: 'jurisdiction', label: 'Jurisdiction & Zones' },
+  { key: 'copilot', label: 'Officer Copilot (Grounded)' },
+  { key: 'cli-spoof', label: 'CLI Spoof & Telecom Triage' },
+  { key: 'evidence', label: 'Evidence Vault' },
+  { key: 'dpdp', label: 'DPDP Redaction & Masking' },
+  { key: 'affidavit', label: 'Section 63 BSA Compiler' },
+  { key: 'syndicate', label: 'Syndicate & APK Triage' },
+  { key: 'stage-inspector', label: 'Video Call Stage Inspector' },
+  { key: 'tools', label: 'Investigation tools' },
+];
+
 export default function OfficerCommandCenter() {
   const [tab, setTab] = useState('incidents');
   const [activeSection, setActiveSection] = useState('all');
@@ -741,26 +743,26 @@ export default function OfficerCommandCenter() {
           </div>
           <p className={HEADER_TYPOGRAPHY.descriptionOfficer + ' mt-1'}>
             {tab === 'incidents'
-              ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
-              : tab === 'freeze'
-              ? 'Automated Section 102 CrPC provisional debit freeze dispatch to bank nodal desks and CFCFRMS priority stop protocol.'
-              : tab === 'money-trail'
-              ? 'Multi-hop money trail reconstruction, Mule Hub bottleneck detection, layering velocity calculation, and Section 102 CrPC asset attachment schedules.'
-              : tab === 'jurisdiction'
-              ? 'Operational zone boundaries, service areas, automated dispatch routing, and multi-officer change review.'
-              : tab === 'copilot'
-              ? 'Evidence-grounded investigative next steps with 4-tier separation, source citations, and human approval guardrails.'
-              : tab === 'cli-spoof'
-              ? 'Calling Line Identification (CLI) spoof detection, TRAI circle cross-referencing, and rogue GSM SIM Box ingress triage.'
-              : tab === 'evidence'
-              ? 'Immutable chain of custody, Section 65B forensic bundles, and legal hold verification.'
-              : tab === 'affidavit'
-              ? 'Sealed court-ready Section 63 BSA / 65B IEA certificates with Stratum 1 NTP records and dual-officer legal declarations.'
-              : tab === 'syndicate'
-              ? 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK sandbox triage.'
-              : tab === 'stage-inspector'
-              ? 'Computer vision inspection of suspicious video call stages, virtual chroma fringing, perspective logo warps, and uniform insignia.'
-              : 'Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.'}
+  ? 'Where incidents are piling up, what is escalating, and which desks are stretched.'
+  : tab === 'voice-deepfake'
+  ? 'Acoustic micro-tremor analysis (jitter/shimmer), neural vocoder phase smearing, and explainable deepfake confidence scoring.'
+  : tab === 'freeze'
+  ? 'Automated Section 102 CrPC provisional debit freeze dispatch to bank nodal desks and CFCFRMS priority stop protocol.'
+  : tab === 'jurisdiction'
+  ? 'Operational zone boundaries, service areas, automated dispatch routing, and multi-officer change review.'
+  : tab === 'copilot'
+  ? 'Evidence-grounded investigative next steps with 4-tier separation, source citations, and human approval guardrails.'
+  : tab === 'cli-spoof'
+  ? 'Calling Line Identification (CLI) spoof detection, TRAI circle cross-referencing, and rogue GSM SIM Box ingress triage.'
+  : tab === 'evidence'
+  ? 'Immutable chain of custody, Section 65B forensic bundles, and legal hold verification.'
+  : tab === 'affidavit'
+  ? 'Sealed court-ready Section 63 BSA / 65B IEA certificates with Stratum 1 NTP records and dual-officer legal declarations.'
+  : tab === 'syndicate'
+  ? 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK sandbox triage.'
+  : tab === 'stage-inspector'
+  ? 'Computer vision inspection of suspicious video call stages, virtual chroma fringing, perspective logo warps, and uniform insignia.'
+  : 'Fraud-ring tracing and AI-drafted case summaries from a single account or report ID.'}
           </p>
         </div>
 
@@ -950,34 +952,34 @@ export default function OfficerCommandCenter() {
             SECTION IV: Module Views
             ========================================================================= */}
         {tab === 'incidents' ? (
-          <IncidentDashboardView />
-        ) : tab === 'freeze' ? (
-          <MuleFreezeDispatchView />
-        ) : tab === 'money-trail' ? (
-          <MoneyTrailVisualizerView />
-        ) : tab === 'jurisdiction' ? (
-          <JurisdictionConfigView />
-        ) : tab === 'copilot' ? (
-          <EvidenceGroundedCopilotView />
-        ) : tab === 'cli-spoof' ? (
-          <CliSpoofDetectorView />
-        ) : tab === 'evidence' ? (
-          <EvidenceVaultView />
-        ) : tab === 'dpdp' ? (
-          <DpdpRedactionView />
-        ) : tab === 'affidavit' ? (
-          <Section63AffidavitCompilerView />
-        ) : tab === 'syndicate' ? (
-          <SyndicateTriageView />
-        ) : tab === 'stage-inspector' ? (
-          <StageUniformInspectorView />
-        ) : (
-          <div className="space-y-6">
-            <EvidenceGroundedCopilotView />
-            <GraphPanel />
-            <CaseSummaryPanel />
-          </div>
-        )}
+  <IncidentDashboardView />
+) : tab === 'voice-deepfake' ? (
+  <VoiceDeepfakeDetectorView />
+) : tab === 'freeze' ? (
+  <MuleFreezeDispatchView />
+) : tab === 'jurisdiction' ? (
+  <JurisdictionConfigView />
+) : tab === 'copilot' ? (
+  <EvidenceGroundedCopilotView />
+) : tab === 'cli-spoof' ? (
+  <CliSpoofDetectorView />
+) : tab === 'evidence' ? (
+  <EvidenceVaultView />
+) : tab === 'dpdp' ? (
+  <DpdpRedactionView />
+) : tab === 'affidavit' ? (
+  <Section63AffidavitCompilerView />
+) : tab === 'syndicate' ? (
+  <SyndicateTriageView />
+) : tab === 'stage-inspector' ? (
+  <StageUniformInspectorView />
+) : (
+  <div className="space-y-6">
+    <EvidenceGroundedCopilotView />
+    <GraphPanel />
+    <CaseSummaryPanel />
+  </div>
+)}
       </div>
     </div>
   );

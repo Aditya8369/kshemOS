@@ -69,6 +69,7 @@ const TOOLBOX_ITEMS = [
   { key: 'dpdp-redaction', title: 'DPDP Act Redaction & Identity Masking', description: 'Detect, mask, and tokenize citizen identifiers (Aadhaar, PAN, Bank accounts) with supervisory unmask workflows.', accent: 'var(--saffron)' },
   { key: 'evidence-affidavit-compiler', title: 'Section 63 BSA Affidavit Compiler', description: 'Compile court-ready electronic evidence certificates with SHA-256 hashes, Stratum 1 NTP records, and dual-officer declarations.', accent: 'var(--saffron)' },
   { key: 'cli-spoof-detector', title: 'CLI Spoof & SIM Box Detector', description: 'Cross-reference caller ID metadata, TRAI numbering plans, and VoIP gateways to detect spoofed calls.', accent: 'var(--saffron)' },
+  { key: 'voice-deepfake', title: 'Voice Deepfake & Audio Detector', description: 'Analyze pitch jitter, amplitude shimmer, neural vocoder artifacts, and receive reverse verification guidance for cloned voices.', accent: 'var(--saffron)' },
   { key: 'syndicate-triage', title: 'Syndicate & APK Triage', description: 'Extract WhatsApp/Telegram syndicate recruitment groups, admin numbers, crypto wallets, and APK trojan permissions.', accent: 'var(--alert)' },
   { key: 'stage-inspector', title: 'Video Call Stage & Uniform Inspector', description: 'Analyze screenshots of suspicious video calls for synthetic blur, green-screen chroma fringes, perspective warps, and forged uniforms.', accent: 'var(--alert)' },
 ];

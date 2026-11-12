@@ -247,6 +247,11 @@ export default function Shell({
               {/* Citizen Tools Dropdown */}
               {dropdownMenu('citizen-tools', 'Citizen Tools', [
                 {
+                  key: 'voice-deepfake',
+                  label: 'Voice Deepfake Detector',
+                  dotColor: 'bg-indigo-600',
+                },
+                {
                   key: 'multilingual-speech',
                   label: 'Indic Speech ASR',
                   dotColor: 'bg-purple-600',
@@ -276,6 +281,7 @@ export default function Shell({
 
               {/* Operations Dropdown */}
               {dropdownMenu('officer-operations', 'Operations', [
+                { key: 'voice-deepfake', label: 'Voice Deepfake Detector' },
                 { key: 'mule-freeze', label: 'Mule Account Freeze' },
                 { key: 'money-trail', label: 'Money Trail & Hop Reconstructor' },
                 { key: 'triage', label: 'Triage Engine' },
