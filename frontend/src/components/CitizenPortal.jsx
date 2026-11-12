@@ -898,7 +898,7 @@ export default function CitizenPortal({ setActiveView }) {
           onClick={() =>
             setActiveView && setActiveView('regional-threat-mesh')
           }
-          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
         >
           Check Local Advisories
         </button>

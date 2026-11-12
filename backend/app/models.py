@@ -2012,6 +2012,9 @@ class FreezeStatsResponse(BaseModel):
     average_bank_latency_ms: float
     total_amount_protected_inr: float
 
+# ============================================================
+# SYNDICATE MULE RING MONEY-TRAIL & FLOW HOP RECONSTRUCTOR
+# ============================================================
 
 # ---------- Privacy-Preserving Regional Threat Broadcast & Micro-Advisory Mesh ----------
 
@@ -2069,6 +2072,11 @@ class CommanderSignoffRequest(BaseModel):
     action: Literal["approve_publish", "dismiss"] = "approve_publish"
     notes: Optional[str] = None
 
+class SankeyLink(BaseModel):
+    source: str
+    target: str
+    value: float
+    utr: str
 
 class CitizenMeshAdvisoryQuery(BaseModel):
     pincode: Optional[str] = None
@@ -2076,6 +2084,9 @@ class CitizenMeshAdvisoryQuery(BaseModel):
     lng: Optional[float] = None
     service_area_id: Optional[str] = None
 
+class SankeyDiagramData(BaseModel):
+    nodes: List[SankeyNode]
+    links: List[SankeyLink]
 
 class RegionalThreatMeshStats(BaseModel):
     total_active_clusters: int

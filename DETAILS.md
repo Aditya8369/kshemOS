@@ -1171,7 +1171,7 @@ Tool for building cyber crime cases with collected evidence.
 | `intelligence` | `ScamIntelligencePage.jsx` | Live scam analysis with entity extraction, evidence spans, score breakdown, timeline |
 | `fraud-graph` | `FraudGraphView.jsx` | Visual fraud graph explorer |
 | `toolbox` | `CyberToolboxPage.jsx` | All 60+ cyber tools organized by category |
-| `meet` | `MeetPage.jsx` | Team/project information |
+| `meet` / `contributors` | `MeetPage.jsx` | Dedicated Open Source Contributors Hub & Core Team directory |
 | `rule-library` | `ThreatLibraryPage.jsx` | Browse threat pattern library with categorized examples |
 | `scam-examples` | `ScamExamplesPage.jsx` | 2,200+ synthetic scam scenario patterns |
 | `safety-tips` | `SafetyTipsPage.jsx` | Digital safety best practices |
