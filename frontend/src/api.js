@@ -1059,3 +1059,62 @@ export async function fetchFieldSeizureStatsApi() {
   }
   return null;
 }
+
+// ============================================================
+// EMERGENCY FINANCIAL KILL-SWITCH & AADHAAR LOCK APIS
+// ============================================================
+
+export async function fetchEmergencyBanksApi() {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/emergency-killswitch/banks`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return null;
+}
+
+export async function fetchEmergencyBankByIdApi(bankId) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/emergency-killswitch/banks/${bankId}`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return null;
+}
+
+export async function fetchAadhaarLockGuideApi() {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/emergency-killswitch/aadhaar-guide`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return null;
+}
+
+export async function generateEmergencyMitigationReceiptApi(payload) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/emergency-killswitch/generate-receipt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback handled by store
+  }
+  return null;
+}
+
+// -----------------------------------------------------------------------------
+// Voice Deepfake & Synthetic Audio Impersonation Detector
+// -----------------------------------------------------------------------------
+
+export {
+  analyzeVoiceRecordingApi,
+  listVoiceDeepfakeInspectionsApi,
+  getVoiceDeepfakeInspectionApi,
+  fetchVoiceDeepfakeStatsApi,
+} from './voiceDeepfakeStore.js';
