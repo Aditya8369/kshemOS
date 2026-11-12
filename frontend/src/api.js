@@ -1158,7 +1158,7 @@ export async function fetchMoneyTrailAnalysisApi(caseId = 'CASE-2026-DELHI-01') 
   try {
     const query = params.toString();
     const response = await fetch(
-      `${BASE_URL.replace(/\\/+$/, '')}/api/money-trail/analysis${query ? `?${query}` : ''}`
+      `${BASE_URL.replace(/\/+$/, '')}/api/money-trail/analysis${query ? `?${query}` : ''}`
     );
     return await handle(response);
   } catch {
@@ -1172,7 +1172,7 @@ export async function ingestMoneyTrailTransactionsApi(payload = {}) {
 
   try {
     const response = await fetch(
-      `${BASE_URL.replace(/\\/+$/, '')}/api/money-trail/ingest`,
+      `${BASE_URL.replace(/\/+$/, '')}/api/money-trail/ingest`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1208,7 +1208,7 @@ export async function fetchSection102ScheduleApi(caseId = 'CASE-2026-DELHI-01') 
   try {
     const query = params.toString();
     const response = await fetch(
-      `${BASE_URL.replace(/\\/+$/, '')}/api/money-trail/section-102-schedule${query ? `?${query}` : ''}`
+      `${BASE_URL.replace(/\/+$/, '')}/api/money-trail/section-102-schedule${query ? `?${query}` : ''}`
     );
     return await handle(response);
   } catch {
@@ -1219,7 +1219,7 @@ export async function fetchSection102ScheduleApi(caseId = 'CASE-2026-DELHI-01') 
 export async function fetchSampleMoneyTrailCsvApi() {
   try {
     const response = await fetch(
-      `${BASE_URL.replace(/\\/+$/, '')}/api/money-trail/sample-csv`
+      `${BASE_URL.replace(/\/+$/, '')}/api/money-trail/sample-csv`
     );
     return await handle(response);
   } catch {
