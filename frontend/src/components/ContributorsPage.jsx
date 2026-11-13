@@ -21,6 +21,7 @@ import {
   getContributionCategory,
   getContributorAvatarUrl,
 } from '../data/contributorsData.js';
+import GitHubContributorsSection from './GitHubContributorsSection';
 
 const CATEGORY_BADGE_STYLES = {
   frontend: 'border-sky-200 bg-sky-50 text-sky-900',
@@ -546,6 +547,9 @@ export default function ContributorsPage() {
           </div>
         </section>
       )}
+
+      {/* Resilient Live GitHub Contributors Section */}
+      <GitHubContributorsSection />
 
       {/* Contribution Call-To-Action (CTA) & Guidance Section */}
       <section
