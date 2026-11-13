@@ -60,10 +60,14 @@ export default function Shell({
   };
 
   const navButton = (key, label, onClick, extraClass = '', isDirectActive = false) => {
-    const isActive = isDirectActive || activeView === key;
+    const isActive =
+      isDirectActive ||
+      activeView === key ||
+      (key === 'contributors' && activeView === 'meet') ||
+      (key === 'meet' && activeView === 'contributors');
 
     const buttonClass = [
-      'px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200',
+      'px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer',
       isActive
         ? 'bg-[var(--ink)] text-white shadow-sm'
         : 'text-[var(--ink-text)]/70 hover:text-[var(--ink)] hover:bg-white',
@@ -86,7 +90,12 @@ export default function Shell({
 
   const dropdownMenu = (menuId, label, items) => {
     const isOpen = openDropdown === menuId;
-    const hasActiveChild = items.some((item) => item.key === activeView);
+    const hasActiveChild = items.some(
+      (item) =>
+        activeView === item.key ||
+        (item.key === 'contributors' && activeView === 'meet') ||
+        (item.key === 'meet' && activeView === 'contributors')
+    );
 
     return (
       <div className="relative">
@@ -121,10 +130,14 @@ export default function Shell({
         {isOpen && (
           <div
             role="menu"
-            className="absolute left-0 mt-2 w-52 rounded-2xl bg-white border border-[var(--paper-line)] shadow-xl shadow-[var(--ink)]/10 p-1.5 z-30 animate-fade-up"
+            className="absolute left-0 mt-2 w-56 rounded-2xl bg-white border border-[var(--paper-line)] shadow-xl shadow-[var(--ink)]/10 p-1.5 z-30 animate-fade-up"
           >
             {items.map((item) => {
-              const isItemActive = activeView === item.key;
+              const isItemActive =
+                activeView === item.key ||
+                (item.key === 'contributors' && activeView === 'meet') ||
+                (item.key === 'meet' && activeView === 'contributors');
+
               return (
                 <button
                   key={item.key}
@@ -234,6 +247,31 @@ export default function Shell({
               {/* Citizen Tools Dropdown */}
               {dropdownMenu('citizen-tools', 'Citizen Tools', [
                 {
+                  key: 'regional-threat-mesh',
+                  label: 'Regional Threat Mesh',
+                  dotColor: 'bg-emerald-600',
+                },
+                {
+                  key: 'takedown-generator',
+                  label: 'Domain Abuse Takedown',
+                  dotColor: 'bg-blue-600',
+                },
+                {
+                  key: 'field-seizure',
+                  label: 'Field Seizure Companion',
+                  dotColor: 'bg-emerald-600',
+                },
+                {
+                  key: 'emergency-killswitch',
+                  label: 'Emergency Kill-Switch',
+                  dotColor: 'bg-red-600',
+                },
+                {
+                  key: 'voice-deepfake',
+                  label: 'Voice Deepfake Detector',
+                  dotColor: 'bg-indigo-600',
+                },
+                {
                   key: 'multilingual-speech',
                   label: 'Indic Speech ASR',
                   dotColor: 'bg-purple-600',
@@ -263,7 +301,12 @@ export default function Shell({
 
               {/* Operations Dropdown */}
               {dropdownMenu('officer-operations', 'Operations', [
+                { key: 'regional-threat-mesh', label: 'Regional Threat Mesh' },
+                { key: 'takedown-generator', label: 'Abuse Takedown Notice' },
+                { key: 'field-seizure', label: 'Field Seizure Companion' },
+                { key: 'voice-deepfake', label: 'Voice Deepfake Detector' },
                 { key: 'mule-freeze', label: 'Mule Account Freeze' },
+                { key: 'money-trail', label: 'Money Trail & Hop Reconstructor' },
                 { key: 'triage', label: 'Triage Engine' },
                 { key: 'evidence-affidavit-compiler', label: 'Section 63 BSA Affidavit' },
                 { key: 'cli-spoof-detector', label: 'CLI Spoof & Telecom Triage' },
@@ -273,6 +316,7 @@ export default function Shell({
                 { key: 'alerts', label: 'Alert Dispatch' },
                 { key: 'jurisdiction', label: 'Jurisdiction Config' },
                 { key: 'dpdp-redaction', label: 'DPDP Redaction & Masking' },
+                { key: 'stage-inspector', label: 'Stage & Uniform Inspector' },
               ])}
             </div>
 

@@ -18,6 +18,7 @@ from app.models import (
     UnmaskApprovalRequest,
     UnmaskRequestCreate,
     UnmaskRequestRecord,
+    UnmaskReviewAction,
     UnmaskedValueResponse,
 )
 from app.security import Principal, require_permission

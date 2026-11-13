@@ -2011,3 +2011,599 @@ class FreezeStatsResponse(BaseModel):
     tier3_monitor: int
     average_bank_latency_ms: float
     total_amount_protected_inr: float
+
+     # ============================================================
+# OFFLINE-FIRST FIELD SEIZURE & DEVICE TRIAGE COMPANION MODELS
+# ============================================================
+
+class FieldSeizureRecord(BaseModel):
+    seizure_id: str
+    case_id: str
+    incident_id: Optional[str] = None
+    officer_badge: str
+    officer_name: str
+    police_station: str = "Special Cyber Crime Cell, New Delhi"
+    device_category: str  # smartphone, laptop, tablet, hard_drive, crypto_hardware_wallet, sim_card, feature_phone
+    make_model: str
+    imei1: Optional[str] = None
+    imei2: Optional[str] = None
+    mac_address: Optional[str] = None
+    serial_number: Optional[str] = None
+    seizure_bag_barcode: str
+    faraday_bag_sealed: bool = True
+    power_state_at_seizure: str = "powered_off"  # powered_on, powered_off, airplane_mode_locked, damaged
+    sim_card_status: str = "removed_and_bagged"  # removed_and_bagged, kept_in_slot, no_sim
+    seizure_location: Dict[str, Any] = Field(default_factory=dict)
+    photo_hashes: List[str] = Field(default_factory=list)
+    photo_thumbnails: List[str] = Field(default_factory=list)
+    on_site_genesis_hash: str
+    offline_timestamp_iso: str
+    offline_timestamp_ms: int
+    rfc3161_token: Dict[str, Any] = Field(default_factory=dict)
+    genesis_receipt: Dict[str, Any] = Field(default_factory=dict)
+    sync_status: str = "queued_offline"  # queued_offline, synced_verified, synced_tamper_flagged
+    synced_at_iso: Optional[str] = None
+    central_intake_hash: Optional[str] = None
+    central_intake_at_iso: Optional[str] = None
+    intake_verified_by_badge: Optional[str] = None
+    tamper_flag: bool = False
+    tamper_reason: Optional[str] = None
+    chain_of_custody_events: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class FieldSeizureCreateRequest(BaseModel):
+    case_id: str
+    officer_badge: str
+    officer_name: str
+    police_station: str = "Special Cyber Crime Cell, New Delhi"
+    incident_id: Optional[str] = None
+    device_category: str
+    make_model: str
+    imei1: Optional[str] = None
+    imei2: Optional[str] = None
+    mac_address: Optional[str] = None
+    serial_number: Optional[str] = None
+    seizure_bag_barcode: str
+    faraday_bag_sealed: bool = True
+    power_state_at_seizure: str = "powered_off"
+    sim_card_status: str = "removed_and_bagged"
+    seizure_location: Optional[Dict[str, Any]] = None
+    photo_hashes: Optional[List[str]] = None
+    photo_thumbnails: Optional[List[str]] = None
+    offline_timestamp_ms: Optional[int] = None
+
+
+class FieldSeizureSyncRequest(BaseModel):
+    records: List[FieldSeizureRecord]
+    sync_source: str = "kshemos_pwa_companion"
+    synced_by_badge: str = "OFF-FIELD-01"
+
+
+class CentralIntakeVerificationRequest(BaseModel):
+    seizure_id: str
+    verified_by_badge: str
+    received_bag_barcode: str
+    verified_imei1: Optional[str] = None
+    verified_serial: Optional[str] = None
+    verified_mac: Optional[str] = None
+    verified_make_model: Optional[str] = None
+    bag_seal_intact: bool = True
+    intake_notes: Optional[str] = None
+
+
+class FieldSeizureSyncResponse(BaseModel):
+    synced_count: int
+    conflict_count: int
+    tamper_flagged_count: int
+    records: List[FieldSeizureRecord]
+    sync_timestamp_iso: str
+
+
+class FieldSeizureStatsResponse(BaseModel):
+    total_seizures: int
+    offline_queued: int
+    synced_clean: int
+    tamper_flagged: int
+    faraday_sealed_percent: float
+
+
+# ============================================================
+# EMERGENCY FINANCIAL KILL-SWITCH & AADHAAR LOCK MODELS
+# ============================================================
+
+class EmergencyKillSwitchBankInfo(BaseModel):
+    bank_id: str
+    bank_name: str
+    category: str
+    ussd_code: str = "*99#"
+    ussd_instructions: str
+    sms_card_block_syntax: str
+    sms_card_block_number: str
+    sms_acc_freeze_syntax: Optional[str] = None
+    sms_acc_freeze_number: Optional[str] = None
+    sms_upi_disable_syntax: Optional[str] = None
+    sms_upi_disable_number: Optional[str] = None
+    phone_hotline: str
+    phone_alt: Optional[str] = None
+    netbanking_url: str
+    mobile_app_name: str
+    official_portal_guidance: str
+
+
+class AadhaarBiometricLockStep(BaseModel):
+    step_number: int
+    title: str
+    instruction: str
+    warning: Optional[str] = None
+    official_url: Optional[str] = None
+
+
+class AadhaarBiometricLockGuide(BaseModel):
+    overview: str
+    why_lock_biometrics: str
+    aeps_vulnerability_explanation: str
+    myaadhaar_portal_url: str = "https://myaadhaar.uidai.gov.in"
+    uidai_helpline: str = "1947"
+    sms_1947_syntax: Dict[str, str] = Field(default_factory=dict)
+    steps: List[AadhaarBiometricLockStep] = Field(default_factory=list)
+    temporary_unlock_guidance: str
+
+
+class EmergencyMitigationReceiptRequest(BaseModel):
+    citizen_name: Optional[str] = "Citizen (Protected)"
+    selected_bank_id: str
+    bank_name: str
+    card_last_4: Optional[str] = None
+    account_last_4: Optional[str] = None
+    actions_attempted: List[str] = Field(default_factory=list)
+    reported_to_1930: bool = False
+    reported_to_portal: bool = False
+    aadhaar_biometrics_locked: bool = False
+    incident_description: Optional[str] = None
+
+
+class EmergencyMitigationReceipt(BaseModel):
+    receipt_id: str
+    citizen_name: str
+    selected_bank_id: str
+    bank_name: str
+    timestamp_iso: str
+    timestamp_ist: str
+    timestamp_ms: int
+    card_last_4: Optional[str] = None
+    account_last_4: Optional[str] = None
+    actions_attempted: List[str]
+    reported_to_1930: bool
+    reported_to_portal: bool
+    aadhaar_biometrics_locked: bool
+    rbi_circular_reference: str
+    legal_disclaimer: str
+    sha256_hash: str
+    verification_token: str
+
+
+# ============================================================
+# SYNDICATE MULE RING MONEY-TRAIL & FLOW HOP RECONSTRUCTOR
+# ============================================================
+
+# ---------- Privacy-Preserving Regional Threat Broadcast & Micro-Advisory Mesh ----------
+
+MicroAdvisoryStatus = Literal[
+    "DRAFTED_PENDING_APPROVAL",
+    "PUBLISHED_ACTIVE",
+    "DISMISSED",
+    "EXPIRED",
+]
+
+
+class RegionalThreatCluster(BaseModel):
+    cluster_id: str = Field(..., description="Unique cluster ID, e.g. CLUST-DELHI-NORTH-01")
+    service_area_id: str = Field(..., description="Target service area ID, e.g. SA-NORTH-01")
+    service_area_name: str = Field(..., description="Metropolitan service area name")
+    police_station_circle: str = Field(..., description="Designated police station jurisdiction")
+    postal_pincodes: List[str] = Field(default_factory=list, description="Target postal pin codes")
+    scam_category: str = Field(..., description="Category: electricity_bill_scam, digital_arrest, etc.")
+    scam_category_label: str = Field(..., description="Human-readable scam label")
+    complaint_count: int = Field(..., ge=3, description="Aggregated report count within 24h window (3+ required)")
+    first_complaint_timestamp: int
+    last_complaint_timestamp: int
+    window_hours: float = Field(..., le=24.0, description="Elapsed hours of cluster window (<= 24.0h)")
+    privacy_guarantee: str = Field(default="K-Anonymity Verified: Zero PII or individual loss figures retained")
+    anonymized_report_refs: List[str] = Field(default_factory=list)
+
+
+class RegionalMicroAdvisory(BaseModel):
+    advisory_id: str = Field(..., description="Unique micro-advisory identifier e.g. ADV-MESH-2026-101")
+    cluster_id: str = Field(..., description="Associated threat cluster reference")
+    title: str = Field(..., description="Headline alert, e.g. 'Notice: Fake electricity bill payment SMS active in North Delhi area.'")
+    summary_guidance: str = Field(..., description="Human-readable plain language advisory guidance")
+    scam_category: str
+    service_area_id: str
+    service_area_name: str
+    police_station_circle: str
+    target_pincodes: List[str]
+    geofence_center: Dict[str, float] = Field(default_factory=lambda: {"lat": 28.6920, "lng": 77.2150})
+    geofence_radius_km: float = Field(default=5.5)
+    complaints_aggregated: int
+    window_hours: float
+    status: MicroAdvisoryStatus = Field(default="DRAFTED_PENDING_APPROVAL")
+    urgency: Literal["low", "medium", "high", "critical"] = "high"
+    action_checklist: List[str] = Field(default_factory=list)
+    drafted_at: int
+    published_at: Optional[int] = None
+    approved_by_commander_badge: Optional[str] = None
+    approved_by_commander_name: Optional[str] = None
+    active_portal_banner_text: str
+
+
+class CommanderSignoffRequest(BaseModel):
+    commander_badge_id: str = Field(default="CMD-DELHI-NORTH", description="Authorizing commander badge")
+    commander_name: str = Field(default="DCP Vikram Malhotra", description="Commanding officer name")
+    action: Literal["approve_publish", "dismiss"] = "approve_publish"
+    notes: Optional[str] = None
+
+class SankeyLink(BaseModel):
+    source: str
+    target: str
+    value: float
+    utr: str
+
+class CitizenMeshAdvisoryQuery(BaseModel):
+    pincode: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    service_area_id: Optional[str] = None
+
+class SankeyDiagramData(BaseModel):
+    nodes: List[SankeyNode]
+    links: List[SankeyLink]
+
+import { useState, useRef, useEffect } from 'react';
+import EmergencyPortalBanner from './EmergencyPortalBanner';
+import Footer from './Footer';
+
+function ShieldMark({ size = 28 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+      <path
+        d="M20 3 L34 9 V19 C34 28 28 34 20 37 C12 34 6 28 6 19 V9 Z"
+        fill="var(--navy)"
+      />
+      <path
+        d="M13 20 L18 25 L28 13"
+        stroke="var(--saffron)"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+    </svg>
+  );
+}
+
+export default function Shell({
+  portal,
+  setPortal,
+  activeView,
+  setActiveView,
+  children,
+}) {
+  const [openDropdown, setOpenDropdown] = useState(null);
+  const navRef = useRef(null);
+
+  // Close dropdown on click outside or escape key
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (navRef.current && !navRef.current.contains(e.target)) {
+        setOpenDropdown(null);
+      }
+    }
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        setOpenDropdown(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const navigateTo = (view, portalMode = null) => {
+    if (portalMode) {
+      setPortal(portalMode);
+    }
+    setActiveView(view);
+    setOpenDropdown(null);
+  };
+
+  const navButton = (key, label, onClick, extraClass = '', isDirectActive = false) => {
+    const isActive =
+      isDirectActive ||
+      activeView === key ||
+      (key === 'contributors' && activeView === 'meet') ||
+      (key === 'meet' && activeView === 'contributors');
+
+    const buttonClass = [
+      'px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer',
+      isActive
+        ? 'bg-[var(--ink)] text-white shadow-sm'
+        : 'text-[var(--ink-text)]/70 hover:text-[var(--ink)] hover:bg-white',
+      extraClass,
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    return (
+      <button
+        key={key}
+        type="button"
+        onClick={onClick}
+        className={buttonClass}
+      >
+        {label}
+      </button>
+    );
+  };
+
+  const dropdownMenu = (menuId, label, items) => {
+    const isOpen = openDropdown === menuId;
+    const hasActiveChild = items.some(
+      (item) =>
+        activeView === item.key ||
+        (item.key === 'contributors' && activeView === 'meet') ||
+        (item.key === 'meet' && activeView === 'contributors')
+    );
+
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+          aria-label={label}
+          onClick={() => setOpenDropdown(isOpen ? null : menuId)}
+          className={[
+            'px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 flex items-center gap-1 cursor-pointer',
+            hasActiveChild
+              ? 'bg-[var(--ink)] text-white shadow-sm'
+              : 'text-[var(--ink-text)]/70 hover:text-[var(--ink)] hover:bg-white',
+          ].join(' ')}
+        >
+          <span>{label}</span>
+          <svg
+            className={`w-3 h-3 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.21 8.27a.75.75 0 01.02-1.06z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+
+        {isOpen && (
+          <div
+            role="menu"
+            className="absolute left-0 mt-2 w-56 rounded-2xl bg-white border border-[var(--paper-line)] shadow-xl shadow-[var(--ink)]/10 p-1.5 z-30 animate-fade-up"
+          >
+            {items.map((item) => {
+              const isItemActive =
+                activeView === item.key ||
+                (item.key === 'contributors' && activeView === 'meet') ||
+                (item.key === 'meet' && activeView === 'contributors');
+
+              return (
+                <button
+                  key={item.key}
+                  role="menuitem"
+                  type="button"
+                  onClick={() => navigateTo(item.key, item.portal)}
+                  className={[
+                    'w-full text-left px-3 py-2 rounded-xl text-xs font-medium transition-all flex items-center justify-between gap-2 cursor-pointer',
+                    isItemActive
+                      ? 'bg-[var(--ink)] text-white font-semibold'
+                      : 'text-[var(--ink-text)]/80 hover:bg-[var(--paper)] hover:text-[var(--ink)]',
+                  ].join(' ')}
+                >
+                  <span className="flex items-center gap-1.5">
+                    {item.dotColor && (
+                      <span className={`w-1.5 h-1.5 rounded-full ${item.dotColor}`} />
+                    )}
+                    {item.label}
+                  </span>
+                  {item.badge && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--paper)] text-[var(--ink-text)]/60 font-mono">
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col w-full overflow-x-hidden">
+      {/* Skip to Main Content Link for Keyboard & Screen Reader Users */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-[var(--ink)] focus:text-white focus:rounded-full focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] font-semibold text-xs"
+      >
+        Skip to main content
+      </a>
+
+      {/* Emergency Banner */}
+      <EmergencyPortalBanner
+        onOpenAdvisory={() => navigateTo('advisory')}
+      />
+
+      {/* Header */}
+      <header className="border-b border-[var(--paper-line)] bg-white/90 backdrop-blur sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
+
+          {/* Brand */}
+          <button
+            type="button"
+            onClick={() => navigateTo('home')}
+            className="flex items-center gap-2 shrink-0 text-left cursor-pointer focus:outline-none"
+          >
+            <ShieldMark />
+            <div>
+              <div className="font-display font-semibold leading-none tracking-tight">
+                KSHEM<span className="text-[var(--saffron)]">OS</span>
+              </div>
+              <div className="text-[10px] font-mono uppercase tracking-widest text-[var(--ink-text)]/50">
+                Digital public safety
+              </div>
+            </div>
+          </button>
+
+          {/* Grouped Navigation */}
+          <nav
+            ref={navRef}
+            aria-label="Main navigation"
+            className="flex flex-wrap items-center gap-2"
+          >
+            {/* Group 1: Home */}
+            <div className="flex items-center bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {navButton('home', 'Home', () => navigateTo('home'))}
+            </div>
+
+            {/* Group 2: Citizen Safety (High-Priority Direct Actions + Tools Menu) */}
+            <div className="flex flex-wrap items-center gap-1.5 bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {/* Citizen Verify */}
+              {navButton(
+                'portal',
+                'Verify',
+                () => navigateTo('portal', 'citizen'),
+                '',
+                activeView === 'portal' && portal === 'citizen'
+              )}
+
+              {/* Live Call Shield */}
+              <button
+                type="button"
+                onClick={() => navigateTo('live-call-safety')}
+                className={[
+                  'px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 flex items-center gap-1.5 cursor-pointer',
+                  activeView === 'live-call-safety'
+                    ? 'bg-red-600 text-white shadow-sm'
+                    : 'text-red-700 bg-red-50 hover:bg-red-100',
+                ].join(' ')}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+                Live Call Shield
+              </button>
+
+              {/* Citizen Tools Dropdown */}
+              {dropdownMenu('citizen-tools', 'Citizen Tools', [
+                {
+                  key: 'takedown-generator',
+                  label: 'Domain Abuse Takedown',
+                  dotColor: 'bg-blue-600',
+                },
+                {
+                  key: 'field-seizure',
+                  label: 'Field Seizure Companion',
+                  dotColor: 'bg-emerald-600',
+                },
+                {
+                  key: 'emergency-killswitch',
+                  label: 'Emergency Kill-Switch',
+                  dotColor: 'bg-red-600',
+                },
+                {
+                  key: 'voice-deepfake',
+                  label: 'Voice Deepfake Detector',
+                  dotColor: 'bg-indigo-600',
+                },
+                {
+                  key: 'multilingual-speech',
+                  label: 'Indic Speech ASR',
+                  dotColor: 'bg-purple-600',
+                },
+                {
+                  key: 'incident-notifications',
+                  label: 'Incident Notifications',
+                  dotColor: 'bg-indigo-500',
+                },
+                {
+                  key: 'toolbox',
+                  label: 'Cyber Toolbox',
+                },
+              ])}
+            </div>
+
+            {/* Group 3: Officer Operations */}
+            <div className="flex flex-wrap items-center gap-1.5 bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {/* Officer Command Center */}
+              {navButton(
+                'officer',
+                'Officer',
+                () => navigateTo('officer', 'officer'),
+                '',
+                activeView === 'officer' || (activeView === 'portal' && portal === 'officer')
+              )}
+
+              {/* Operations Dropdown */}
+              {dropdownMenu('officer-operations', 'Operations', [
+                { key: 'takedown-generator', label: 'Abuse Takedown Notice' },
+                { key: 'field-seizure', label: 'Field Seizure Companion' },
+                { key: 'voice-deepfake', label: 'Voice Deepfake Detector' },
+                { key: 'mule-freeze', label: 'Mule Account Freeze' },
+                { key: 'money-trail', label: 'Money Trail & Hop Reconstructor' },
+                { key: 'triage', label: 'Triage Engine' },
+                { key: 'evidence-affidavit-compiler', label: 'Section 63 BSA Affidavit' },
+                { key: 'cli-spoof-detector', label: 'CLI Spoof & Telecom Triage' },
+                { key: 'syndicate-triage', label: 'Syndicate & APK Triage' },
+                { key: 'advisory', label: 'Advisory Composer' },
+                { key: 'evidence', label: 'Evidence Vault' },
+                { key: 'alerts', label: 'Alert Dispatch' },
+                { key: 'jurisdiction', label: 'Jurisdiction Config' },
+                { key: 'dpdp-redaction', label: 'DPDP Redaction & Masking' },
+                { key: 'stage-inspector', label: 'Stage & Uniform Inspector' },
+              ])}
+            </div>
+
+            {/* Group 4: Resources */}
+            <div className="flex items-center bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {dropdownMenu('resources', 'Resources', [
+                { key: 'awareness', label: 'Awareness' },
+                { key: 'safety-tips', label: 'Safety Tips' },
+                { key: 'scam-examples', label: 'Scam Examples' },
+                { key: 'rule-library', label: 'Threat Library' },
+              ])}
+            </div>
+
+            {/* Group 5: Project */}
+            <div className="flex items-center bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
+              {dropdownMenu('project', 'Project', [
+                { key: 'about', label: 'About KshemOS' },
+                { key: 'how-it-works', label: 'How It Works' },
+                { key: 'meet', label: 'Contributors & Team' },
+                { key: 'contact', label: 'Contact' },
+              ])}
+            </div>
+          </nav>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main id="main-content" tabIndex="-1" className="flex-1 focus:outline-none w-full overflow-x-hidden">
+        {children}
+      </main>
+
+      {/* Global Footer */}
+      <Footer setActiveView={setActiveView} />
+    </div>
+  );
+}
