@@ -27,7 +27,7 @@ const SAMPLE_CASES = [
     id: 'digital-arrest',
     label: 'Digital arrest',
     transcript:
-      'This is the CBI. A parcel with your Aadhaar number has been seized. You are under digital arrest, do not disconnect this call, and transfer the verification amount immediately or a warrant will be issued.',
+      'This is the CBI. A parcel with your [Aadhaar Redacted] has been seized. You are under digital arrest, do not disconnect this call, and transfer the verification amount immediately or a warrant will be issued.',
     claim: 'CBI officer',
   },
   {
@@ -562,7 +562,7 @@ function ReportForm({ addReport }) {
         });
       }
     } catch (e) {
-      setError(e.message || 'Unable to submit your report.');
+      setError(e.message || 'Unable to submit your report. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -629,20 +629,40 @@ function ReportForm({ addReport }) {
         onChange={(e) => setDescription(e.target.value)}
       />
 
+      {/* Submit Button with Loading Spinner & Disabled State */}
       <button
         type="button"
         onClick={submit}
         disabled={loading}
         aria-label={loading ? 'Submitting citizen report...' : 'Submit citizen report'}
-        className="mt-2 bg-[var(--saffron)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
+        className="mt-2 bg-[var(--saffron)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
       >
-        {loading ? 'Submitting…' : 'Submit report'}
+        {loading ? (
+          <>
+            {/* Loading Spinner SVG */}
+            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Submitting…</span>
+          </>
+        ) : (
+          <span>Submit report</span>
+        )}
       </button>
 
+      {/* Recoverable Error State with Dismiss Option */}
       {error && (
-        <p className="text-sm text-[var(--alert)] mt-2">
-          {error}
-        </p>
+        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg flex justify-between items-center text-sm text-[var(--alert)]">
+          <span>{error}</span>
+          <button 
+            type="button" 
+            onClick={() => setError(null)}
+            className="text-xs bg-red-100 hover:bg-red-200 text-red-800 px-2 py-1 rounded ml-2"
+          >
+            Dismiss
+          </button>
+        </div>
       )}
 
       {emailStatus && (
@@ -657,13 +677,31 @@ function ReportForm({ addReport }) {
         </p>
       )}
 
+      {/* Success State & Next-Step Feedback */}
       {result && (
-        <div className="mt-3 text-sm bg-[var(--paper)] rounded-lg p-3 border border-[var(--paper-line)] space-y-2">
-          <p className="font-mono text-xs text-[var(--saffron)]">
-            {result.report_id}
-          </p>
+        <div className="mt-4 text-sm bg-green-50 rounded-xl p-4 border border-green-200 space-y-2 text-green-900">
+          <div className="flex items-center justify-between">
+            <h4 className="font-display font-bold text-base text-green-900">
+              Report Submitted Successfully!
+            </h4>
+            <span className="font-mono text-xs font-bold bg-green-200 px-2 py-0.5 rounded text-green-800">
+              {result.report_id}
+            </span>
+          </div>
 
-          <p>{result.acknowledgement}</p>
+          <p className="text-sm">{result.acknowledgement}</p>
+
+          <div className="bg-white/80 rounded-lg p-3 border border-green-200 text-xs text-green-900 space-y-1">
+            <p className="font-semibold uppercase tracking-wider text-green-800">
+              Next Steps & Evidence Preservation:
+            </p>
+            <p>
+              • Please securely preserve all digital evidence (screenshots, call recordings, transaction references). Do not delete files.
+            </p>
+            <p>
+              • Keep your Case Reference ID confidential and present it during cyber cell follow-ups or helpline (1930) inquiries.
+            </p>
+          </div>
 
           {result.incident_id && (
             <p className="text-xs text-[var(--ink-text)]/70">
@@ -680,12 +718,12 @@ function ReportForm({ addReport }) {
             </p>
           )}
 
-          <details>
-            <summary className="cursor-pointer font-semibold">
-              Draft FIR statement
+          <details className="pt-1">
+            <summary className="cursor-pointer font-semibold text-xs text-green-800 hover:underline">
+              View Draft FIR Statement
             </summary>
 
-            <p className="mt-1 whitespace-pre-line">
+            <p className="mt-1 whitespace-pre-line text-xs bg-white p-2.5 rounded border border-green-200 font-mono">
               {result.draft_fir}
             </p>
           </details>
@@ -869,7 +907,7 @@ export default function CitizenPortal({ setActiveView }) {
         </button>
       </div>
 
-{/* Regional Threat Mesh Quick Launch Banner */}
+      {/* Regional Threat Mesh Quick Launch Banner */}
       <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
@@ -939,7 +977,7 @@ export default function CitizenPortal({ setActiveView }) {
         </button>
       </div>
 
-      {/* Emergency Financial Kill-Switch & Aadhaar Lock Quick Launch Banner */}
+      {/* Emergency Financial Kill-Switch Quick Launch Banner */}
       <div className="bg-gradient-to-r from-red-600/10 via-amber-500/10 to-transparent border border-red-300 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
@@ -958,7 +996,7 @@ export default function CitizenPortal({ setActiveView }) {
             </div>
 
             <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
-              Access verified one-tap USSD (*99#) & SMS freeze commands for all major banks, lock Aadhaar biometrics against AePS fraud, and generate certified RBI Zero-Liability mitigation receipts.
+              Access verified one-tap USSD (*99#) & SMS freeze commands for all major banks, lock biometrics against fraud, and generate certified RBI Zero-Liability mitigation receipts.
             </p>
           </div>
         </div>
@@ -994,7 +1032,6 @@ export default function CitizenPortal({ setActiveView }) {
 
             <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
               Verify synthetic voice clones, robotic pitch flatlines, and neural vocoder artifacts before transferring funds.
-              Perform immediate reverse verification.
             </p>
           </div>
         </div>
@@ -1007,40 +1044,6 @@ export default function CitizenPortal({ setActiveView }) {
           className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
         >
           Inspect Voice Deepfake
-        </button>
-      </div>
-      {/* Regional Threat Mesh quick-launch banner */}
-      <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
-            📡
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-sm text-[var(--ink)]">
-                Local Area Threat Advisories
-              </span>
-
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-600 text-white">
-                Geofenced Mesh
-              </span>
-            </div>
-
-            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
-              Check commander-authorized, privacy-preserving micro-advisories for your postal PIN code and police circle without exposing citizen data.
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            setActiveView && setActiveView('regional-threat-mesh')
-          }
-          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
-        >
-          Check Local Advisories
         </button>
       </div>
 
