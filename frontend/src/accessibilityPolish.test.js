@@ -192,3 +192,28 @@ test('ScamIntelligencePage, ThreatLibraryPage, and MeetPage enforce heading orde
   );
 });
 
+test('ContributorsPage.jsx supports accessible categories, mobile readability, empty state, and no unverified metrics', () => {
+  const contributors = readComponent('components/ContributorsPage.jsx');
+
+  assert.match(
+    contributors,
+    /CONTAINER_VARIANTS\.public/,
+    'ContributorsPage must use standardized responsive public container'
+  );
+  assert.match(
+    contributors,
+    /aria-pressed=\{isSelected\}/,
+    'Category filter buttons must expose aria-pressed state'
+  );
+  assert.match(
+    contributors,
+    /No listed contributors in \$\{activeCategory\.label\} yet/,
+    'ContributorsPage must provide a meaningful category-specific empty state'
+  );
+  assert.doesNotMatch(
+    contributors,
+    /Verified in git log|Verified Contributors|line-clamp-3/,
+    'ContributorsPage must not claim unverified official verification badges or truncate mobile bios'
+  );
+});
+
