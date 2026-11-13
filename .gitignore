@@ -8,4 +8,6 @@ backend/venv/
 
 # Local response team database
 backend/response_teams.db*
+
+# Backend virtual environment
 backend/venv/

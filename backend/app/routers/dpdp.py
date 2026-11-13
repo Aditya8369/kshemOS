@@ -1,10 +1,13 @@
 """
 FastAPI Router for DPDP Act Redaction & Identity Masking Pipeline.
+All sensitive operations require server-authenticated identities.
 """
+
 from __future__ import annotations
 
-from typing import Any, Optional
-from fastapi import APIRouter, HTTPException, Query, Request, status
+from typing import Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from app.models import (
     DpdpAuditLogEntry,
@@ -18,17 +21,47 @@ from app.models import (
     UnmaskReviewAction,
     UnmaskedValueResponse,
 )
+from app.security import Principal, require_permission
 from app.services import dpdp_sanitization as dpdp_service
 
-router = APIRouter(prefix="/api/dpdp", tags=["DPDP Act Redaction & Identity Masking"])
+router = APIRouter(
+    prefix="/api/dpdp",
+    tags=["DPDP Act Redaction & Identity Masking"],
+)
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "127.0.0.1"
+
+
+def _get_scoped_request(request_id: str, principal: Principal) -> dict:
+    """Find a request without revealing records outside the caller's scope."""
+    records = dpdp_service.list_unmask_requests()
+    record = next(
+        (item for item in records if item["request_id"] == request_id),
+        None,
+    )
+
+    if record is None:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    if principal.role != "admin":
+        allowed_cases = principal.case_ids
+        if (
+            record.get("record_id") not in allowed_cases
+            and record.get("case_fir_number") not in allowed_cases
+        ):
+            raise HTTPException(status_code=404, detail="Request not found")
+
+    return record
 
 
 @router.post("/sanitize", response_model=PiiSanitizationResponse)
-def sanitize_pii_endpoint(payload: PiiSanitizationRequest):
-    """
-    Sanitizes citizen PII in text or JSON objects, masking Aadhaar, PAN,
-    Bank Accounts, Mobile, and Email according to DPDP Act standards.
-    """
+def sanitize_pii_endpoint(
+    payload: PiiSanitizationRequest,
+    principal: Principal = Depends(require_permission("dpdp", "sanitize")),
+):
+    """Sanitize citizen PII for an authenticated permitted role."""
     sanitized_text = None
     sanitized_payload = None
     all_detected = []
@@ -52,19 +85,26 @@ def sanitize_pii_endpoint(payload: PiiSanitizationRequest):
         "sanitized_payload": sanitized_payload,
         "detected_entities": all_detected,
         "redactions_count": len(all_detected),
-        "statutory_compliance": "Complies with Sections 4, 8 & 9 Digital Personal Data Protection Act, 2023 (DPDP Act) PII redaction standards.",
+        "statutory_compliance": (
+            "Complies with Sections 4, 8 & 9 Digital Personal Data "
+            "Protection Act, 2023 (DPDP Act) PII redaction standards."
+        ),
     }
 
 
 @router.post("/pseudonymize-feed", response_model=PseudonymizeFeedResponse)
-def pseudonymize_threat_feed_endpoint(payload: PseudonymizeFeedRequest):
-    """
-    Replaces citizen PII in threat intelligence feeds with persistent pseudonymous tokens
-    (e.g. CITIZEN_REF_8492), preserving relationship topology in the graph without storing plain credentials.
-    """
-    sanitized_items, total_redactions, tokenized_count = dpdp_service.pseudonymize_threat_feed(
-        feed_items=payload.feed_items,
-        salt=payload.pseudonym_salt or dpdp_service.DEFAULT_SALT,
+def pseudonymize_threat_feed_endpoint(
+    payload: PseudonymizeFeedRequest,
+    principal: Principal = Depends(
+        require_permission("dpdp", "pseudonymize")
+    ),
+):
+    """Pseudonymize threat-feed data for an authenticated permitted role."""
+    sanitized_items, total_redactions, tokenized_count = (
+        dpdp_service.pseudonymize_threat_feed(
+            feed_items=payload.feed_items,
+            salt=payload.pseudonym_salt or dpdp_service.DEFAULT_SALT,
+        )
     )
 
     return {
@@ -72,76 +112,150 @@ def pseudonymize_threat_feed_endpoint(payload: PseudonymizeFeedRequest):
         "total_redactions": total_redactions,
         "entities_tokenized": tokenized_count,
         "graph_topology_preserved": True,
-        "statutory_compliance": "DPDP Act 2023 § 8(5) Pseudonymized Threat Sharing Format",
+        "statutory_compliance": (
+            "DPDP Act 2023 § 8(5) Pseudonymized Threat Sharing Format"
+        ),
     }
 
 
-@router.post("/unmask-request", response_model=UnmaskRequestRecord, status_code=201)
-def submit_unmask_request_endpoint(payload: UnmaskRequestCreate, request: Request):
-    """
-    Submits a role-audited Unmask Identity request for court-mandated investigations.
-    Requires FIR number, statutory legal basis, and detailed justification.
-    """
-    client_ip = request.client.host if request.client else "127.0.0.1"
-    return dpdp_service.submit_unmask_request(payload.model_dump(), client_ip=client_ip)
+@router.post(
+    "/unmask-request",
+    response_model=UnmaskRequestRecord,
+    status_code=status.HTTP_201_CREATED,
+)
+def submit_unmask_request_endpoint(
+    payload: UnmaskRequestCreate,
+    request: Request,
+    principal: Principal = Depends(
+        require_permission("dpdp", "request_unmask")
+    ),
+):
+    """Submit an unmask request using the authenticated officer identity."""
+
+    if principal.role != "admin":
+        if (
+            payload.record_id not in principal.case_ids
+            and payload.case_fir_number not in principal.case_ids
+        ):
+            raise HTTPException(status_code=404, detail="Case not found")
+
+    # Never trust badge IDs, names, or roles supplied by the client.
+    request_data = payload.model_dump()
+    request_data.update(
+        requester_badge_id=principal.subject,
+        requester_name=principal.subject,
+        requester_role=principal.role.upper(),
+    )
+
+    return dpdp_service.submit_unmask_request(
+        request_data,
+        client_ip=_client_ip(request),
+    )
 
 
-@router.get("/unmask-requests", response_model=list[UnmaskRequestRecord])
+@router.get(
+    "/unmask-requests",
+    response_model=list[UnmaskRequestRecord],
+)
 def list_unmask_requests_endpoint(
     case_id: Optional[str] = None,
-    status: Optional[str] = None,
+    request_status: Optional[str] = Query(default=None, alias="status"),
+    principal: Principal = Depends(
+        require_permission("dpdp", "list_unmask")
+    ),
 ):
-    """Lists unmask requests with optional case and status filters."""
-    safe_case = case_id if isinstance(case_id, str) else None
-    safe_status = status if isinstance(status, str) else None
-    return dpdp_service.list_unmask_requests(case_id=safe_case, status=safe_status)
+    """List only unmask requests within the authenticated user's scope."""
+
+    records = dpdp_service.list_unmask_requests(
+        case_id=case_id,
+        status=request_status,
+    )
+
+    if principal.role == "admin":
+        return records
+
+    return [
+        record
+        for record in records
+        if (
+            record.get("record_id") in principal.case_ids
+            or record.get("case_fir_number") in principal.case_ids
+        )
+    ]
 
 
 @router.post("/unmask-review", response_model=UnmaskRequestRecord)
-def review_unmask_request_endpoint(payload: UnmaskReviewAction, request: Request):
-    """
-    Supervisory approval or rejection of an unmask request.
-    Enforces dual-officer authorization (supervisor cannot be the same officer as requester).
-    """
-    client_ip = request.client.host if request.client else "127.0.0.1"
+def review_unmask_request_endpoint(
+    payload: UnmaskApprovalRequest,
+    request: Request,
+    principal: Principal = Depends(
+        require_permission("dpdp", "review_unmask")
+    ),
+):
+    """Allow an authorised supervisor to review an in-scope request."""
+
+    _get_scoped_request(payload.request_id, principal)
+
     try:
         return dpdp_service.review_unmask_request(
             request_id=payload.request_id,
             action=payload.action,
-            supervisor_badge_id=payload.supervisor_badge_id,
-            supervisor_name=payload.supervisor_name,
+            # Authenticated identity replaces client-supplied identity.
+            supervisor_badge_id=principal.subject,
+            supervisor_name=principal.subject,
             approval_notes=payload.approval_notes,
-            client_ip=client_ip,
+            client_ip=_client_ip(request),
         )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
 
 
 @router.post("/unmask-reveal", response_model=UnmaskedValueResponse)
 def reveal_unmasked_value_endpoint(
     request_id: str = Query(..., description="Approved Unmask Request ID"),
-    requester_badge_id: str = Query("OFF-IO-4412", description="Investigating officer badge ID"),
     request: Request = None,
+    principal: Principal = Depends(
+        require_permission("dpdp", "reveal")
+    ),
 ):
-    """
-    Access-controlled reveal endpoint: provides time-bounded unmasked identity
-    under active supervisory lease, appending an immutable audit trail entry.
-    """
-    client_ip = request.client.host if (request and request.client) else "127.0.0.1"
+    """Reveal an approved value using the authenticated requester identity."""
+
+    _get_scoped_request(request_id, principal)
+
     try:
-        safe_req_id = request_id if isinstance(request_id, str) else "UNMASK-REQ-2026-0001"
-        safe_badge = requester_badge_id if isinstance(requester_badge_id, str) else "OFF-IO-4412"
         return dpdp_service.reveal_unmasked_value(
-            request_id=safe_req_id,
-            requester_badge_id=safe_badge,
-            client_ip=client_ip,
+            request_id=request_id,
+            requester_badge_id=principal.subject,
+            client_ip=_client_ip(request) if request else "127.0.0.1",
         )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(exc),
+        )
 
 
-@router.get("/audit-trail", response_model=list[DpdpAuditLogEntry])
-def get_dpdp_audit_trail_endpoint():
-    """Returns immutable DPDP access and sanitization audit trail logs."""
-    return dpdp_service.get_dpdp_audit_trail()
+@router.get(
+    "/audit-trail",
+    response_model=list[DpdpAuditLogEntry],
+)
+def get_dpdp_audit_trail_endpoint(
+    principal: Principal = Depends(
+        require_permission("dpdp", "read_audit")
+    ),
+):
+    """Return audit events restricted to the authenticated user's scope."""
 
+    records = dpdp_service.get_dpdp_audit_trail()
+
+    if principal.role == "admin":
+        return records
+
+    return [
+        record
+        for record in records
+        if record.get("record_id") in principal.case_ids
+    ]
