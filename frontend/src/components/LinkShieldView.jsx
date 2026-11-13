@@ -9,11 +9,11 @@ export default function LinkShieldView() {
   const analysis = useMemo(() => inspectURL(url), [url]);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6">
-        <div className="text-xs font-mono uppercase tracking-[0.3em] text-[var(--saffron)]">LinkShield</div>
-        <h2 className="font-display text-3xl font-semibold text-[var(--ink)]">Fake website and URL inspector</h2>
-        <p className="mt-2 max-w-2xl text-sm text-[var(--ink-text)]/70">Check suspicious links for typosquatting, HTTPS issues, and brand impersonation patterns before you click.</p>
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-10 space-y-6 sm:space-y-8 w-full">
+      <div className="space-y-2">
+        <div className="text-xs font-mono uppercase tracking-[0.25em] font-semibold text-[var(--saffron)]">LinkShield</div>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--ink)]">Fake website and URL inspector</h1>
+        <p className="max-w-2xl text-xs sm:text-sm text-[var(--ink-text)]/70 leading-relaxed">Check suspicious links for typosquatting, HTTPS issues, and brand impersonation patterns before you click.</p>
       </div>
       <CyberFeatureCard eyebrow="Open-link check" title="Inspect a suspicious URL" description="This doesn’t fetch the site itself; it checks the URL structure and known phishing indicators.">
         <input value={url} onChange={(e) => setUrl(e.target.value)} className="w-full rounded-2xl border border-[var(--paper-line)] p-3 text-sm" />

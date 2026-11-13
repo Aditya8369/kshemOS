@@ -76,10 +76,42 @@ body {
   animation: fadeUp 700ms ease-out both;
 }
 
+/* Visible high-contrast focus rings for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--saffron) !important;
+  outline-offset: 2px !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.001ms !important;
-    transition-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      animation-delay: 0ms !important;
+      transition-duration: 0.001ms !important;
+      transition-delay: 0ms !important;
+      scroll-behavior: auto !important;
+    }
+
+    .animate-float-soft,
+    .animate-drift-slow,
+    .animate-glow-pulse,
+    .animate-fade-up {
+      animation: none !important;
+      transform: none !important;
+    }
+
+    .animate-fade-up {
+      opacity: 1 !important;
+    }
+  }
   }
 }
 

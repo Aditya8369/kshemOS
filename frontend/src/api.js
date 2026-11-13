@@ -2,7 +2,6 @@ import emailjs from '@emailjs/browser';
 
 import {
   analyzeScamTranscript as analyzeLocally,
-  scanCurrencyImageLocally,
   askCitizenAssistantLocally,
   submitCitizenReportLocally,
   getCaseSummaryLocally,
@@ -10,6 +9,11 @@ import {
 } from './ruleEngine.js';
 
 import { recordIncident } from './incidentStore.js';
+
+// Money-trail analysis and offline fallback store
+import { defaultMoneyTrailStore } from './moneyTrailStore.js';
+export { MONEY_TRAIL_CHANGED_EVENT } from './moneyTrailStore.js';
+export { defaultMoneyTrailStore } from './moneyTrailStore.js';
 
 import { scanQRCode } from './cyberFeatures/qrGuardian.js';
 import { inspectURL } from './cyberFeatures/linkShield.js';
@@ -121,8 +125,24 @@ export async function analyzeScamTranscript({
   return analyzeLocally(transcript, callerClaimsToBe);
 }
 
+// Currency image scanning - backend API
 export async function scanCurrencyImage(file) {
-  return scanCurrencyImageLocally(file);
+  if (!file) {
+    throw new Error('Please select an image first.');
+  }
+
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await fetch(
+    `${BASE_URL.replace(/\/+$/, '')}/api/currency/scan`,
+    {
+      method: 'POST',
+      body: formData,
+    }
+  );
+
+  return handle(response);
 }
 
 export async function lookupFraudRing(accountId) {
@@ -249,6 +269,7 @@ export async function verifyFraudGraphReviewIntegrity(
 export async function exportFraudGraphReviews(analystToken) {
   return graphReviewRequest('/reviews/export', analystToken);
 }
+
 export async function askCitizenAssistant({ question, language }) {
   return {
     answer: askCitizenAssistantLocally(question, language),
@@ -262,8 +283,6 @@ export async function askCitizenAssistant({ question, language }) {
 export async function submitCitizenReport(payload) {
   const report = submitCitizenReportLocally(payload);
 
-  // Every report becomes a live incident on the officer dashboard.
-  // A failure here must not lose the citizen's acknowledgement.
   try {
     const { incident, source } = await recordIncident({
       ...payload,
@@ -511,7 +530,6 @@ export {
   defaultMutualAidStore,
 } from './mutualAidStore.js';
 
-
 // ======================================================
 // MULTILINGUAL SPEECH RECOGNITION & REGIONAL ASR APIs
 // ======================================================
@@ -529,6 +547,7 @@ export {
   MULTILINGUAL_SAMPLES,
   MULTILINGUAL_SCAM_LEXICON,
 } from './multilingualSpeechStore.js';
+
 // CONSENT-BASED LIVE SCAM-CALL TRANSCRIPTION & RISK ALERTS
 // ======================================================
 
@@ -546,6 +565,7 @@ export {
   OFFICIAL_HELPLINES,
   SAMPLE_CALL_SIMULATIONS,
 } from './liveCallSafetyStore.js';
+
 // ======================================================
 // PUBLIC ADVISORY & EMERGENCY BROADCAST APIs
 // ======================================================
@@ -567,6 +587,7 @@ export {
   AdvisoryBroadcastStore,
   defaultBroadcastStore,
 } from './advisoryBroadcastStore.js';
+
 // ======================================================
 // AI TELEPHONY HONEYPOT & CALL-PATTERN TRIANGULATION APIs
 // ======================================================
@@ -585,6 +606,7 @@ export {
   KNOWN_SYNDICATES_DB,
   DEFAULT_SEED_SESSIONS,
 } from './telephonyHoneypotStore.js';
+
 // ======================================================
 // PREDICTIVE SPATIAL INTELLIGENCE & THREAT HEATMAP APIs
 // ======================================================
@@ -638,6 +660,7 @@ export {
   EVIDENCE_UPLOAD_LINKS_KEY,
   DEFAULT_SAMPLE_UPLOAD_LINKS,
 } from './evidenceStore.js';
+
 // ======================================================
 // INCIDENT NOTIFICATION & OFFICER ESCALATION APIs
 // ======================================================
@@ -649,7 +672,6 @@ export {
   JURISDICTION_REGION_MAP,
 } from './incidentNotificationStore.js';
 
-// Fetch notification audit history and delivery statistics
 export async function fetchIncidentNotificationsApi() {
   const state = defaultIncidentNotificationStore.getState();
 
@@ -659,12 +681,10 @@ export async function fetchIncidentNotificationsApi() {
   };
 }
 
-// Fetch the officer directory
 export async function fetchNotificationDirectoryApi() {
   return defaultIncidentNotificationStore.getState().officers;
 }
 
-// Update an officer's notification preferences
 export async function updateOfficerPreferencesApi(officerId, preferences) {
   return defaultIncidentNotificationStore.updateOfficerPreferences(
     officerId,
@@ -672,7 +692,6 @@ export async function updateOfficerPreferencesApi(officerId, preferences) {
   );
 }
 
-// Retry a failed or pending notification
 export async function retryIncidentNotificationApi(notificationId) {
   try {
     const notification =
@@ -691,7 +710,6 @@ export async function retryIncidentNotificationApi(notificationId) {
   }
 }
 
-// Dispatch incident notifications
 export async function dispatchIncidentNotificationApi(
   incident,
   eventType,
@@ -714,6 +732,7 @@ export async function dispatchIncidentNotificationApi(
     count: notifications.length,
   };
 }
+
 // ======================================================
 // EVIDENCE-GROUNDED OFFICER COPILOT APIs
 // ======================================================
@@ -728,3 +747,486 @@ export {
   submitCopilotFeedbackApi,
   submitCopilotApprovalApi,
 } from './officerCopilotStore.js';
+
+// ======================================================
+// VERIFIED OFFICIAL EMERGENCY & CYBERCRIME CONTACTS API
+// ======================================================
+
+export async function fetchOfficialContactsApi(category = '') {
+  const params = new URLSearchParams();
+
+  if (category) {
+    params.set('category', category);
+  }
+
+  const query = params.toString();
+
+  const response = await fetch(
+    `${BASE_URL.replace(/\/+$/, '')}/api/official-contacts${query ? `?${query}` : ''}`
+  );
+
+  return handle(response);
+}
+
+// ======================================================
+// DPDP ACT REDACTION & IDENTITY MASKING PIPELINE APIs
+// ======================================================
+
+export {
+  maskAadhaar,
+  maskPan,
+  maskBankAccount,
+  maskMobile,
+  maskEmail,
+  generatePersistentToken,
+  sanitizeTextLocally,
+  pseudonymizeThreatFeedLocally,
+  listUnmaskRequestsLocally,
+  submitUnmaskRequestLocally,
+  reviewUnmaskRequestLocally,
+  revealUnmaskedValueLocally,
+  getDpdpAuditTrailLocally,
+  DEMO_UNMASK_REQUESTS,
+  sanitizePiiApi,
+  pseudonymizeThreatFeedApi,
+  submitUnmaskRequestApi,
+  listUnmaskRequestsApi,
+  reviewUnmaskRequestApi,
+  revealUnmaskedValueApi,
+  fetchDpdpAuditTrailApi,
+} from './dpdpSanitizationStore.js';
+
+// ======================================================
+// SECTION 63 BSA / 65B IEA ELECTRONIC EVIDENCE AFFIDAVIT COMPILER APIs
+// ======================================================
+
+export {
+  OFFICIAL_NTP_RECORD,
+  HARDWARE_SIGNATURE_PROFILES,
+  DEMO_CASE_PRESETS,
+  compileSection63AffidavitLocally,
+  compileSection63AffidavitApi,
+  fetchNtpStatusApi,
+  fetchHardwareProfilesApi,
+  getAffidavitPreviewHtmlUrl,
+} from './evidenceAffidavitStore.js';
+
+// ======================================================
+// SIM BOX & SPOOFED CLI DETECTION ENGINE APIs
+// ======================================================
+
+export {
+  MANDATORY_WARNING_BANNER,
+  TRAI_STD_CIRCLES,
+  OFFICIAL_POLICE_DIRECTORIES,
+  DEMO_CALL_PRESETS,
+  normalizeCliNumber,
+  verifyTelephonyRouteLocally,
+  verifyCliRouteApi,
+  fetchTelecomTriageFeedApi,
+  updateTriageIncidentActionApi,
+  fetchTelecomTriageSummaryApi,
+  fetchTraiDirectoryApi,
+} from './cliSpoofStore.js';
+
+// ======================================================
+// SYNDICATE GROUP PARSER & APK TRIAGE APIs
+// ======================================================
+
+export {
+  parseChatLocally,
+  analyzeApkLocally,
+  parseSyndicateChatApi,
+  analyzeApkApi,
+  uploadApkApi,
+  fetchSyndicateCorrelationsApi,
+  fetchSyndicateStatsApi,
+  fetchSyndicateChatsApi,
+  fetchSyndicateApksApi,
+  SAMPLE_CHAT_WHATSAPP,
+  SAMPLE_CHAT_TELEGRAM,
+  SAMPLE_APK_PAYLOAD,
+  SYNDICATE_COUNTRY_CODES,
+  DANGEROUS_PERMISSIONS_MAP,
+} from './syndicateTriageStore.js';
+
+// ======================================================
+// AUTOMATED UPI MULE ACCOUNT FREEZE DISPATCH (CFCFRMS / 1930)
+// ======================================================
+
+export {
+  MuleFreezeStore,
+  defaultMuleFreezeStore,
+  MULE_FREEZE_STORAGE_KEY,
+  MULE_FREEZE_CHANGED_EVENT,
+  DEFAULT_SAMPLE_FREEZE_REQUESTS,
+  validateVpa,
+  validateUtr,
+  validateIfsc,
+  parseFinancialEntities,
+  evaluateMuleRisk,
+  generateSection102NoticeText,
+  generateCfcfrmsPayload,
+} from './muleFreezeStore.js';
+
+import {
+  defaultMuleFreezeStore,
+  parseFinancialEntities as parseFinancialEntitiesLocal,
+  evaluateMuleRisk as evaluateMuleRiskLocal,
+} from './muleFreezeStore.js';
+
+export async function parseFinancialEntitiesApi(text) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/parse`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local
+  }
+  return parseFinancialEntitiesLocal(text);
+}
+
+export async function evaluateMuleFreezeApi(data) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/evaluate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local
+  }
+  return evaluateMuleRiskLocal(data);
+}
+
+export async function dispatchMuleFreezeApi(data) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/dispatch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMuleFreezeStore.dispatchFreeze(data);
+}
+
+export async function fetchMuleFreezeRequestsApi(params = {}) {
+  try {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/requests${query ? `?${query}` : ''}`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMuleFreezeStore.getRequests(params);
+}
+
+export async function fetchMuleFreezeRequestApi(freezeId) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/requests/${freezeId}`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMuleFreezeStore.getRequest(freezeId);
+}
+
+export async function acknowledgeMuleFreezeApi(freezeId, bankNodalRef, freezeOutcome = 'FROZEN', notes = '') {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/requests/${freezeId}/acknowledge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bank_nodal_ref: bankNodalRef, freeze_outcome: freezeOutcome, notes }),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMuleFreezeStore.recordBankAcknowledgment(freezeId, bankNodalRef, freezeOutcome, notes);
+}
+
+export async function revokeMuleFreezeApi(freezeId, revokingOfficerBadgeId, revocationReason) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/requests/${freezeId}/revoke`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        revoking_officer_badge_id: revokingOfficerBadgeId,
+        revocation_reason: revocationReason,
+      }),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMuleFreezeStore.revokeFreeze(freezeId, revokingOfficerBadgeId, revocationReason);
+}
+
+export async function fetchMuleFreezeStatsApi() {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/mule-freeze/stats`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return defaultMuleFreezeStore.getStats();
+}
+
+// ============================================================
+// FIELD SEIZURE & DEVICE TRIAGE COMPANION APIS
+// ============================================================
+
+export async function fetchFieldSeizuresApi(filters = {}) {
+  try {
+    const params = new URLSearchParams();
+    if (filters.case_id) params.set('case_id', filters.case_id);
+    if (filters.sync_status) params.set('sync_status', filters.sync_status);
+    if (filters.tamper_flag !== undefined) params.set('tamper_flag', String(filters.tamper_flag));
+
+    const url = `${BASE_URL.replace(/\/+$/, '')}/api/field-seizure/records${params.toString() ? `?${params.toString()}` : ''}`;
+    const res = await fetch(url);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return null;
+}
+
+export async function fetchFieldSeizureByIdApi(seizureId) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/field-seizure/records/${seizureId}`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return null;
+}
+
+export async function createFieldSeizureApi(seizureData) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/field-seizure/records`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(seizureData),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback handled by store
+  }
+  return null;
+}
+
+export async function syncFieldSeizuresApi(records, syncedByBadge = 'OFF-FIELD-SYNC') {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/field-seizure/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        records,
+        sync_source: 'kshemos_pwa_companion',
+        synced_by_badge: syncedByBadge,
+      }),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback handled by store
+  }
+  return null;
+}
+
+export async function verifyCentralIntakeApi(intakeData) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/field-seizure/verify-intake`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(intakeData),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback handled by store
+  }
+  return null;
+}
+
+export async function fetchFieldSeizureStatsApi() {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/field-seizure/stats`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback handled by store
+  }
+  return null;
+}
+
+// ============================================================
+// EMERGENCY FINANCIAL KILL-SWITCH & AADHAAR LOCK APIS
+// ============================================================
+
+export async function fetchEmergencyBanksApi() {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/emergency-killswitch/banks`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return null;
+}
+
+export async function fetchEmergencyBankByIdApi(bankId) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/emergency-killswitch/banks/${bankId}`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return null;
+}
+
+export async function fetchAadhaarLockGuideApi() {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/emergency-killswitch/aadhaar-guide`);
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback to local store
+  }
+  return null;
+}
+
+export async function generateEmergencyMitigationReceiptApi(payload) {
+  try {
+    const res = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/emergency-killswitch/generate-receipt`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback handled by store
+  }
+  return null;
+}
+// -----------------------------------------------------------------------------
+// Automated Registrar & Hosting Abuse Takedown Notice Generator
+// -----------------------------------------------------------------------------
+
+export {
+  generateTakedownNoticeApi,
+  listTakedownNoticesApi,
+  getTakedownNoticeApi,
+  updateTakedownStatusApi,
+  checkDomainDnsStatusApi,
+  fetchTakedownStatsApi,
+} from './takedownStore.js';
+// -----------------------------------------------------------------------------
+// Privacy-Preserving Regional Threat Broadcast & Micro-Advisory Mesh
+// -----------------------------------------------------------------------------
+
+export {
+  fetchThreatClustersApi,
+  fetchMicroAdvisoriesApi,
+  commanderSignoffApi,
+  queryPortalMeshBannerApi,
+  fetchThreatMeshStatsApi,
+} from './regionalThreatMeshStore.js';
+
+// -----------------------------------------------------------------------------
+// Voice Deepfake & Synthetic Audio Impersonation Detector
+// -----------------------------------------------------------------------------
+
+export {
+  analyzeVoiceRecordingApi,
+  listVoiceDeepfakeInspectionsApi,
+  getVoiceDeepfakeInspectionApi,
+  fetchVoiceDeepfakeStatsApi,
+} from './voiceDeepfakeStore.js';
+
+// ======================================================
+// SYNDICATE MONEY-TRAIL VISUALIZER APIs
+// ======================================================
+
+export async function fetchMoneyTrailAnalysisApi(caseId = 'CASE-2026-DELHI-01') {
+  const params = new URLSearchParams();
+  if (caseId) params.set('case_id', caseId);
+
+  try {
+    const query = params.toString();
+    const response = await fetch(
+      `${BASE_URL.replace(/\/+$/, '')}/api/money-trail/analysis${query ? `?${query}` : ''}`
+    );
+    return await handle(response);
+  } catch {
+    // Keep the visualizer usable when the API is unavailable.
+    return defaultMoneyTrailStore.getAnalysis(caseId);
+  }
+}
+
+export async function ingestMoneyTrailTransactionsApi(payload = {}) {
+  const caseId = payload.case_id || 'CASE-2026-DELHI-01';
+
+  try {
+    const response = await fetch(
+      `${BASE_URL.replace(/\/+$/, '')}/api/money-trail/ingest`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          case_id: caseId,
+          raw_csv: payload.raw_csv || null,
+          transactions: payload.transactions || null,
+          format: payload.format || 'CSV',
+        }),
+      }
+    );
+    const result = await handle(response);
+
+    // Update the local cache and notify any other open views.
+    if (payload.raw_csv || payload.transactions?.length) {
+      defaultMoneyTrailStore.ingest(caseId, payload.raw_csv, payload.transactions);
+    }
+    return result;
+  } catch {
+    // Offline fallback uses the same parser and reconstruction logic.
+    return defaultMoneyTrailStore.ingest(
+      caseId,
+      payload.raw_csv,
+      payload.transactions
+    );
+  }
+}
+
+export async function fetchSection102ScheduleApi(caseId = 'CASE-2026-DELHI-01') {
+  const params = new URLSearchParams();
+  if (caseId) params.set('case_id', caseId);
+
+  try {
+    const query = params.toString();
+    const response = await fetch(
+      `${BASE_URL.replace(/\/+$/, '')}/api/money-trail/section-102-schedule${query ? `?${query}` : ''}`
+    );
+    return await handle(response);
+  } catch {
+    return defaultMoneyTrailStore.getSection102Schedule(caseId);
+  }
+}
+
+export async function fetchSampleMoneyTrailCsvApi() {
+  try {
+    const response = await fetch(
+      `${BASE_URL.replace(/\/+$/, '')}/api/money-trail/sample-csv`
+    );
+    return await handle(response);
+  } catch {
+    return {
+      format: 'CSV',
+      csv_data: defaultMoneyTrailStore.getSampleCsv(),
+      description: 'Sample transaction data for the Money Trail visualizer.',
+    };
+  }
+}

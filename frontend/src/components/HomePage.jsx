@@ -5,15 +5,15 @@ const secondaryButtonClass =
 
 export default function HomePage({ setActiveView }) {
   return (
-    <div className="relative min-h-[calc(100vh-140px)] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(255,198,77,0.25),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(24,41,75,0.15),_transparent_24%),linear-gradient(135deg,_#ffffff_0%,_#f7f7f3_100%)] px-4 py-8 sm:px-6 sm:py-10 lg:py-12">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+    <div className="relative min-h-[calc(100vh-140px)] overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(255,198,77,0.25),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(24,41,75,0.15),_transparent_24%),linear-gradient(135deg,_#ffffff_0%,_#f7f7f3_100%)] px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12 w-full">
+      <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
         <div className="absolute left-[-8%] top-[-10%] h-40 w-40 rounded-full bg-[var(--saffron)]/20 blur-3xl animate-float-soft" />
         <div className="absolute bottom-[-8%] right-[5%] h-56 w-56 rounded-full bg-[var(--navy)]/10 blur-3xl animate-drift-slow" />
         <div className="hidden sm:block absolute right-[8%] top-[6%] h-3.5 w-3.5 rounded-full bg-[var(--saffron)]/75 animate-glow-pulse" />
         <div className="hidden sm:block absolute right-[4%] bottom-[10%] h-3 w-3 rounded-full bg-[var(--navy)]/60 animate-glow-pulse delay-150" />
       </div>
 
-      <div className="relative mx-auto grid max-w-6xl items-start gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:gap-12">
+      <div className="relative mx-auto grid max-w-7xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
         <div className="space-y-6 sm:space-y-7 animate-fade-up">
           <div className="space-y-4">
             <div className="inline-flex max-w-full items-center rounded-2xl border border-[var(--saffron)]/30 bg-[var(--saffron)]/10 px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.12em] text-[var(--saffron)] sm:rounded-full sm:py-1 sm:text-xs sm:tracking-[0.22em]">
@@ -78,19 +78,34 @@ export default function HomePage({ setActiveView }) {
         </div>
 
         <div className="relative">
-          <div className="pointer-events-none absolute inset-0 rounded-3xl bg-gradient-to-br from-[var(--saffron)]/20 to-transparent blur-2xl" aria-hidden="true" />
-          <div className="relative rounded-3xl border border-[var(--paper-line)] bg-[var(--navy)] p-5 text-white shadow-xl shadow-[var(--navy)]/20 animate-fade-up sm:p-6">
-            <div className="pointer-events-none absolute right-4 top-4 h-10 w-10 rounded-full border border-white/10 bg-white/10" aria-hidden="true" />
+          <div className="pointer-events-none absolute inset-0 rounded-[2rem] bg-gradient-to-br from-[var(--saffron)]/20 to-transparent blur-2xl" aria-hidden="true" />
+          <div className="relative rounded-[2rem] border border-[var(--paper-line)] bg-[var(--navy)] p-5 text-white shadow-2xl shadow-[var(--navy)]/25 animate-fade-up sm:p-6">
+            <div className="absolute right-4 top-4 h-12 w-12 rounded-full border border-white/10 bg-white/10" aria-hidden="true" />
             <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur sm:p-5">
-              <p className="pr-8 font-mono text-[10px] uppercase tracking-[0.28em] text-[var(--saffron)] sm:pr-0 sm:tracking-[0.3em]">Live protection checklist</p>
-              <ul className="mt-3.5 space-y-2.5 text-sm leading-relaxed text-[var(--mist)]">
-                <li className="flex items-start gap-2"><span className="mt-0.5 text-[var(--saffron)]" aria-hidden="true">●</span><span>Pause before sharing OTPs, Aadhaar, or payment details.</span></li>
-                <li className="flex items-start gap-2"><span className="mt-0.5 text-[var(--saffron)]" aria-hidden="true">●</span><span>Verify calls through an official number or trusted channel.</span></li>
-                <li className="flex items-start gap-2"><span className="mt-0.5 text-[var(--saffron)]" aria-hidden="true">●</span><span>Report suspicious activity early to reduce harm.</span></li>
+              <h2 className="font-mono text-xs uppercase tracking-[0.25em] text-[var(--saffron)] font-semibold">Live protection checklist</h2>
+              <ul className="mt-4 space-y-3 text-sm leading-relaxed text-[var(--mist)]">
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--saffron)] text-[var(--ink)]" aria-hidden="true">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                  <span>Pause before sharing OTPs, payment details, or sensitive info.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--saffron)] text-[var(--ink)]" aria-hidden="true">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                  <span>Verify calls through an official number or trusted channel.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--saffron)] text-[var(--ink)]" aria-hidden="true">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </span>
+                  <span>Report suspicious activity early to reduce harm.</span>
+                </li>
               </ul>
-              <div className="mt-4 rounded-xl border border-white/10 bg-gradient-to-br from-white/15 to-white/5 px-4 py-3.5">
-                <div className="text-base font-medium leading-snug text-white/95 sm:text-lg">“A calm check can save a life, a livelihood, and a family’s peace.”</div>
-              </div>
+              <blockquote className="mt-5 rounded-2xl border border-white/10 bg-gradient-to-br from-white/20 to-white/5 p-4">
+                <p className="text-base font-semibold leading-snug text-white/95 sm:text-lg">“A calm check can save a life, a livelihood, and a family’s peace.”</p>
+              </blockquote>
             </div>
           </div>
         </div>

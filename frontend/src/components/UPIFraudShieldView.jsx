@@ -9,11 +9,11 @@ export default function UPIFraudShieldView() {
   const [result, setResult] = useState(null);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6">
-        <div className="text-xs font-mono uppercase tracking-[0.3em] text-[var(--saffron)]">UPI Fraud Shield</div>
-        <h2 className="font-display text-3xl font-semibold text-[var(--ink)]">UPI transaction risk checker</h2>
-        <p className="mt-2 max-w-2xl text-sm text-[var(--ink-text)]/70">Check whether a UPI payment request or transaction looks unusual, especially for odd amounts, app handles, or suspicious reasons.</p>
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-10 space-y-6 sm:space-y-8 w-full">
+      <div className="space-y-2">
+        <div className="text-xs font-mono uppercase tracking-[0.25em] font-semibold text-[var(--saffron)]">UPI Fraud Shield</div>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--ink)]">UPI transaction risk checker</h1>
+        <p className="max-w-2xl text-xs sm:text-sm text-[var(--ink-text)]/70 leading-relaxed">Check whether a UPI payment request or transaction looks unusual, especially for odd amounts, app handles, or suspicious reasons.</p>
       </div>
       <CyberFeatureCard eyebrow="Transaction review" title="Evaluate a UPI payment" description="This flags suspicious UPI handles, large amounts, and high-risk reasons.">
         <input value={upiId} onChange={(e) => setUpiId(e.target.value)} className="w-full rounded-2xl border border-[var(--paper-line)] p-3 text-sm" placeholder="UPI ID" />

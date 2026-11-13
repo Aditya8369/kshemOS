@@ -4,6 +4,8 @@ dist/
 __pycache__/
 *.pyc
 .env
+backend/venv/
 
 # Local response team database
 backend/response_teams.db*
+backend/venv/
