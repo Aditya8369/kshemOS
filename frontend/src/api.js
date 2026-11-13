@@ -589,6 +589,29 @@ export {
 } from './advisoryBroadcastStore.js';
 
 // ======================================================
+// PUBLIC INCIDENT ADVISORY SUBSCRIPTIONS & FEED APIs (ISSUE 43)
+// ======================================================
+
+export {
+  subscribeToAdvisoriesApi,
+  fetchSubscriptionPreferencesApi,
+  updateSubscriptionPreferencesApi,
+  unsubscribeAdvisoriesApi,
+  fetchInAppAdvisoryFeedApi,
+  fetchSubscriberSummaryApi,
+  fetchRestrictedSubscribersApi,
+  dispatchAdvisoryToSubscribersApi,
+  AVAILABLE_ZONES,
+  AVAILABLE_TOPICS,
+  DEFAULT_SEED_SUBSCRIBERS,
+  ADVISORY_SUBSCRIPTION_STORAGE_KEY,
+  ACTIVE_TOKEN_STORAGE_KEY,
+  SUBSCRIPTION_CHANGED_EVENT,
+  AdvisorySubscriptionStore,
+  defaultSubscriptionStore,
+} from './advisorySubscriptionStore.js';
+
+// ======================================================
 // AI TELEPHONY HONEYPOT & CALL-PATTERN TRIANGULATION APIs
 // ======================================================
 

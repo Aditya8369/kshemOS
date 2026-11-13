@@ -6,6 +6,8 @@ import os
 from datetime import datetime, timezone
 from functools import lru_cache
 
+from typing import Optional
+
 from sqlalchemy import BigInteger, DateTime, Integer, JSON, String, create_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
@@ -30,7 +32,7 @@ class IncidentRecord(Base):
     __tablename__ = "incidents"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    report_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    report_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     payload: Mapped[dict] = mapped_column(JSON, nullable=False)
     opened_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
     updated_at: Mapped[int] = mapped_column(BigInteger, nullable=False)

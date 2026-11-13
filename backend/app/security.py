@@ -1,4 +1,5 @@
-﻿"""Central role, resource-scope, and field-level access controls."""
+from __future__ import annotations
+"""Central role, resource-scope, and field-level access controls."""
 
 import json
 import os
