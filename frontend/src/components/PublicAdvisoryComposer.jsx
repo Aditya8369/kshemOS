@@ -15,6 +15,7 @@ import {
   MessageSquare,
   Smartphone,
   Bell,
+  Mail,
   Globe,
   RefreshCw,
   Plus,
@@ -54,7 +55,7 @@ const STATUS_BADGES = {
   rejected: 'bg-rose-500/20 text-rose-300 border-rose-500/40',
 };
 
-export default function PublicAdvisoryComposer() {
+export default function PublicAdvisoryComposer({ setActiveView }) {
   const [advisories, setAdvisories] = useState([]);
   const [selectedAdvisory, setSelectedAdvisory] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
@@ -299,7 +300,18 @@ export default function PublicAdvisoryComposer() {
           </div>
 
           <div className="flex items-center gap-2">
+            {setActiveView && (
+              <button
+                type="button"
+                onClick={() => setActiveView('advisory-subscriptions')}
+                className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-500/20 border border-amber-500/40 text-amber-300 hover:bg-amber-500/30 transition flex items-center gap-1.5"
+              >
+                <Mail size={14} />
+                <span>Subscriber Reach</span>
+              </button>
+            )}
             <button
+              type="button"
               onClick={() => setShowPreview(!showPreview)}
               className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/10 border border-white/20 hover:bg-white/20 transition flex items-center gap-1.5"
             >

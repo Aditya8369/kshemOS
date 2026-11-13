@@ -282,6 +282,11 @@ export default function Shell({
                   dotColor: 'bg-indigo-500',
                 },
                 {
+                  key: 'advisory-subscriptions',
+                  label: 'Advisory Subscriptions',
+                  dotColor: 'bg-amber-600',
+                },
+                {
                   key: 'toolbox',
                   label: 'Cyber Toolbox',
                 },

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Baseline incident similarity matching for analyst review.
 
 Limitations:

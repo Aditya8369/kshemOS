@@ -97,6 +97,7 @@ import TakedownNoticeGeneratorView from './components/TakedownNoticeGeneratorVie
 import FieldSeizureCompanionView from './components/evidence/FieldSeizureCompanionView';
 import EmergencyKillSwitchView from './components/EmergencyKillSwitchView';
 import VoiceDeepfakeDetectorView from './components/VoiceDeepfakeDetectorView';
+import AdvisorySubscriptionView from './components/AdvisorySubscriptionView';
 
 export default function App() {
   const [portal, setPortal] = useState('citizen');
@@ -187,7 +188,8 @@ export default function App() {
     if (activeView === 'scam-resilience-assessment') return <ScamResilienceAssessmentView />;
     if (activeView === 'cyber-preparedness-report') return <CyberPreparednessReportView />;
     if (activeView === 'digital-trust-score') return <DigitalTrustScoreView />;
-    if (activeView === 'advisory') return <PublicAdvisoryComposer />;
+    if (activeView === 'advisory') return <PublicAdvisoryComposer setActiveView={setActiveView} />;
+    if (activeView === 'advisory-subscriptions') return <AdvisorySubscriptionView setActiveView={setActiveView} />;
     if (activeView === 'multilingual-speech') return <MultilingualSpeechSafetyView />;
     if (activeView === 'live-call-safety') return <LiveCallSafetyView />;
     if (activeView === 'incident-notifications') return <IncidentNotificationConsole />;
