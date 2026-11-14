@@ -10,7 +10,7 @@ Implements:
 from __future__ import annotations
 import math
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional
 from app.models import (
     PerimeterTargeting,
@@ -219,6 +219,7 @@ class EmergencyBroadcastEngine:
         telemetry.delivery_rate_pct = 98.2
         telemetry.read_rate_pct = 82.6
 
+        exp_time = (datetime.now(timezone.utc) + timedelta(hours=48)).isoformat()
         self.advisories[sample_id] = {
             "id": sample_id,
             "title": "CRITICAL SIREN: Fake CBI/ED Digital Arrest Syndicate Active in Central Zone",
@@ -230,6 +231,10 @@ class EmergencyBroadcastEngine:
             "status": "published",
             "created_at": "2026-11-03T09:10:00Z",
             "updated_at": now,
+            "source": "Central Cyber Cell Desk, Barakhamba Road",
+            "issued_at": "2026-11-03T09:19:00Z",
+            "expires_at": exp_time,
+            "is_expired": False,
             "targeting": targeting.model_dump(),
             "channels": channels.model_dump(),
             "dual_auth": dual_auth.model_dump(),
@@ -454,6 +459,10 @@ class EmergencyBroadcastEngine:
         initial_status = "pending_second_authorization" if req_dual else "approved"
         telemetry = self.compute_initial_telemetry(targeting, channels)
 
+        exp_hours = getattr(payload, "expires_in_hours", 48) or 48
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=exp_hours)).isoformat()
+        source = getattr(payload, "source", None) or targeting.primary_station or "Cyber Public Safety Command, New Delhi"
+
         record = {
             "id": advisory_id,
             "title": payload.title,
@@ -465,6 +474,10 @@ class EmergencyBroadcastEngine:
             "status": "draft",
             "created_at": now,
             "updated_at": now,
+            "source": source,
+            "issued_at": None,
+            "expires_at": expires_at,
+            "is_expired": False,
             "targeting": targeting.model_dump(),
             "channels": channels.model_dump(),
             "dual_auth": dual_auth.model_dump(),
@@ -558,7 +571,8 @@ class EmergencyBroadcastEngine:
                 "Commander Guardrail Violation: Broadcast requires dual-authorization before live dispatch to prevent mass panic."
             )
 
-        now = datetime.now(timezone.utc).isoformat()
+        now_dt = datetime.now(timezone.utc)
+        now = now_dt.isoformat()
         targeting = PerimeterTargeting(**advisory["targeting"])
         channels = ChannelConfig(**advisory["channels"])
         telemetry = self.compute_initial_telemetry(targeting, channels)
@@ -585,6 +599,13 @@ class EmergencyBroadcastEngine:
 
         advisory["status"] = "published"
         advisory["updated_at"] = now
+        if not advisory.get("issued_at"):
+            advisory["issued_at"] = now
+        if not advisory.get("expires_at"):
+            advisory["expires_at"] = (now_dt + timedelta(hours=48)).isoformat()
+        if not advisory.get("source"):
+            advisory["source"] = targeting.primary_station or "Cyber Public Safety Command, New Delhi"
+        advisory["is_expired"] = False
         advisory["delivery_status"] = {"sent": deliv, "pending": 0, "failed": failed}
         advisory["telemetry"] = telemetry.model_dump()
 
@@ -594,6 +615,18 @@ class EmergencyBroadcastEngine:
             "timestamp": now,
             "details": f"Simultaneous emergency broadcast dispatched to {', '.join(enabled_names)} ({deliv:,} verified deliveries).",
         })
+
+        # Trigger public email advisory subscriber notification dispatch
+        try:
+            from app.services.advisory_subscriptions import dispatch_advisory_to_subscribers
+            sub_dispatch = dispatch_advisory_to_subscribers(advisory)
+            advisory["audit_trail"].append({
+                "action": "PUBLIC_SUBSCRIBERS_NOTIFIED",
+                "timestamp": now,
+                "details": f"Dispatched alerts to {sub_dispatch.get('sent_count', 0)} public email subscribers ({sub_dispatch.get('duplicate_prevented_count', 0)} duplicates prevented).",
+            })
+        except Exception:
+            pass
 
         return AdvisoryResponse(**advisory)
 

@@ -3,7 +3,7 @@ Pydantic models shared across KshemOS backend routers.
 """
 from __future__ import annotations
 from typing import Any, Dict, List, Literal, Optional
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 from datetime import datetime
 
 # ---------- Scam / Digital Arrest Agent ----------
@@ -524,6 +524,8 @@ class AdvisoryCreate(BaseModel):
     channels: Optional[ChannelConfig] = Field(default_factory=ChannelConfig)
     created_by_badge: Optional[str] = Field("BADGE-CMD-701")
     created_by_name: Optional[str] = Field("Commander Rajesh Varma")
+    source: Optional[str] = Field("Cyber Public Safety Command, New Delhi")
+    expires_in_hours: Optional[int] = Field(48, description="Validity duration before expiration in hours")
 
 
 class AdvisoryStatusUpdate(BaseModel):
@@ -594,6 +596,10 @@ class AdvisoryResponse(BaseModel):
     status: str = "draft"
     created_at: str
     updated_at: str
+    source: Optional[str] = "Cyber Public Safety Command, New Delhi"
+    issued_at: Optional[str] = None
+    expires_at: Optional[str] = None
+    is_expired: bool = False
     targeting: PerimeterTargeting = Field(default_factory=PerimeterTargeting)
     channels: ChannelConfig = Field(default_factory=ChannelConfig)
     dual_auth: DualAuthorization = Field(default_factory=DualAuthorization)
@@ -602,6 +608,103 @@ class AdvisoryResponse(BaseModel):
     )
     telemetry: DeliveryTelemetry = Field(default_factory=DeliveryTelemetry)
     audit_trail: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+# ============================================================
+# PUBLIC INCIDENT ADVISORY SUBSCRIPTIONS & PREFERENCES (ISSUE 43)
+# ============================================================
+
+class AdvisorySubscriptionCreate(BaseModel):
+    email: EmailStr = Field(..., description="Citizen email address for advisory bulletins")
+    areas: List[str] = Field(default_factory=lambda: ["All"], description="Selected districts, regions, or service areas")
+    topics: List[str] = Field(default_factory=lambda: ["All"], description="Selected alert categories or topics")
+    channels: List[str] = Field(default_factory=lambda: ["email", "in_app"], description="Delivery channels: email, in_app")
+    consent_given: bool = Field(..., description="Explicit consent to receive verified law enforcement public safety alerts")
+
+
+class AdvisoryPreferenceUpdate(BaseModel):
+    areas: Optional[List[str]] = Field(None, description="Updated subscribed areas or districts")
+    topics: Optional[List[str]] = Field(None, description="Updated subscribed topics")
+    channels: Optional[List[str]] = Field(None, description="Updated delivery channels")
+    is_active: Optional[bool] = Field(None, description="Subscription active state (False to unsubscribe)")
+
+
+class AdvisorySubscriptionResponse(BaseModel):
+    id: str
+    email: str
+    areas: List[str]
+    topics: List[str]
+    channels: List[str]
+    is_active: bool
+    consent_given: bool
+    consent_timestamp: str
+    management_token: str
+    created_at: str
+    updated_at: str
+    unsubscribed_at: Optional[str] = None
+
+
+class PublicSubscriberSummary(BaseModel):
+    total_active_subscribers: int
+    total_unsubscribed: int
+    by_channel: Dict[str, int]
+    by_area: Dict[str, int]
+    by_topic: Dict[str, int]
+
+
+class AdvisoryNotificationDispatchRecord(BaseModel):
+    notification_id: str
+    advisory_id: str
+    subscription_id: str
+    recipient_email: str
+    recipient_masked_email: str
+    channel: str
+    delivery_status: str  # "delivered", "duplicate_suppressed", "failed", "unsubscribed_suppressed"
+    idempotency_key: str
+    subject: str
+    body_text: str
+    body_html: str
+    source: str
+    issued_at: str
+    expires_at: str
+    unsubscribe_link: str
+    preference_management_link: str
+    dispatched_at: str
+    attempt_count: int = 1
+    error: Optional[str] = None
+
+
+class AdvisoryDispatchSummary(BaseModel):
+    advisory_id: str
+    advisory_title: str
+    status: str
+    source: str
+    issued_at: Optional[str]
+    expires_at: Optional[str]
+    is_expired: bool
+    eligible_subscribers_count: int
+    sent_count: int
+    duplicate_prevented_count: int
+    suppressed_count: int
+    dispatches: List[AdvisoryNotificationDispatchRecord]
+
+
+class InAppAdvisoryFeedItem(BaseModel):
+    advisory_id: str
+    title: str
+    description: str
+    severity: str
+    affected_location: str
+    service_area_id: Optional[str] = None
+    target_audience: str
+    template_type: Optional[str] = None
+    source: str
+    status: str
+    issued_at: str
+    expires_at: str
+    is_expired: bool
+    action_checklist: List[str] = Field(default_factory=list)
+
 
 
 # ---------- Automated Chain of Custody & Evidence Vault ----------
@@ -2211,63 +2314,6 @@ class EmergencyMitigationReceipt(BaseModel):
 # SYNDICATE MULE RING MONEY-TRAIL & FLOW HOP RECONSTRUCTOR
 # ============================================================
 
-# ---------- Privacy-Preserving Regional Threat Broadcast & Micro-Advisory Mesh ----------
-
-MicroAdvisoryStatus = Literal[
-    "DRAFTED_PENDING_APPROVAL",
-    "PUBLISHED_ACTIVE",
-    "DISMISSED",
-    "EXPIRED",
-]
-
-
-class RegionalThreatCluster(BaseModel):
-    cluster_id: str = Field(..., description="Unique cluster ID, e.g. CLUST-DELHI-NORTH-01")
-    service_area_id: str = Field(..., description="Target service area ID, e.g. SA-NORTH-01")
-    service_area_name: str = Field(..., description="Metropolitan service area name")
-    police_station_circle: str = Field(..., description="Designated police station jurisdiction")
-    postal_pincodes: List[str] = Field(default_factory=list, description="Target postal pin codes")
-    scam_category: str = Field(..., description="Category: electricity_bill_scam, digital_arrest, etc.")
-    scam_category_label: str = Field(..., description="Human-readable scam label")
-    complaint_count: int = Field(..., ge=3, description="Aggregated report count within 24h window (3+ required)")
-    first_complaint_timestamp: int
-    last_complaint_timestamp: int
-    window_hours: float = Field(..., le=24.0, description="Elapsed hours of cluster window (<= 24.0h)")
-    privacy_guarantee: str = Field(default="K-Anonymity Verified: Zero PII or individual loss figures retained")
-    anonymized_report_refs: List[str] = Field(default_factory=list)
-
-
-class RegionalMicroAdvisory(BaseModel):
-    advisory_id: str = Field(..., description="Unique micro-advisory identifier e.g. ADV-MESH-2026-101")
-    cluster_id: str = Field(..., description="Associated threat cluster reference")
-    title: str = Field(..., description="Headline alert, e.g. 'Notice: Fake electricity bill payment SMS active in North Delhi area.'")
-    summary_guidance: str = Field(..., description="Human-readable plain language advisory guidance")
-    scam_category: str
-    service_area_id: str
-    service_area_name: str
-    police_station_circle: str
-    target_pincodes: List[str]
-    geofence_center: Dict[str, float] = Field(default_factory=lambda: {"lat": 28.6920, "lng": 77.2150})
-    geofence_radius_km: float = Field(default=5.5)
-    complaints_aggregated: int
-    window_hours: float
-    status: MicroAdvisoryStatus = Field(default="DRAFTED_PENDING_APPROVAL")
-    urgency: Literal["low", "medium", "high", "critical"] = "high"
-    action_checklist: List[str] = Field(default_factory=list)
-    drafted_at: int
-    published_at: Optional[int] = None
-    approved_by_commander_badge: Optional[str] = None
-    approved_by_commander_name: Optional[str] = None
-    active_portal_banner_text: str
-
-
-class CommanderSignoffRequest(BaseModel):
-    commander_badge_id: str = Field(default="CMD-DELHI-NORTH", description="Authorizing commander badge")
-    commander_name: str = Field(default="DCP Vikram Malhotra", description="Commanding officer name")
-    action: Literal["approve_publish", "dismiss"] = "approve_publish"
-    notes: Optional[str] = None
-
-
 class MoneyTrailTransaction(BaseModel):
     utr_number: str
     timestamp_iso: str
@@ -2325,19 +2371,6 @@ class SankeyLink(BaseModel):
     value: float
     utr: str
 
-class CitizenMeshAdvisoryQuery(BaseModel):
-    pincode: Optional[str] = None
-    lat: Optional[float] = None
-    lng: Optional[float] = None
-    service_area_id: Optional[str] = None
-
-class RegionalThreatMeshStats(BaseModel):
-    total_active_clusters: int
-    drafted_pending_signoff: int
-    published_active_advisories: int
-    covered_pincodes_count: int
-    total_reports_aggregated: int
-
 
 class SankeyDiagramData(BaseModel):
     nodes: List[SankeyNode]
@@ -2394,7 +2427,6 @@ class MoneyTrailAnalysisResponse(BaseModel):
 
 
 # ---------- Automated Registrar & Hosting Abuse Takedown Notice Generator ----------
-
 
 TakedownLifecycleStatus = Literal[
     "DISPATCHED",
@@ -2472,7 +2504,6 @@ class TakedownNoticeStatusUpdateRequest(BaseModel):
     officer_badge_id: str = Field(default="OFF-DELHI-104")
     notes: Optional[str] = None
 
-
 class TakedownStatsResponse(BaseModel):
     total_notices_dispatched: int
     active_under_review: int
@@ -2482,122 +2513,9 @@ class TakedownStatsResponse(BaseModel):
     average_takedown_time_hours: float
 
 
-class VoiceDeepfakeStatsResponse(BaseModel):
-    total_evaluated: int
-    high_synthetic_detected: int
-    suspicious_detected: int
-    natural_confirmed: int
-    vault_evidence_preserved: int
-
-
-class AcousticAnomalySpan(BaseModel):
-    start_ms: float = Field(..., description="Start offset of acoustic anomaly in milliseconds")
-    end_ms: float = Field(..., description="End offset of acoustic anomaly in milliseconds")
-    anomaly_type: str = Field(..., description="Category of anomaly, e.g. PITCH_FREEZE_FLATLINING, VOCODER_HIGH_FREQ_SMEARING")
-    confidence_score: float = Field(..., ge=0.0, le=1.0, description="Detection confidence for this span")
-    explanation: str = Field(..., description="Forensic acoustic reason for anomaly")
-    severity: Literal["low", "medium", "high", "critical"] = "medium"
-
-
-class SpectralMetrics(BaseModel):
-    jitter_pct: float = Field(..., description="Cycle-to-cycle fundamental frequency perturbation percentage (Normal: 0.5% - 1.2%)")
-    shimmer_pct: float = Field(..., description="Cycle-to-cycle amplitude perturbation percentage (Normal: 1.5% - 3.8%)")
-    hnr_db: float = Field(..., description="Harmonics-to-Noise Ratio in decibels (Normal human voiced: 14 - 24 dB)")
-    spectral_rolloff_hz: float = Field(..., description="High-frequency rolloff / Nyquist attenuation cutoff in Hertz")
-    vocoder_footprint_score: float = Field(..., ge=0.0, le=1.0, description="Neural vocoder checkerboard / transposed-conv artifact likelihood")
-    pitch_stability_index: float = Field(..., ge=0.0, le=1.0, description="Robotic unnatural pitch rigidity index (1.0 = completely frozen F0)")
-
-
-class VoiceDeepfakeInspectionRequest(BaseModel):
-    audio_data: str = Field(..., description="Base64-encoded audio bytes, audio data URI, or sample content")
-    file_name: str = Field(default="voice_evidence.wav", description="File name with extension (.wav, .mp3, .m4a)")
-    duration_seconds: Optional[float] = Field(default=None, description="Optional audio duration in seconds")
-    case_id: Optional[str] = Field(default="CASE-2026-ARREST-VOICE", description="Associated investigation or triage case ID")
-    caller_claimed_identity: Optional[str] = Field(default=None, description="Claimed identity (e.g. Grandson, CBI Officer, Mumbai Police)")
-    scam_context: Optional[str] = Field(default="Digital Arrest / Family Extortion", description="Scenario context")
-    save_to_evidence_vault: bool = Field(default=True, description="Whether to ingest directly into Evidence Vault")
-    officer_badge_id: Optional[str] = Field(default="CITIZEN-SAFETY-PORTAL", description="Reporting citizen or inspecting officer badge ID")
-
-
-class VoiceDeepfakeInspectionResponse(BaseModel):
-    inspection_id: str
-    file_name: str
-    file_sha256: str
-    file_size_bytes: int
-    duration_seconds: float
-    synthetic_probability_score: float = Field(..., ge=0.0, le=1.0, description="Score 0.0 to 1.0 (0=natural, 1=synthetic)")
-    risk_band: Literal["LOW_PROBABILITY_NATURAL", "SUSPICIOUS", "HIGH_PROBABILITY_SYNTHETIC"]
-    verdict_summary: str
-    spectral_metrics: SpectralMetrics
-    anomaly_spans: List[AcousticAnomalySpan]
-    tactical_guidance: str
-    tactical_checklist: List[str]
-    vaulted_evidence_id: Optional[str] = None
-    inspection_timestamp: int
-    caller_claimed_identity: Optional[str] = None
-
-
-class VisualArtifactHallmark(BaseModel):
-    hallmark_type: str = Field(..., description="e.g. virtual_chroma_fringe, perspective_warp, non_standard_stars")
-    severity: str = Field(..., description="critical, high, medium, low")
-    confidence_score: float = Field(..., ge=0.0, le=1.0)
-    title: str
-    description: str
-    bounding_box: Optional[Dict[str, float]] = Field(default=None, description="Normalized coordinates x, y, width, height")
-    regulation_reference: Optional[str] = None
-
-
-class UniformInspectionResult(BaseModel):
-    claimed_agency: str
-    claimed_rank: Optional[str] = None
-    uniform_matches_agency: bool
-    insignia_validity: str = Field(..., description="forged, suspicious, compliant, inconclusive")
-    star_count_discrepancy: Optional[str] = None
-    discrepancies: List[str] = Field(default_factory=list)
-    official_regulation_summary: str
-
-
-class StageUniformInspectionRequest(BaseModel):
-    image_data: str = Field(..., description="Base64 encoded screenshot data or image URL")
-    file_name: str = Field(default="video_call_screenshot.png")
-    claimed_agency: Optional[str] = Field(default="CBI", description="Claimed agency e.g. CBI, Mumbai Police, Delhi Police, Customs, Supreme Court")
-    claimed_officer_name: Optional[str] = Field(default=None, description="Name claimed on video call")
-    case_id: Optional[str] = Field(default=None, description="Associated KshemOS Case ID")
-    save_to_evidence_vault: bool = Field(default=True, description="Automatically preserve in Evidence Vault")
-    notes: Optional[str] = None
-
-
-class StageUniformInspectionResponse(BaseModel):
-    inspection_id: str
-    image_sha256: str
-    is_synthetic_stage: bool
-    stage_forgery_score: float = Field(..., ge=0.0, le=1.0)
-    risk_verdict: str = Field(..., description="CRITICAL_FORGERY_DETECTED, HIGH_RISK_STAGE, SUSPICIOUS, INCONCLUSIVE")
-    detected_hallmarks: List[VisualArtifactHallmark]
-    uniform_evaluation: UniformInspectionResult
-    exif_metadata: Dict[str, Any] = Field(default_factory=dict)
-    statutory_bnss_notice: str
-    vaulted_evidence_id: Optional[str] = None
-    inspection_timestamp: int
-
-
-class UniformRegulationRecord(BaseModel):
-    agency_id: str
-    agency_name: str
-    authorized_attire: str
-    shoulder_rank_insignia: str
-    collar_insignia_rules: str
-    official_id_credential: str
-    common_scam_forgeries: List[str]
-
-
-class StageInspectionStatsResponse(BaseModel):
-    total_inspected: int
-    critical_forgeries_detected: int
-    cbi_impersonations: int
-    police_uniform_forgeries: int
-    vault_evidence_preserved: int
-
+# =============================================================================
+# MULTILINGUAL AUTOMATED VOICE SAFETY HOTLINE MODELS
+# =============================================================================
 
 class VoiceHotlineLanguageInfo(BaseModel):
     code: str = Field(..., description="ISO 639-1 language code e.g. hi, ta, te")
@@ -2654,6 +2572,197 @@ class VoiceHotlineSessionRecord(BaseModel):
     sms_text: Optional[str] = None
     nearest_cyber_desk: Optional[str] = None
     triage_incident_id: Optional[str] = None
+
+
+# ---------- Voice Deepfake & Synthetic Audio Impersonation Detector ----------
+
+class AcousticAnomalySpan(BaseModel):
+    start_ms: float = Field(..., description="Start offset of acoustic anomaly in milliseconds")
+    end_ms: float = Field(..., description="End offset of acoustic anomaly in milliseconds")
+    anomaly_type: str = Field(..., description="Category of anomaly, e.g. PITCH_FREEZE_FLATLINING, VOCODER_HIGH_FREQ_SMEARING")
+    confidence_score: float = Field(..., ge=0.0, le=1.0, description="Detection confidence for this span")
+    explanation: str = Field(..., description="Forensic acoustic reason for anomaly")
+    severity: Literal["low", "medium", "high", "critical"] = "medium"
+
+
+class SpectralMetrics(BaseModel):
+    jitter_pct: float = Field(..., description="Cycle-to-cycle fundamental frequency perturbation percentage (Normal: 0.5% - 1.2%)")
+    shimmer_pct: float = Field(..., description="Cycle-to-cycle amplitude perturbation percentage (Normal: 1.5% - 3.8%)")
+    hnr_db: float = Field(..., description="Harmonics-to-Noise Ratio in decibels (Normal human voiced: 14 - 24 dB)")
+    spectral_rolloff_hz: float = Field(..., description="High-frequency rolloff / Nyquist attenuation cutoff in Hertz")
+    vocoder_footprint_score: float = Field(..., ge=0.0, le=1.0, description="Neural vocoder checkerboard / transposed-conv artifact likelihood")
+    pitch_stability_index: float = Field(..., ge=0.0, le=1.0, description="Robotic unnatural pitch rigidity index (1.0 = completely frozen F0)")
+
+
+class VoiceDeepfakeInspectionRequest(BaseModel):
+    audio_data: str = Field(..., description="Base64-encoded audio bytes, audio data URI, or sample content")
+    file_name: str = Field(default="voice_evidence.wav", description="File name with extension (.wav, .mp3, .m4a)")
+    duration_seconds: Optional[float] = Field(default=None, description="Optional audio duration in seconds")
+    case_id: Optional[str] = Field(default="CASE-2026-ARREST-VOICE", description="Associated investigation or triage case ID")
+    caller_claimed_identity: Optional[str] = Field(default=None, description="Claimed identity (e.g. Grandson, CBI Officer, Mumbai Police)")
+    scam_context: Optional[str] = Field(default="Digital Arrest / Family Extortion", description="Scenario context")
+    save_to_evidence_vault: bool = Field(default=True, description="Whether to ingest directly into Evidence Vault")
+    officer_badge_id: Optional[str] = Field(default="CITIZEN-SAFETY-PORTAL", description="Reporting citizen or inspecting officer badge ID")
+
+
+class VoiceDeepfakeInspectionResponse(BaseModel):
+    inspection_id: str
+    file_name: str
+    file_sha256: str
+    file_size_bytes: int
+    duration_seconds: float
+    synthetic_probability_score: float = Field(..., ge=0.0, le=1.0, description="Score 0.0 to 1.0 (0=natural, 1=synthetic)")
+    risk_band: Literal["LOW_PROBABILITY_NATURAL", "SUSPICIOUS", "HIGH_PROBABILITY_SYNTHETIC"]
+    verdict_summary: str
+    spectral_metrics: SpectralMetrics
+    anomaly_spans: List[AcousticAnomalySpan]
+    tactical_guidance: str
+    tactical_checklist: List[str]
+    vaulted_evidence_id: Optional[str] = None
+    inspection_timestamp: int
+    caller_claimed_identity: Optional[str] = None
+
+
+class VoiceDeepfakeStatsResponse(BaseModel):
+    total_evaluated: int
+    high_synthetic_detected: int
+    suspicious_detected: int
+    natural_confirmed: int
+    vault_evidence_preserved: int
+
+# ---------- Privacy-Preserving Regional Threat Broadcast & Micro-Advisory Mesh ----------
+
+MicroAdvisoryStatus = Literal[
+    "DRAFTED_PENDING_APPROVAL",
+    "PUBLISHED_ACTIVE",
+    "DISMISSED",
+    "EXPIRED",
+]
+
+
+class RegionalThreatCluster(BaseModel):
+    cluster_id: str = Field(..., description="Unique cluster ID, e.g. CLUST-DELHI-NORTH-01")
+    service_area_id: str = Field(..., description="Target service area ID, e.g. SA-NORTH-01")
+    service_area_name: str = Field(..., description="Metropolitan service area name")
+    police_station_circle: str = Field(..., description="Designated police station jurisdiction")
+    postal_pincodes: List[str] = Field(default_factory=list, description="Target postal pin codes")
+    scam_category: str = Field(..., description="Category: electricity_bill_scam, digital_arrest, etc.")
+    scam_category_label: str = Field(..., description="Human-readable scam label")
+    complaint_count: int = Field(..., ge=3, description="Aggregated report count within 24h window (3+ required)")
+    first_complaint_timestamp: int
+    last_complaint_timestamp: int
+    window_hours: float = Field(..., le=24.0, description="Elapsed hours of cluster window (<= 24.0h)")
+    privacy_guarantee: str = Field(default="K-Anonymity Verified: Zero PII or individual loss figures retained")
+    anonymized_report_refs: List[str] = Field(default_factory=list)
+
+
+class RegionalMicroAdvisory(BaseModel):
+    advisory_id: str = Field(..., description="Unique micro-advisory identifier e.g. ADV-MESH-2026-101")
+    cluster_id: str = Field(..., description="Associated threat cluster reference")
+    title: str = Field(..., description="Headline alert, e.g. 'Notice: Fake electricity bill payment SMS active in North Delhi area.'")
+    summary_guidance: str = Field(..., description="Human-readable plain language advisory guidance")
+    scam_category: str
+    service_area_id: str
+    service_area_name: str
+    police_station_circle: str
+    target_pincodes: List[str]
+    geofence_center: Dict[str, float] = Field(default_factory=lambda: {"lat": 28.6920, "lng": 77.2150})
+    geofence_radius_km: float = Field(default=5.5)
+    complaints_aggregated: int
+    window_hours: float
+    status: MicroAdvisoryStatus = Field(default="DRAFTED_PENDING_APPROVAL")
+    urgency: Literal["low", "medium", "high", "critical"] = "high"
+    action_checklist: List[str] = Field(default_factory=list)
+    drafted_at: int
+    published_at: Optional[int] = None
+    approved_by_commander_badge: Optional[str] = None
+    approved_by_commander_name: Optional[str] = None
+    active_portal_banner_text: str
+
+
+class CommanderSignoffRequest(BaseModel):
+    commander_badge_id: str = Field(default="CMD-DELHI-NORTH", description="Authorizing commander badge")
+    commander_name: str = Field(default="DCP Vikram Malhotra", description="Commanding officer name")
+    action: Literal["approve_publish", "dismiss"] = "approve_publish"
+    notes: Optional[str] = None
+
+class CitizenMeshAdvisoryQuery(BaseModel):
+    pincode: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    service_area_id: Optional[str] = None
+
+
+class RegionalThreatMeshStats(BaseModel):
+    total_active_clusters: int
+    drafted_pending_signoff: int
+    published_active_advisories: int
+    covered_pincodes_count: int
+    total_reports_aggregated: int
+
+
+# ---------- Stage & Uniform Inspector / Voice Safety Hotline (restored) ----------
+
+class StageUniformInspectionRequest(BaseModel):
+    image_data: str = Field(..., description="Base64 encoded screenshot data or image URL")
+    file_name: str = Field(default="video_call_screenshot.png")
+    claimed_agency: Optional[str] = Field(default="CBI", description="Claimed agency e.g. CBI, Mumbai Police, Delhi Police, Customs, Supreme Court")
+    claimed_officer_name: Optional[str] = Field(default=None, description="Name claimed on video call")
+    case_id: Optional[str] = Field(default=None, description="Associated KshemOS Case ID")
+    save_to_evidence_vault: bool = Field(default=True, description="Automatically preserve in Evidence Vault")
+    notes: Optional[str] = None
+
+
+class StageUniformInspectionResponse(BaseModel):
+    inspection_id: str
+    image_sha256: str
+    is_synthetic_stage: bool
+    stage_forgery_score: float = Field(..., ge=0.0, le=1.0)
+    risk_verdict: str = Field(..., description="CRITICAL_FORGERY_DETECTED, HIGH_RISK_STAGE, SUSPICIOUS, INCONCLUSIVE")
+    detected_hallmarks: List[VisualArtifactHallmark]
+    uniform_evaluation: UniformInspectionResult
+    exif_metadata: Dict[str, Any] = Field(default_factory=dict)
+    statutory_bnss_notice: str
+    vaulted_evidence_id: Optional[str] = None
+    inspection_timestamp: int
+
+
+class UniformRegulationRecord(BaseModel):
+    agency_id: str
+    agency_name: str
+    authorized_attire: str
+    shoulder_rank_insignia: str
+    collar_insignia_rules: str
+    official_id_credential: str
+    common_scam_forgeries: List[str]
+
+
+class StageInspectionStatsResponse(BaseModel):
+    total_inspected: int
+    critical_forgeries_detected: int
+    cbi_impersonations: int
+    police_uniform_forgeries: int
+    vault_evidence_preserved: int
+
+
+class VisualArtifactHallmark(BaseModel):
+    hallmark_type: str = Field(..., description="e.g. virtual_chroma_fringe, perspective_warp, non_standard_stars")
+    severity: str = Field(..., description="critical, high, medium, low")
+    confidence_score: float = Field(..., ge=0.0, le=1.0)
+    title: str
+    description: str
+    bounding_box: Optional[Dict[str, float]] = Field(default=None, description="Normalized coordinates x, y, width, height")
+    regulation_reference: Optional[str] = None
+
+
+class UniformInspectionResult(BaseModel):
+    claimed_agency: str
+    claimed_rank: Optional[str] = None
+    uniform_matches_agency: bool
+    insignia_validity: str = Field(..., description="forged, suspicious, compliant, inconclusive")
+    star_count_discrepancy: Optional[str] = None
+    discrepancies: List[str] = Field(default_factory=list)
+    official_regulation_summary: str
 
 
 class VoiceHotlineStatsResponse(BaseModel):

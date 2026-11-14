@@ -192,6 +192,61 @@ test('ScamIntelligencePage, ThreatLibraryPage, and MeetPage enforce heading orde
   );
 });
 
+test('Shell.jsx provides an accessible compact mobile navigation menu at small widths', () => {
+  const shell = readComponent('components/Shell.jsx');
+
+  assert.match(
+    shell,
+    /aria-expanded=\{mobileMenuOpen\}/,
+    'Mobile menu control must expose its expanded state via aria-expanded'
+  );
+  assert.match(
+    shell,
+    /aria-controls="mobile-menu"/,
+    'Mobile menu control must identify the panel it toggles via aria-controls'
+  );
+  assert.match(
+    shell,
+    /aria-label=\{mobileMenuOpen \? 'Close navigation menu' : 'Open navigation menu'\}/,
+    'Mobile menu control must have a clearly descriptive accessible label'
+  );
+  assert.match(
+    shell,
+    /<span>\{mobileMenuOpen \? 'Close' : 'Menu'\}<\/span>/,
+    'Mobile menu control must have a visible text label at small widths'
+  );
+  assert.match(
+    shell,
+    /min-h-\[44px\]/,
+    'Menu control and destination items must meet the 44px minimum touch target size'
+  );
+  assert.match(
+    shell,
+    /overflow-x-hidden/,
+    'Shell must enforce overflow-x-hidden to prevent horizontal page overflow'
+  );
+  assert.match(
+    shell,
+    /hidden sm:flex flex-wrap items-center gap-2/,
+    'Grouped desktop navigation must be hidden below the sm breakpoint'
+  );
+  assert.match(
+    shell,
+    /setMobileMenuOpen\(false\)/,
+    'Selecting a destination must close the mobile menu'
+  );
+  assert.match(
+    shell,
+    /role="navigation"[\s\S]*?aria-label="Mobile navigation"/,
+    'Mobile menu panel must declare an accessible navigation landmark'
+  );
+  assert.match(
+    shell,
+    /e\.key === 'Escape'[\s\S]*?closeMobileMenu\(\)/,
+    'Mobile menu must close upon pressing the Escape key'
+  );
+});
+
 test('ContributorsPage.jsx supports accessible categories, mobile readability, empty state, and no unverified metrics', () => {
   const contributors = readComponent('components/ContributorsPage.jsx');
 
