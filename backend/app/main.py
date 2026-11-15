@@ -27,6 +27,12 @@ from app.routers import (
     cli_spoof,
     syndicate_triage,
     mule_freeze,
+    regional_threat_mesh,
+    takedown,
+    field_seizure,
+    emergency_killswitch,
+    voice_deepfake,
+    advisory_subscriptions,
 )
 
 app = FastAPI(
@@ -73,6 +79,12 @@ app.include_router(evidence_affidavit.router)
 app.include_router(cli_spoof.router)
 app.include_router(syndicate_triage.router)
 app.include_router(mule_freeze.router)
+app.include_router(regional_threat_mesh.router)
+app.include_router(takedown.router)
+app.include_router(field_seizure.router)
+app.include_router(emergency_killswitch.router)
+app.include_router(voice_deepfake.router)
+app.include_router(advisory_subscriptions.router)
 
 
 @app.get("/", tags=["Health"])

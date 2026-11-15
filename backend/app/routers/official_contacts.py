@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date, timedelta, timezone, datetime
 from urllib.parse import urlparse
 

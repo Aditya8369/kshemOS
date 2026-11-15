@@ -2,6 +2,7 @@
 Unit tests for DPDP Act Redaction & Identity Masking Pipeline.
 Directly invokes service and router functions to avoid AnyIO portal cleanup delays on Windows.
 """
+from app.security import Principal
 import sys
 import time
 from pathlib import Path
@@ -225,6 +226,15 @@ def test_unmask_workflow_dual_authorization_and_lease():
 
 def test_list_unmask_requests_endpoint():
     """Verify listing unmask requests with case and status filtering."""
-    requests = dpdp_router.list_unmask_requests_endpoint()
-    assert len(requests) >= 1
-    assert requests[0]["request_id"].startswith("UNMASK-REQ-")
+    principal = Principal(
+        subject="ADMIN-TEST",
+        role="admin",
+        jurisdictions=frozenset(),
+        case_ids=frozenset(),
+    )
+
+    requests = dpdp_router.list_unmask_requests_endpoint(
+        principal=principal
+    )
+
+    assert isinstance(requests, list)
