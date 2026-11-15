@@ -256,6 +256,13 @@ class Incident(BaseModel):
     opened_at: int = Field(..., description="Epoch milliseconds")
     first_response_at: Optional[int]
     resolved_at: Optional[int]
+    updated_at: Optional[int] = Field(
+        None, description="Epoch milliseconds of the last mutation"
+    )
+    version: int = Field(
+        1, description="Monotonic server version used for optimistic concurrency"
+    )
+    notes: List[str] = Field(default_factory=list)
 
 
 class IncidentCreateRequest(BaseModel):
@@ -264,6 +271,10 @@ class IncidentCreateRequest(BaseModel):
     region: Optional[str] = None
     report_id: Optional[str] = None
     linked_account: Optional[str] = None
+    operation_id: Optional[str] = Field(
+        None,
+        description="Client-generated idempotency key for offline/sync retries",
+    )
 
 
 class IncidentUpdateRequest(BaseModel):
@@ -271,18 +282,30 @@ class IncidentUpdateRequest(BaseModel):
     severity: Optional[Severity] = None
     assigned_to: Optional[str] = Field(None, description="Officer code; empty string unassigns")
     linked_account: Optional[str] = Field(None, description="Account ID; empty string unlinks")
+    notes: Optional[str] = Field(
+        None, description="Append a field note to the incident timeline"
+    )
     expected_version: Optional[int] = Field(None, description="Client's expected version for concurrency checking")
     force: bool = Field(False, description="Override concurrency conflict if true")
+    operation_id: Optional[str] = Field(
+        None,
+        description="Client-generated idempotency key for offline/sync retries",
+    )
 
 
 class SyncQueueItem(BaseModel):
     queue_id: str
     action: Literal["create", "update"]
     incident_id: Optional[str] = None
+    local_incident_id: Optional[str] = Field(
+        None,
+        description="Temporary offline ID used to resolve updates queued against an unsynced create",
+    )
     create_payload: Optional[IncidentCreateRequest] = None
     changes: Optional[IncidentUpdateRequest] = None
     expected_version: Optional[int] = None
     client_timestamp: Optional[int] = None
+    operation_id: Optional[str] = None
     force: bool = False
 
 
@@ -294,7 +317,9 @@ class SyncBatchResponse(BaseModel):
     applied_count: int
     conflict_count: int
     failed_count: int
+    replayed_count: int = 0
     results: list[dict[str, Any]]
+    server_time: Optional[int] = None
 
 
 class RegionStaffing(BaseModel):
@@ -2661,7 +2686,6 @@ class CommanderSignoffRequest(BaseModel):
     action: Literal["approve_publish", "dismiss"] = "approve_publish"
     notes: Optional[str] = None
 
-
 class CitizenMeshAdvisoryQuery(BaseModel):
     pincode: Optional[str] = None
     lat: Optional[float] = None
@@ -2751,4 +2775,3 @@ class VoiceHotlineStatsResponse(BaseModel):
     reassurances_delivered: int
     sms_dispatched_count: int
     triage_incidents_logged: int
-

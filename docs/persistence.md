@@ -90,6 +90,13 @@ python -m alembic current
 
 ```
 
+### Offline sync ledger
+
+Migration `0002_sync_operations` adds the `sync_operations` table used to make
+offline retries idempotent. It stores the original result for each
+`(subject, operation_id)` pair so a replayed queued change does not mutate an
+incident twice. See `docs/offline-sync.md`.
+
 
 
 ## 3. Neo4j Configuration

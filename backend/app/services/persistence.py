@@ -52,6 +52,21 @@ class StaffingRecord(Base):
     officers_on_duty: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
+class SyncOperationRecord(Base):
+    """Applied offline operations, keyed by actor + client operation ID.
+
+    Replaying a queued operation must return the original result instead of
+    mutating the incident a second time.
+    """
+
+    __tablename__ = "sync_operations"
+
+    subject: Mapped[str] = mapped_column(String(128), primary_key=True)
+    operation_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    applied_at: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+
 def persistence_backend() -> str:
     return os.getenv("PERSISTENCE_BACKEND", "memory").strip().lower()
 

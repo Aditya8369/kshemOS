@@ -28,11 +28,11 @@ PERMISSION_MATRIX = {
         "citizen_reports": {"create"},
     },
     "officer": {
-        "incidents": {"read", "update"},
+        "incidents": {"read", "create", "update", "sync"},
         "dpdp": {"sanitize", "pseudonymize", "request_unmask", "reveal"},
     },
     "supervisor": {
-        "incidents": {"read", "update", "manage_staffing"},
+        "incidents": {"read", "create", "update", "sync", "manage_staffing"},
         "dpdp": {
             "sanitize", "pseudonymize", "list_unmask",
             "review_unmask", "read_audit",
@@ -142,13 +142,19 @@ def resolve_principal(
     )
 
 
+def has_permission(principal: Principal, resource: str, action: str) -> bool:
+    """Return whether the principal's role grants a resource action."""
+
+    return action in PERMISSION_MATRIX.get(principal.role, {}).get(
+        resource, set()
+    )
+
+
 def require_permission(resource: str, action: str) -> Callable:
     """Build a FastAPI dependency enforcing a role permission."""
 
     def dependency(principal: Principal = Depends(resolve_principal)) -> Principal:
-        permissions = PERMISSION_MATRIX.get(principal.role, {}).get(resource, set())
-
-        if action not in permissions:
+        if not has_permission(principal, resource, action):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access forbidden",
@@ -198,6 +204,21 @@ def require_incident_scope(principal: Principal, incident: dict) -> None:
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Incident not found",
         )
+
+
+def require_create_scope(principal: Principal, region: str | None) -> None:
+    """Restrict incident creation to the caller's configured jurisdictions."""
+
+    if principal.role == "admin":
+        return
+
+    if principal.jurisdictions and region in principal.jurisdictions:
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="Region not found",
+    )
 
 
 def redact_incident(incident: dict, principal: Principal) -> dict:

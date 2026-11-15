@@ -62,9 +62,9 @@ Use securely generated tokens and keep them out of source control.
 
 | Citizen | Create citizen reports |
 
-| Officer | Read and update authorised incidents; perform permitted DPDP operations |
+| Officer | Read, create, update, and sync authorised incidents; perform permitted DPDP operations |
 
-| Supervisor | Read and update authorised incidents; manage staffing; review unmask requests; read audit records |
+| Supervisor | Read, create, update, and sync authorised incidents; manage staffing; review unmask requests; read audit records |
 
 | Bank | DPDP sanitization and pseudonymization |
 
@@ -93,6 +93,18 @@ Incident access is restricted using configured jurisdiction and case scopes.
 \- Out-of-scope incidents return a not-found response to avoid revealing their existence.
 
 \- Offline synchronization checks incident scope before processing updates.
+
+
+
+
+## Offline Field Drafts
+
+
+Field users may create and edit incident drafts while disconnected. Drafts are
+stored locally, encrypted at rest with AES-GCM, and synchronised with
+conflict-aware idempotent retries. Local data is purged on logout and on device
+or session revocation. See `docs/offline-sync.md` for the storage, retention,
+and cleanup policy.
 
 
 

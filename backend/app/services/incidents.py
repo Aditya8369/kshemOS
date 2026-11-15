@@ -11,9 +11,11 @@ from sqlalchemy import select, delete
 
 from app.services.scam_detection import analyze_transcript
 from app.services.incident_notifications import dispatch_incident_notifications
+from app.services import idempotency
 from app.services.persistence import (
     IncidentRecord,
     StaffingRecord,
+    SyncOperationRecord,
     get_session,
     next_id,
     persistence_backend,
@@ -336,16 +338,143 @@ def update_incident(
     return dict(updated)
 
 
-def sync_queue_items(items: list[dict[str, Any]]) -> dict[str, Any]:
+def create_incident_idempotent(
+    payload: dict[str, Any],
+    subject: str | None = None,
+    operation_id: str | None = None,
+    now: int | None = None,
+) -> dict[str, Any]:
+    """Create an incident once per (subject, operation_id).
+
+    Retries after an ambiguous timeout return the original confirmation
+    instead of creating a duplicate incident.
+    """
+
+    with idempotency.operation_lock(subject, operation_id):
+        stored = idempotency.get_result(subject, operation_id)
+        if stored is not None:
+            return {**stored, "replayed": True}
+
+        create_payload = dict(payload)
+        create_payload.pop("operation_id", None)
+
+        incident = create_incident(**create_payload, now=now)
+
+        result = {
+            "status": "applied",
+            "incident": incident,
+            "server_incident": None,
+            "conflicting_fields": None,
+            "error": None,
+        }
+
+        idempotency.record_result(subject, operation_id, result)
+        return {**result, "replayed": False}
+
+
+def update_incident_idempotent(
+    incident_id: str,
+    changes: dict[str, Any],
+    subject: str | None = None,
+    operation_id: str | None = None,
+    expected_version: int | None = None,
+    force: bool = False,
+    now: int | None = None,
+) -> dict[str, Any]:
+    """Apply an incident update once per (subject, operation_id)."""
+
+    with idempotency.operation_lock(subject, operation_id):
+        stored = idempotency.get_result(subject, operation_id)
+        if stored is not None:
+            return {**stored, "replayed": True}
+
+        result_raw = update_incident(
+            incident_id,
+            changes,
+            now=now,
+            expected_version=expected_version,
+            force=force,
+        )
+
+        if result_raw is None:
+            # Transient failures are not cached: a later retry may succeed once
+            # the incident exists (for example a create that has just synced).
+            return {
+                "status": "failed",
+                "incident": None,
+                "server_incident": None,
+                "conflicting_fields": None,
+                "error": f"Incident {incident_id} not found on server",
+                "replayed": False,
+            }
+
+        if result_raw.get("conflict"):
+            result = {
+                "status": "conflict",
+                "incident": None,
+                "server_incident": result_raw["server_incident"],
+                "conflicting_fields": result_raw["conflicting_fields"],
+                "expected_version": result_raw["expected_version"],
+                "current_version": result_raw["current_version"],
+                "error": (
+                    f"Server has newer version "
+                    f"(v{result_raw['current_version']}) than field expected "
+                    f"(v{result_raw['expected_version']})"
+                ),
+            }
+        else:
+            result = {
+                "status": "applied",
+                "incident": result_raw,
+                "server_incident": None,
+                "conflicting_fields": None,
+                "error": None,
+            }
+
+        idempotency.record_result(subject, operation_id, result)
+        return {**result, "replayed": False}
+
+
+def _item_sort_key(indexed_item: tuple[int, dict[str, Any]]) -> tuple[float, int]:
+    index, item = indexed_item
+    timestamp = item.get("client_timestamp")
+    return (
+        float(timestamp) if timestamp is not None else float("inf"),
+        index,
+    )
+
+
+def sync_queue_items(
+    items: list[dict[str, Any]],
+    subject: str | None = None,
+) -> dict[str, Any]:
+    """Apply an offline batch in field-authoring order.
+
+    Items are ordered by their client timestamp (stable on ties) so a queued
+    edit is never applied before the draft it depends on. Creates are tracked
+    by their temporary offline ID so dependent updates can address them.
+    """
 
     now = _now_ms()
     results = []
     applied = 0
     conflicts = 0
     failed = 0
+    replayed = 0
 
-    for item in items:
+    local_to_server: dict[str, str] = {}
+
+    ordered_items = [
+        item
+        for _, item in sorted(
+            list(enumerate(items)),
+            key=_item_sort_key,
+        )
+    ]
+
+    for item in ordered_items:
         queue_id = item.get("queue_id", "")
+        operation_id = item.get("operation_id") or queue_id or None
         action = item.get("action")
 
         if action == "create":
@@ -354,20 +483,40 @@ def sync_queue_items(items: list[dict[str, Any]]) -> dict[str, Any]:
             if not isinstance(payload, dict):
                 payload = payload.model_dump()
 
-            inc = create_incident(**payload, now=now)
+            local_id = item.get("local_incident_id") or payload.get(
+                "local_incident_id"
+            )
 
-            results.append({
-                "queue_id": queue_id,
-                "status": "applied",
-                "incident": inc,
-                "server_incident": None,
-                "conflicting_fields": None,
-                "error": None,
-            })
-            applied += 1
+            result = create_incident_idempotent(
+                payload,
+                subject=subject,
+                operation_id=operation_id,
+                now=now,
+            )
+
+            if result["status"] == "applied" and local_id:
+                local_to_server[local_id] = result["incident"]["id"]
+
+            results.append(
+                {
+                    "queue_id": queue_id,
+                    "operation_id": operation_id,
+                    "replayed": result.get("replayed", False),
+                    **result,
+                }
+            )
+
+            if result["status"] == "applied":
+                applied += 1
+                if result.get("replayed"):
+                    replayed += 1
+            else:
+                failed += 1
 
         elif action == "update":
             incident_id = item.get("incident_id")
+            resolved_id = local_to_server.get(incident_id, incident_id)
+
             changes = item.get("changes") or {}
 
             if not isinstance(changes, dict):
@@ -376,60 +525,55 @@ def sync_queue_items(items: list[dict[str, Any]]) -> dict[str, Any]:
                     exclude_none=True,
                 )
 
-            res = update_incident(
-                incident_id,
+            changes = {
+                key: value
+                for key, value in changes.items()
+                if value is not None
+                and key not in ("operation_id", "expected_version", "force")
+            }
+
+            result = update_incident_idempotent(
+                resolved_id,
                 changes,
-                now=now,
+                subject=subject,
+                operation_id=operation_id,
                 expected_version=item.get("expected_version"),
                 force=item.get("force", False),
+                now=now,
             )
 
-            if res is None:
-                results.append({
+            results.append(
+                {
                     "queue_id": queue_id,
+                    "operation_id": operation_id,
+                    "incident_id": resolved_id,
+                    "replayed": result.get("replayed", False),
+                    **result,
+                }
+            )
+
+            if result["status"] == "applied":
+                applied += 1
+                if result.get("replayed"):
+                    replayed += 1
+            elif result["status"] == "conflict":
+                conflicts += 1
+            else:
+                failed += 1
+
+        else:
+            results.append(
+                {
+                    "queue_id": queue_id,
+                    "operation_id": operation_id,
                     "status": "failed",
                     "incident": None,
                     "server_incident": None,
                     "conflicting_fields": None,
-                    "error": f"Incident {incident_id} not found on server",
-                })
-                failed += 1
-
-            elif res.get("conflict"):
-                results.append({
-                    "queue_id": queue_id,
-                    "status": "conflict",
-                    "incident": None,
-                    "server_incident": res["server_incident"],
-                    "conflicting_fields": res["conflicting_fields"],
-                    "error": (
-                        f"Server has newer version "
-                        f"(v{res['current_version']}) than field expected "
-                        f"(v{res['expected_version']})"
-                    ),
-                })
-                conflicts += 1
-
-            else:
-                results.append({
-                    "queue_id": queue_id,
-                    "status": "applied",
-                    "incident": res,
-                    "server_incident": None,
-                    "conflicting_fields": None,
-                    "error": None,
-                })
-                applied += 1
-
-        else:
-            results.append({
-                "queue_id": queue_id,
-                "status": "failed",
-                "incident": None,
-                "server_incident": None,
-                "conflicting_fields": None,
-                "error": f"Unknown sync action: {action}",
-            })
+                    "error": f"Unknown sync action: {action}",
+                    "replayed": False,
+                }
+            )
             failed += 1
 
     return {
@@ -437,8 +581,10 @@ def sync_queue_items(items: list[dict[str, Any]]) -> dict[str, Any]:
         "applied_count": applied,
         "conflict_count": conflicts,
         "failed_count": failed,
+        "replayed_count": replayed,
         "server_time": now,
     }
+
 
 
 def set_staffing(region: str, officers_on_duty: int) -> bool:
@@ -522,10 +668,13 @@ def reset() -> None:
 
     global _incident_id_counter
 
+    idempotency.reset()
+
     if _is_postgres():
         with get_session() as session:
             session.execute(delete(IncidentRecord))
             session.execute(delete(StaffingRecord))
+            session.execute(delete(SyncOperationRecord))
             session.execute(
                 delete(
                     __import__(
