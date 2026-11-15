@@ -27,7 +27,7 @@ const SAMPLE_CASES = [
     id: 'digital-arrest',
     label: 'Digital arrest',
     transcript:
-      'This is the CBI. A parcel with your Aadhaar number has been seized. You are under digital arrest, do not disconnect this call, and transfer the verification amount immediately or a warrant will be issued.',
+      'This is the CBI. A parcel with your [Aadhaar Redacted] has been seized. You are under digital arrest, do not disconnect this call, and transfer the verification amount immediately or a warrant will be issued.',
     claim: 'CBI officer',
   },
   {
@@ -538,12 +538,12 @@ function ReportForm({ addReport }) {
 
       if (email.trim() && emailConsent) {
         try {
-        const emailResponse = await sendReportConfirmationEmail({
-        reportId: res.report_id,
-        recipientEmail: email,
-       category,
-      submittedAt: res.submitted_at,
-       });
+          const emailResponse = await sendReportConfirmationEmail({
+            reportId: res.report_id,
+            recipientEmail: email,
+            category,
+            submittedAt: res.submitted_at,
+          });
 
           setEmailStatus(emailResponse);
         } catch (emailError) {
@@ -555,41 +555,43 @@ function ReportForm({ addReport }) {
           });
         }
       } else {
-  setEmailStatus({
-    success: false,
-    message: email.trim()
-      ? 'Confirmation email not sent because consent was not provided.'
-      : 'No email entered. Confirmation email not sent.',
-  });
-}
+        setEmailStatus({
+          success: false,
+          message: email.trim()
+            ? 'Confirmation email not sent because consent was not provided.'
+            : 'No email entered. Confirmation email not sent.',
+        });
+      }
     } catch (e) {
-      setError(e.message || 'Unable to submit your report.');
+      setError(e.message || 'Unable to submit your report. Please try again.');
     } finally {
       setLoading(false);
     }
   }
-async function copyReportReference() {
-  try {
-    await navigator.clipboard.writeText(result.report_id);
-    setReferenceStatus('Report reference copied!');
-  } catch {
-    setReferenceStatus('Unable to copy. Please copy the reference manually.');
+
+  async function copyReportReference() {
+    try {
+      await navigator.clipboard.writeText(result.report_id);
+      setReferenceStatus('Report reference copied!');
+    } catch {
+      setReferenceStatus('Unable to copy. Please copy the reference manually.');
+    }
   }
-}
 
-function downloadReportReference() {
-  const file = new Blob(
-    [`KshemOS Report Reference: ${result.report_id}`],
-    { type: 'text/plain' }
-  );
+  function downloadReportReference() {
+    const file = new Blob(
+      [`KshemOS Report Reference: ${result.report_id}`],
+      { type: 'text/plain' }
+    );
 
-  const url = URL.createObjectURL(file);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${result.report_id}.txt`;
-  link.click();
-  URL.revokeObjectURL(url);
-}
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${result.report_id}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <SectionCard
       eyebrow="Zero-Click Reporting"
@@ -613,19 +615,21 @@ function downloadReportReference() {
           onChange={(e) => setEmail(e.target.value)}
         />
       </div>
+
       <label className="flex items-start gap-2 text-sm mt-2">
-  <input
-    type="checkbox"
-    checked={emailConsent}
-    onChange={(e) => setEmailConsent(e.target.checked)}
-    className="mt-1"
-  />
-  <span>
-    I agree to receive a confirmation email about this report.
-    My email address will only be used for this confirmation.
-  </span>
-</label>
-      <div className="grid sm:grid-cols-2 gap-3 mb-2">
+        <input
+          type="checkbox"
+          checked={emailConsent}
+          onChange={(e) => setEmailConsent(e.target.checked)}
+          className="mt-1"
+        />
+        <span>
+          I agree to receive a confirmation email about this report.
+          My email address will only be used for this confirmation.
+        </span>
+      </label>
+
+      <div className="grid sm:grid-cols-2 gap-3 mb-2 mt-3">
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
@@ -667,15 +671,32 @@ function downloadReportReference() {
         onClick={submit}
         disabled={loading}
         aria-label={loading ? 'Submitting citizen report...' : 'Submit citizen report'}
-        className="mt-2 bg-[var(--saffron)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
+        className="mt-2 bg-[var(--saffron)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
       >
-        {loading ? 'Submitting…' : 'Submit report'}
+        {loading ? (
+          <>
+            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span>Submitting…</span>
+          </>
+        ) : (
+          <span>Submit report</span>
+        )}
       </button>
 
       {error && (
-        <p className="text-sm text-[var(--alert)] mt-2">
-          {error}
-        </p>
+        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg flex justify-between items-center text-sm text-[var(--alert)]">
+          <span>{error}</span>
+          <button 
+            type="button" 
+            onClick={() => setError(null)}
+            className="text-xs bg-red-100 hover:bg-red-200 text-red-800 px-2 py-1 rounded ml-2"
+          >
+            Dismiss
+          </button>
+        </div>
       )}
 
       {emailStatus && (
@@ -691,34 +712,53 @@ function downloadReportReference() {
       )}
 
       {result && (
-        <div className="mt-3 text-sm bg-[var(--paper)] rounded-lg p-3 border border-[var(--paper-line)] space-y-2">
-          <p className="font-mono text-xs text-[var(--saffron)]">
-            {result.report_id}
-          </p>
-         <div className="flex flex-wrap gap-2">
-  <button
-    type="button"
-    onClick={copyReportReference}
-    className="rounded-lg border px-3 py-2 text-xs font-semibold"
-  >
-    Copy reference
-  </button>
+        <div className="mt-4 text-sm bg-green-50 rounded-xl p-4 border border-green-200 space-y-3 text-green-900">
+          <div className="flex items-center justify-between">
+            <h4 className="font-display font-bold text-base text-green-900">
+              Report Submitted Successfully!
+            </h4>
+            <span className="font-mono text-xs font-bold bg-green-200 px-2 py-0.5 rounded text-green-800">
+              {result.report_id}
+            </span>
+          </div>
 
-  <button
-    type="button"
-    onClick={downloadReportReference}
-    className="rounded-lg border px-3 py-2 text-xs font-semibold"
-  >
-    Download reference
-  </button>
-</div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={copyReportReference}
+              className="rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-green-100"
+            >
+              Copy reference
+            </button>
 
-{referenceStatus && (
-  <p className="text-xs text-[var(--safe)]">
-    {referenceStatus}
-  </p>
-)}
-          <p>{result.acknowledgement}</p>
+            <button
+              type="button"
+              onClick={downloadReportReference}
+              className="rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-green-100"
+            >
+              Download reference
+            </button>
+          </div>
+
+          {referenceStatus && (
+            <p className="text-xs text-[var(--safe)] font-semibold">
+              {referenceStatus}
+            </p>
+          )}
+
+          <p className="text-sm">{result.acknowledgement}</p>
+
+          <div className="bg-white/80 rounded-lg p-3 border border-green-200 text-xs text-green-900 space-y-1">
+            <p className="font-semibold uppercase tracking-wider text-green-800">
+              Next Steps & Evidence Preservation:
+            </p>
+            <p>
+              • Please securely preserve all digital evidence (screenshots, call recordings, transaction references). Do not delete files.
+            </p>
+            <p>
+              • Keep your Case Reference ID confidential and present it during cyber cell follow-ups or helpline (1930) inquiries.
+            </p>
+          </div>
 
           {result.incident_id && (
             <p className="text-xs text-[var(--ink-text)]/70">
@@ -735,12 +775,12 @@ function downloadReportReference() {
             </p>
           )}
 
-          <details>
-            <summary className="cursor-pointer font-semibold">
-              Draft FIR statement
+          <details className="pt-1">
+            <summary className="cursor-pointer font-semibold text-xs text-green-800 hover:underline">
+              View Draft FIR Statement
             </summary>
 
-            <p className="mt-1 whitespace-pre-line">
+            <p className="mt-1 whitespace-pre-line text-xs bg-white p-2.5 rounded border border-green-200 font-mono">
               {result.draft_fir}
             </p>
           </details>
@@ -796,8 +836,7 @@ function ReportHistory({ reports }) {
             </p>
 
             <div className="mt-2 text-xs text-[var(--ink-text)]/60">
-              Reporter: {report.reporter_name}{' '}
-
+              Reporter: {report.reporter_name}
             </div>
           </div>
         ))}
@@ -849,90 +888,203 @@ export default function CitizenPortal({ setActiveView }) {
         </p>
       </div>
 
-      {/* Multilingual Speech ASR Banner */}
-      <div className="bg-gradient-to-r from-purple-500/10 via-blue-500/10 to-transparent border border-purple-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-700 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
-            🎙️
-          </div>
+      {/* Group 1: Emergency & Quick Action Banners */}
+      <div className="space-y-4">
+        <h2 className="font-mono text-xs uppercase tracking-widest text-[var(--ink-text)]/60 px-1">
+          Emergency & Quick Actions
+        </h2>
 
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-sm text-[var(--ink)]">
-                Regional Language or Hinglish Call?
-              </span>
-
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-purple-700 text-white">
-                Bhashini ASR
-              </span>
+        {/* Live Guardian Banner */}
+        <div className="bg-gradient-to-r from-red-500/10 via-amber-500/10 to-transparent border border-red-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+              🛡️
             </div>
-
-            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
-              Transcribe Hindi, Tamil, Telugu, and code-switched dialogues
-              with word-level confidence scores and interactive citizen
-              corrections.
-            </p>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm text-[var(--ink)]">
+                  On an active suspicious call right now?
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-red-600 text-white">
+                  Live Guardian
+                </span>
+              </div>
+              <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+                Activate consent-based live call transcription to detect digital arrest language and receive instant 1930 action directives.
+              </p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setActiveView && setActiveView('multilingual-speech')}
+            className="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            Open Multilingual ASR
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            setActiveView && setActiveView('multilingual-speech')
-          }
-          className="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
-        >
-          Open Multilingual ASR
-        </button>
-      </div>
-
-      {/* Live Scam-Call Shield Quick Launch Banner */}
-      <div className="bg-gradient-to-r from-red-500/10 via-amber-500/10 to-transparent border border-red-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
-            🛡️
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-sm text-[var(--ink)]">
-                On an active suspicious call right now?
-              </span>
-
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-red-600 text-white">
-                Live Guardian
-              </span>
+        {/* Public Safety Incident Advisory Subscriptions Banner */}
+        <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent border border-amber-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+              📢
             </div>
-
-            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
-              Activate consent-based live call transcription to detect
-              digital arrest language, extortion tactics, and receive
-              instant 1930 action directives.
-            </p>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm text-[var(--ink)]">
+                  Public Safety Incident Advisory Alerts
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-amber-600 text-white">
+                  Email &amp; In-App Feed
+                </span>
+              </div>
+              <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+                Subscribe to verified police and cyber emergency bulletins by district or topic. Opt into email updates or browse the in-app verified feed.
+              </p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setActiveView && setActiveView('advisory-subscriptions')}
+            className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            Subscribe &amp; View Feed
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            setActiveView && setActiveView('live-call-safety')
-          }
-          className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
-        >
-          <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
-          Launch Live Call Shield
-        </button>
+        {/* Emergency Financial Kill-Switch Banner */}
+        <div className="bg-gradient-to-r from-red-600/10 via-amber-500/10 to-transparent border border-red-300 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+              ⚡
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm text-[var(--ink)]">
+                  Suspect unauthorized debit or shared your credentials?
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-red-600 text-white">
+                  Kill-Switch & AePS Defense
+                </span>
+              </div>
+              <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+                Access verified one-tap USSD (*99#) & SMS freeze commands for all major banks, lock biometrics against fraud, and generate certified RBI Zero-Liability mitigation receipts.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveView && setActiveView('emergency-killswitch')}
+            className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            Open Emergency Kill-Switch
+          </button>
+        </div>
+
+        {/* Regional Threat Mesh Banner */}
+        <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+              🌐
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm text-[var(--ink)]">
+                  Local Area Threat Advisories
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-600 text-white">
+                  Geofenced Mesh
+                </span>
+              </div>
+              <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+                View real-time privacy-preserving threat clusters and micro-advisories based on your immediate regional location.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveView && setActiveView('regional-threat-mesh')}
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            Open Threat Mesh
+          </button>
+        </div>
+
+        {/* Voice Deepfake Inspector Banner */}
+        <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent border border-indigo-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+              🎙️
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm text-[var(--ink)]">
+                  Voice Deepfake & Audio Clone Detector
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-indigo-600 text-white">
+                  Audio AI
+                </span>
+              </div>
+              <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+                Verify synthetic voice clones, robotic pitch flatlines, and neural vocoder artifacts before transferring funds.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveView && setActiveView('voice-deepfake')}
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            Inspect Voice Deepfake
+          </button>
+        </div>
+
+        {/* Phishing Website Takedown Banner */}
+        <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent border border-blue-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+              🌐
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm text-[var(--ink)]">
+                  Spotted a fake bank or police phishing website?
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-600 text-white">
+                  Abuse Takedown
+                </span>
+              </div>
+              <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+                Generate automated abuse takedown reports and domain registrar escalation notices instantly.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveView && setActiveView('takedown-generator')}
+            className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            Generate Abuse Takedown
+          </button>
+        </div>
       </div>
 
-      <ScamCheck />
+      {/* Group 3: Primary Functional Modules */}
+      <div className="space-y-6 pt-4">
+        <h2 className="font-mono text-xs uppercase tracking-widest text-[var(--ink-text)]/60 px-1">
+          Interactive Modules
+        </h2>
 
-      <CurrencyScanner />
+        <ScamCheck />
 
-      <Assistant />
+        <CurrencyScanner />
 
-      <ReportForm addReport={addReport} />
+        <Assistant />
 
-      <ReportHistory reports={reports} />
+        <ReportForm addReport={addReport} />
+
+        <ReportHistory reports={reports} />
+      </div>
     </div>
   );
 }

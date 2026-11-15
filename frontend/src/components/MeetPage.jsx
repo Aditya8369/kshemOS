@@ -1,3 +1,4 @@
+import ContributorsPage from './ContributorsPage';
 import {
   GitPullRequest,
   GitBranch,
@@ -12,6 +13,12 @@ import {
   MessageSquare,
   Sparkles,
 } from 'lucide-react';
+
+/**
+ * MeetPage serves as the dedicated Contributors & Team Hub.
+ * Re-exports ContributorsPage for backward compatibility with existing links/routes,
+ * while embedding comprehensive contributor pathways and team details.
+ */
 
 const TEAM = [
   {
@@ -167,7 +174,6 @@ export default function MeetPage() {
 
       {/* Hero */}
       <div className="text-center space-y-4">
-
         <div className="inline-flex items-center gap-2.5 rounded-full border border-[var(--paper-line)] bg-white px-4 py-1.5 shadow-2xs">
           <div className="text-[var(--safe)]">
             <ShieldMark size={20} />
@@ -191,9 +197,7 @@ export default function MeetPage() {
       </div>
 
       {/* Stats */}
-
       <div className="mt-16 grid gap-6 md:grid-cols-3">
-
         {[
           ["2", "Core Members"],
           ["12+", "Security Modules"],
@@ -215,64 +219,57 @@ export default function MeetPage() {
       </div>
 
       {/* Team */}
-
       <section aria-label="Core Team" className="mt-20">
         <h2 className="sr-only">Core Research and Engineering Team</h2>
         <div className="grid gap-8 md:grid-cols-2">
-
-        {TEAM.map((member) => (
-          <div
-            key={member.name}
-            className="group rounded-3xl border border-[var(--paper-line)] bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl"
-          >
-
-            {/* Avatar */}
-
+          {TEAM.map((member) => (
             <div
-              className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl text-2xl font-bold text-white transition-transform duration-300 group-hover:scale-110"
-              style={{ backgroundColor: member.color }}
+              key={member.name}
+              className="group rounded-3xl border border-[var(--paper-line)] bg-white p-8 shadow-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-xl"
             >
-              {member.initials}
-            </div>
-
-            <h3 className="font-display text-2xl font-bold text-[var(--ink)]">
-              {member.name}
-            </h3>
-
-            <p
-              className="mt-2 text-xs font-mono uppercase tracking-[0.25em]"
-              style={{ color: member.color }}
-            >
-              {member.role}
-            </p>
-
-            <p className="mt-5 leading-7 text-[var(--ink-text)]/70">
-              {member.bio}
-            </p>
-
-            {/* Skills */}
-
-            <div className="mt-6 flex flex-wrap gap-2">
-              {member.skills.map((skill) => (
-                <span
-                  key={skill}
-                  className="rounded-full border border-[var(--paper-line)] bg-[var(--paper)] px-3 py-1 text-xs"
-                >
-                  {skill}
-                </span>
-              ))}
-            </div>
-
-            <div className="mt-8 border-t border-[var(--paper-line)] pt-5">
-
-              <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[var(--ink-text)]/50">
-                <ShieldMark size={16} />
-                KshemOS Core Team
+              {/* Avatar */}
+              <div
+                className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl text-2xl font-bold text-white transition-transform duration-300 group-hover:scale-110"
+                style={{ backgroundColor: member.color }}
+              >
+                {member.initials}
               </div>
 
+              <h3 className="font-display text-2xl font-bold text-[var(--ink)]">
+                {member.name}
+              </h3>
+
+              <p
+                className="mt-2 text-xs font-mono uppercase tracking-[0.25em]"
+                style={{ color: member.color }}
+              >
+                {member.role}
+              </p>
+
+              <p className="mt-5 leading-7 text-[var(--ink-text)]/70">
+                {member.bio}
+              </p>
+
+              {/* Skills */}
+              <div className="mt-6 flex flex-wrap gap-2">
+                {member.skills.map((skill) => (
+                  <span
+                    key={skill}
+                    className="rounded-full border border-[var(--paper-line)] bg-[var(--paper)] px-3 py-1 text-xs"
+                  >
+                    {skill}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-8 border-t border-[var(--paper-line)] pt-5">
+                <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-[var(--ink-text)]/50">
+                  <ShieldMark size={16} />
+                  KshemOS Core Team
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
         </div>
       </section>
 
@@ -458,9 +455,7 @@ export default function MeetPage() {
       </section>
 
       {/* Mission */}
-
       <div className="mt-20 rounded-[32px] border border-[var(--paper-line)] bg-[var(--paper)] p-10 text-center">
-
         <h2 className="font-display text-3xl font-bold text-[var(--ink)]">
           Our Mission
         </h2>
@@ -473,15 +468,12 @@ export default function MeetPage() {
         </p>
 
         <div className="mt-10 inline-flex items-center gap-3 rounded-full border border-[var(--paper-line)] bg-white px-6 py-3 shadow-sm">
-
           <span className="h-2.5 w-2.5 rounded-full bg-[var(--safe)]"></span>
 
           <span className="font-mono text-sm text-[var(--ink-text)]/70">
             Together for a Safer Digital India 🇮🇳
           </span>
-
         </div>
-
       </div>
 
     </div>

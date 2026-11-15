@@ -1,9 +1,4 @@
-"""Fraud graph intelligence with explainable edges and honeypot integration.
-
-The graph is seeded with synthetic account relationships and supports bounded
-path explanations with provenance metadata. Accounts harvested by the AI
-Telephony Honeypot can be added at runtime as inferred relationships.
-"""
+"""Fraud graph intelligence with persistent graph-store adapters."""
 
 from __future__ import annotations
 
@@ -17,38 +12,58 @@ from app.data.seed_graph import (
     FLAGGED_ACCOUNTS,
     KNOWN_MULE_ACCOUNTS,
 )
+from app.services.graph_store import create_graph_store
 
 _graph: nx.Graph | None = None
+_graph_store = None
+
 HARVESTED_HONEYPOT_ACCOUNTS: set[str] = set()
 
 
+def _get_store():
+    """Return the configured graph adapter."""
+    global _graph_store
+
+    if _graph_store is None:
+        _graph_store = create_graph_store()
+
+    return _graph_store
+
+
 def _build_graph() -> nx.Graph:
-    """Construct the fraud graph with relationship and provenance metadata."""
-    graph = nx.Graph()
+    """Build and initialize the configured graph backend."""
 
-    for account in ACCOUNTS:
-        graph.add_node(
-            account,
-            flagged=account in FLAGGED_ACCOUNTS,
-            harvested=account in HARVESTED_HONEYPOT_ACCOUNTS,
-        )
+    store = _get_store()
 
-    for edge in EDGES:
-        # Keep the upstream ``relationship`` attribute for compatibility while
-        # retaining Issue #41's richer ``relationship_type`` explanation.
-        edge_data = dict(edge)
-        edge_data.setdefault("relationship", edge["relationship_type"])
-        graph.add_edge(edge["source"], edge["target"], **edge_data)
+    store.seed_graph(
+        accounts=ACCOUNTS,
+        edges=EDGES,
+        flagged_accounts=FLAGGED_ACCOUNTS,
+        known_mule_accounts=KNOWN_MULE_ACCOUNTS,
+    )
 
-    return graph
+    return store.load_graph()
 
 
 def get_graph() -> nx.Graph:
-    """Return the cached graph, building it on first access."""
+    """Return a NetworkX-compatible graph snapshot."""
+
     global _graph
 
     if _graph is None:
         _graph = _build_graph()
+
+        for account in _graph.nodes:
+            node = _graph.nodes[account]
+
+            if node.get("harvested"):
+                HARVESTED_HONEYPOT_ACCOUNTS.add(account)
+
+            if node.get("flagged"):
+                FLAGGED_ACCOUNTS.add(account)
+
+            if node.get("known_mule"):
+                KNOWN_MULE_ACCOUNTS.add(account)
 
     return _graph
 
@@ -59,6 +74,7 @@ def _get_edge_explanation(
     target: str,
 ) -> dict:
     """Return the complete explanation for an individual edge."""
+
     edge = graph.edges[source, target]
 
     return {
@@ -79,7 +95,8 @@ def _get_explainable_paths(
     account_id: str,
     max_hops: int = 2,
 ) -> list[dict]:
-    """Return simple paths from the requested account up to ``max_hops``."""
+    """Return simple paths from an account up to max_hops."""
+
     paths = []
 
     for target in sorted(graph.nodes):
@@ -96,7 +113,11 @@ def _get_explainable_paths(
                 _get_edge_explanation(graph, source, destination)
                 for source, destination in zip(path, path[1:])
             ]
-            edge_ids = [edge["edge_id"] for edge in edge_explanations]
+
+            edge_ids = [
+                edge["edge_id"]
+                for edge in edge_explanations
+            ]
 
             paths.append(
                 {
@@ -108,7 +129,10 @@ def _get_explainable_paths(
 
     return sorted(
         paths,
-        key=lambda item: (len(item["edge_ids"]), item["accounts"]),
+        key=lambda item: (
+            len(item["edge_ids"]),
+            item["accounts"],
+        ),
     )
 
 
@@ -117,19 +141,35 @@ def inject_harvested_mule_account(
     connected_to: str = "ACC-1002",
     relationship: str = "HARVESTED_HONEYPOT_BENEFICIARY",
 ) -> dict:
-    """Add a honeypot-harvested account and an inferred graph relationship."""
+    """Persist an account harvested by the AI Telephony Honeypot."""
+
     graph = get_graph()
+    store = _get_store()
 
     HARVESTED_HONEYPOT_ACCOUNTS.add(account_id)
     FLAGGED_ACCOUNTS.add(account_id)
     KNOWN_MULE_ACCOUNTS.add(account_id)
-    graph.add_node(account_id, flagged=True, harvested=True)
+
+    store.upsert_account(
+        account_id,
+        flagged=True,
+        harvested=True,
+        known_mule=True,
+    )
+
+    graph.add_node(
+        account_id,
+        flagged=True,
+        harvested=True,
+        known_mule=True,
+    )
 
     target = (
         connected_to
         if connected_to in graph and connected_to != account_id
         else None
     )
+
     if target is None:
         target = next(
             (
@@ -146,24 +186,32 @@ def inject_harvested_mule_account(
             "source": account_id,
             "target": target,
             "relationship_type": relationship,
-            # Retain the upstream attribute for callers using the old graph shape.
             "relationship": relationship,
             "source_signal": "AI Telephony Honeypot",
             "observed_at": datetime.now(timezone.utc).isoformat(),
             "confidence": 0.0,
             "provenance": "inferred",
             "annotation": (
-                "Account harvested by the AI Telephony Honeypot; this link is "
-                "inferred and has not been independently verified."
+                "Account harvested by the AI Telephony Honeypot; "
+                "this link is inferred and has not been independently "
+                "verified."
             ),
         }
-        graph.add_edge(account_id, target, **edge_data)
+
+        store.upsert_relationship(edge_data)
+
+        graph.add_edge(
+            account_id,
+            target,
+            **edge_data,
+        )
 
     return get_ring_info(account_id)
 
 
 def get_ring_info(account_id: str) -> dict:
-    """Return fraud-ring information with explainable graph relationships."""
+    """Return fraud-ring information with explainable relationships."""
+
     graph = get_graph()
 
     if account_id not in graph:
@@ -193,12 +241,17 @@ def get_ring_info(account_id: str) -> dict:
         for neighbor in neighbors
     ]
 
-    paths = _get_explainable_paths(graph, account_id, max_hops=2)
+    paths = _get_explainable_paths(
+        graph,
+        account_id,
+        max_hops=2,
+    )
 
-    # Preserve the original mule-scoring calculation.
     degree = graph.degree(account_id)
+
     flagged_neighbor = any(
-        graph.nodes[neighbor]["flagged"] for neighbor in neighbors
+        graph.nodes[neighbor].get("flagged", False)
+        for neighbor in neighbors
     )
 
     base = min(0.5, degree * 0.15)
@@ -214,8 +267,11 @@ def get_ring_info(account_id: str) -> dict:
 
     mule_probability = round(min(1.0, base), 2)
 
-    # Preserve the original ring-ID calculation.
-    component = nx.node_connected_component(graph, account_id)
+    component = nx.node_connected_component(
+        graph,
+        account_id,
+    )
+
     ring_id = (
         f"RING-{sorted(component)[0]}"
         if len(component) > 1
@@ -224,12 +280,14 @@ def get_ring_info(account_id: str) -> dict:
 
     return {
         "account_id": account_id,
-        "is_flagged": graph.nodes[account_id]["flagged"],
+        "is_flagged": graph.nodes[account_id].get("flagged", False),
         "mule_probability": mule_probability,
         "ring_id": ring_id,
         "connected_accounts": neighbors,
         "shared_signals": shared_signals,
         "edges": edges,
         "paths": paths,
-        "harvested_by_honeypot": account_id in HARVESTED_HONEYPOT_ACCOUNTS,
+        "harvested_by_honeypot": (
+            account_id in HARVESTED_HONEYPOT_ACCOUNTS
+        ),
     }

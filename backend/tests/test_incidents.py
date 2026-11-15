@@ -1,10 +1,13 @@
+import json
 import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.services import incidents
 
-client = TestClient(app)
+TOKEN = "test-admin-token-that-is-long-enough-123456789"
+AUTH_HEADERS = {"Authorization": f"Bearer {TOKEN}"}
+client = TestClient(app, headers=AUTH_HEADERS)
 
 DIGITAL_ARREST = (
     "This is the CBI. You are under digital arrest. Do not tell anyone. "
@@ -13,7 +16,18 @@ DIGITAL_ARREST = (
 
 
 @pytest.fixture(autouse=True)
-def clean_store():
+def clean_store(monkeypatch):
+    monkeypatch.setenv(
+        "KSHEMOS_ACCESS_TOKENS",
+        json.dumps({
+            TOKEN: {
+                "subject": "ADMIN-TEST",
+                "role": "admin",
+                "jurisdictions": [],
+                "case_ids": [],
+            }
+        }),
+    )
     incidents.reset()
     yield
     incidents.reset()

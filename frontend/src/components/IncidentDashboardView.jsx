@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 
-import { Clock, Inbox, Radio, WifiOff, ShieldAlert, Users, Network, ArrowRightLeft, X } from 'lucide-react';
+import { Clock, Inbox, Radio, WifiOff, ShieldAlert, Users, Network, ArrowRightLeft, X, Filter, RotateCcw } from 'lucide-react';
 import MutualAidRebalanceView from './jurisdiction/MutualAidRebalanceView';
 import IncidentNotificationConsole from './incidentDashboard/IncidentNotificationConsole';
 import { Mail } from 'lucide-react';
@@ -51,7 +51,7 @@ import ConflictResolutionModal from './incidentDashboard/ConflictResolutionModal
 
 
 
-const NO_FILTERS = { region: null, severity: null, escalatingOnly: false, unassignedOnly: false };
+const NO_FILTERS = { region: null, severity: null, escalatingOnly: false, unassignedOnly: false, query: '' };
 
 
 
@@ -59,7 +59,7 @@ function FeedStatus({ source, now, error }) {
 
   const live = source === 'backend';
 
-  const offline = source === 'offline' || source === 'cached_offline' || source === 'local';
+  const _offline = source === 'offline' || source === 'cached_offline' || source === 'local';
 
 
 
@@ -251,10 +251,33 @@ export default function IncidentDashboardView() {
 
 
   function toggleFilter(key) {
-
-    setFilters((f) => ({ ...f, [key]: typeof f[key] === 'boolean' ? !f[key] : null }));
-
+    setFilters((f) => {
+      if (typeof f[key] === 'boolean') {
+        return { ...f, [key]: !f[key] };
+      }
+      if (key === 'query') {
+        return { ...f, query: '' };
+      }
+      return { ...f, [key]: null };
+    });
   }
+
+  function handleFilterChange(key, value) {
+    setFilters((f) => ({ ...f, [key]: value }));
+  }
+
+  function handleResetFilters() {
+    setFilters(NO_FILTERS);
+    setSelectedId(null);
+  }
+
+  const hasActiveFilters = Boolean(
+    filters.region ||
+    filters.severity ||
+    filters.escalatingOnly ||
+    filters.unassignedOnly ||
+    (filters.query && filters.query.trim())
+  );
 
 
 
@@ -437,7 +460,28 @@ export default function IncidentDashboardView() {
 
       </div>
 
-
+      {hasActiveFilters && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs"
+          role="status"
+          aria-label="Active filter status summary"
+        >
+          <div className="flex items-center gap-2 text-amber-200">
+            <Filter size={14} className="text-[var(--saffron)] shrink-0" aria-hidden="true" />
+            <span>
+              Active filter view: Showing <strong>{visible.length}</strong> of <strong>{incidents.length}</strong> active cases.
+            </span>
+          </div>
+          <button
+            onClick={handleResetFilters}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[var(--saffron)] text-black font-semibold hover:bg-[var(--saffron)]/90 transition-colors text-xs cursor-pointer"
+            aria-label="Reset all filters to unfiltered feed"
+          >
+            <RotateCcw size={12} aria-hidden="true" />
+            Reset to unfiltered feed
+          </button>
+        </div>
+      )}
 
       {incidents.length === 0 ? (
 
@@ -525,13 +569,32 @@ export default function IncidentDashboardView() {
 
         <div ref={casesRef} className="scroll-mt-20">
 
-          <Panel eyebrow="Drill-down" title={`Active cases (${visible.length})`}>
+          <Panel
+            eyebrow="Drill-down"
+            title={`Active cases (${visible.length}${visible.length !== incidents.length ? ` of ${incidents.length}` : ''})`}
+          >
 
-            <FilterChips filters={filters} onClear={() => setFilters(NO_FILTERS)} onToggle={toggleFilter} />
+            <FilterChips
+              filters={filters}
+              totalCount={incidents.length}
+              matchingCount={visible.length}
+              onClear={handleResetFilters}
+              onToggle={toggleFilter}
+              onFilterChange={handleFilterChange}
+            />
 
             <div className={`grid gap-5 ${selected ? 'lg:grid-cols-2' : ''}`}>
 
-              <IncidentList incidents={visible} now={now} selectedId={selectedId} onSelect={setSelectedId} />
+              <IncidentList
+                incidents={visible}
+                totalCount={incidents.length}
+                filters={filters}
+                onResetFilters={handleResetFilters}
+                onToggleFilter={toggleFilter}
+                now={now}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+              />
 
               {selected && (
 

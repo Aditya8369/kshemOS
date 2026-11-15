@@ -29,7 +29,14 @@ export default function Shell({
   children,
 }) {
   const [openDropdown, setOpenDropdown] = useState(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navRef = useRef(null);
+  const menuButtonRef = useRef(null);
+  const mobileMenuRef = useRef(null);
+  const isFirstRender = useRef(true);
+
+  const toggleMobileMenu = () => setMobileMenuOpen((open) => !open);
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   // Close dropdown on click outside or escape key
   useEffect(() => {
@@ -51,19 +58,66 @@ export default function Shell({
     };
   }, []);
 
+  // Move focus into the mobile menu when it opens, and back to the
+  // menu control when it closes, so keyboard users are never stranded.
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    if (mobileMenuOpen) {
+      mobileMenuRef.current?.focus();
+    } else {
+      menuButtonRef.current?.focus();
+    }
+  }, [mobileMenuOpen]);
+
+  // Close the mobile menu on Escape or a click/tap outside the menu panel.
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') {
+        closeMobileMenu();
+      }
+    }
+    function handleClickOutside(e) {
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(e.target) &&
+        menuButtonRef.current &&
+        !menuButtonRef.current.contains(e.target)
+      ) {
+        closeMobileMenu();
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [mobileMenuOpen]);
+
   const navigateTo = (view, portalMode = null) => {
     if (portalMode) {
       setPortal(portalMode);
     }
     setActiveView(view);
     setOpenDropdown(null);
+    setMobileMenuOpen(false);
   };
 
   const navButton = (key, label, onClick, extraClass = '', isDirectActive = false) => {
-    const isActive = isDirectActive || activeView === key;
+    const isActive =
+      isDirectActive ||
+      activeView === key ||
+      (key === 'contributors' && activeView === 'meet') ||
+      (key === 'meet' && activeView === 'contributors');
 
     const buttonClass = [
-      'px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200',
+      'px-3 py-1 rounded-full text-xs font-semibold transition-all duration-200 cursor-pointer',
       isActive
         ? 'bg-[var(--ink)] text-white shadow-sm'
         : 'text-[var(--ink-text)]/70 hover:text-[var(--ink)] hover:bg-white',
@@ -86,7 +140,12 @@ export default function Shell({
 
   const dropdownMenu = (menuId, label, items) => {
     const isOpen = openDropdown === menuId;
-    const hasActiveChild = items.some((item) => item.key === activeView);
+    const hasActiveChild = items.some(
+      (item) =>
+        activeView === item.key ||
+        (item.key === 'contributors' && activeView === 'meet') ||
+        (item.key === 'meet' && activeView === 'contributors')
+    );
 
     return (
       <div className="relative">
@@ -121,10 +180,14 @@ export default function Shell({
         {isOpen && (
           <div
             role="menu"
-            className="absolute left-0 mt-2 w-52 rounded-2xl bg-white border border-[var(--paper-line)] shadow-xl shadow-[var(--ink)]/10 p-1.5 z-30 animate-fade-up"
+            className="absolute left-0 mt-2 w-56 rounded-2xl bg-white border border-[var(--paper-line)] shadow-xl shadow-[var(--ink)]/10 p-1.5 z-30 animate-fade-up"
           >
             {items.map((item) => {
-              const isItemActive = activeView === item.key;
+              const isItemActive =
+                activeView === item.key ||
+                (item.key === 'contributors' && activeView === 'meet') ||
+                (item.key === 'meet' && activeView === 'contributors');
+
               return (
                 <button
                   key={item.key}
@@ -158,6 +221,81 @@ export default function Shell({
     );
   };
 
+  // Destinations exposed by the compact mobile navigation menu, grouped
+  // so screen reader users can skip between sections with headings.
+  const mobileMenuSections = [
+    {
+      label: 'Quick actions',
+      items: [
+        { key: 'home', label: 'Home' },
+        { key: 'portal', label: 'Citizen Verification Portal', portal: 'citizen', active: 'portal' },
+        { key: 'live-call-safety', label: 'Live Call Shield' },
+      ],
+    },
+    {
+      label: 'Citizen tools',
+      items: [
+        { key: 'regional-threat-mesh', label: 'Regional Threat Mesh', dotColor: 'bg-emerald-600' },
+        { key: 'takedown-generator', label: 'Domain Abuse Takedown', dotColor: 'bg-blue-600' },
+        { key: 'field-seizure', label: 'Field Seizure Companion', dotColor: 'bg-emerald-600' },
+        { key: 'emergency-killswitch', label: 'Emergency Kill-Switch', dotColor: 'bg-red-600' },
+        { key: 'voice-deepfake', label: 'Voice Deepfake Detector', dotColor: 'bg-indigo-600' },
+        { key: 'multilingual-speech', label: 'Indic Speech ASR', dotColor: 'bg-purple-600' },
+        { key: 'incident-notifications', label: 'Incident Notifications', dotColor: 'bg-indigo-500' },
+        { key: 'toolbox', label: 'Cyber Toolbox' },
+      ],
+    },
+    {
+      label: 'Officer operations',
+      items: [
+        { key: 'officer', label: 'Officer Command Center', active: 'officer' },
+        { key: 'mule-freeze', label: 'Mule Account Freeze' },
+        { key: 'money-trail', label: 'Money Trail & Hop Reconstructor' },
+        { key: 'triage', label: 'Triage Engine' },
+        { key: 'evidence-affidavit-compiler', label: 'Section 63 BSA Affidavit' },
+        { key: 'cli-spoof-detector', label: 'CLI Spoof & Telecom Triage' },
+        { key: 'syndicate-triage', label: 'Syndicate & APK Triage' },
+        { key: 'advisory', label: 'Advisory Composer' },
+        { key: 'evidence', label: 'Evidence Vault' },
+        { key: 'alerts', label: 'Alert Dispatch' },
+        { key: 'jurisdiction', label: 'Jurisdiction Config' },
+        { key: 'dpdp-redaction', label: 'DPDP Redaction & Masking' },
+        { key: 'stage-inspector', label: 'Stage & Uniform Inspector' },
+      ],
+    },
+    {
+      label: 'Resources',
+      items: [
+        { key: 'awareness', label: 'Awareness Hub' },
+        { key: 'safety-tips', label: 'Safety Tips' },
+        { key: 'scam-examples', label: 'Scam Examples' },
+        { key: 'rule-library', label: 'Threat Library' },
+      ],
+    },
+    {
+      label: 'Project',
+      items: [
+        { key: 'about', label: 'About KshemOS' },
+        { key: 'how-it-works', label: 'How It Works' },
+        { key: 'meet', label: 'Contributors & Team', active: 'contributors' },
+        { key: 'contact', label: 'Contact' },
+      ],
+    },
+  ];
+
+  const isMobileItemActive = (item) => {
+    if (item.active) {
+      return activeView === item.active;
+    }
+    return (
+      activeView === item.key ||
+      (item.key === 'contributors' && activeView === 'meet') ||
+      (item.key === 'meet' && activeView === 'contributors') ||
+      (item.key === 'officer' && activeView === 'portal' && portal === 'officer') ||
+      (item.key === 'portal' && activeView === 'portal' && portal === 'citizen')
+    );
+  };
+
   return (
     <div className="min-h-screen flex flex-col w-full overflow-x-hidden">
       {/* Skip to Main Content Link for Keyboard & Screen Reader Users */}
@@ -175,13 +313,13 @@ export default function Shell({
 
       {/* Header */}
       <header className="border-b border-[var(--paper-line)] bg-white/90 backdrop-blur sticky top-0 z-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-wrap items-center justify-between gap-3">
 
           {/* Brand */}
           <button
             type="button"
             onClick={() => navigateTo('home')}
-            className="flex items-center gap-2 shrink-0 text-left cursor-pointer focus:outline-none"
+            className="flex items-center gap-2 shrink-0 text-left cursor-pointer min-h-[44px] focus:outline-none focus-visible:outline-2 focus-visible:outline-[var(--saffron)] focus-visible:outline-offset-2 rounded-lg"
           >
             <ShieldMark />
             <div>
@@ -194,11 +332,59 @@ export default function Shell({
             </div>
           </button>
 
-          {/* Grouped Navigation */}
+          {/* Compact mobile menu control: clearly labelled, shown at small widths only */}
+          <button
+            ref={menuButtonRef}
+            type="button"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-menu"
+            aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            onClick={toggleMobileMenu}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggleMobileMenu();
+              }
+            }}
+            className={[
+              'flex items-center gap-2 px-3 py-2 text-xs font-semibold transition-colors cursor-pointer shrink-0',
+              'min-h-[44px] min-w-[44px] rounded-full border border-[var(--paper-line)] bg-[var(--paper)] text-[var(--ink-text)]/90',
+              'hover:bg-[var(--ink)] hover:text-white',
+              'focus-visible:outline-2 focus-visible:outline-[var(--saffron)] focus-visible:outline-offset-2',
+              'flex sm:hidden',
+            ].join(' ')}
+          >
+            <svg
+              className="w-5 h-5 shrink-0"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              {mobileMenuOpen ? (
+                <>
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </>
+              ) : (
+                <>
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </>
+              )}
+            </svg>
+            <span>{mobileMenuOpen ? 'Close' : 'Menu'}</span>
+          </button>
+
+          {/* Grouped Navigation (desktop and tablet) */}
           <nav
             ref={navRef}
             aria-label="Main navigation"
-            className="flex flex-wrap items-center gap-2"
+            className="hidden sm:flex flex-wrap items-center gap-2"
           >
             {/* Group 1: Home */}
             <div className="flex items-center bg-[var(--paper)] border border-[var(--paper-line)] rounded-full p-1 text-sm">
@@ -234,6 +420,31 @@ export default function Shell({
               {/* Citizen Tools Dropdown */}
               {dropdownMenu('citizen-tools', 'Citizen Tools', [
                 {
+                  key: 'regional-threat-mesh',
+                  label: 'Regional Threat Mesh',
+                  dotColor: 'bg-emerald-600',
+                },
+                {
+                  key: 'takedown-generator',
+                  label: 'Domain Abuse Takedown',
+                  dotColor: 'bg-blue-600',
+                },
+                {
+                  key: 'field-seizure',
+                  label: 'Field Seizure Companion',
+                  dotColor: 'bg-emerald-600',
+                },
+                {
+                  key: 'emergency-killswitch',
+                  label: 'Emergency Kill-Switch',
+                  dotColor: 'bg-red-600',
+                },
+                {
+                  key: 'voice-deepfake',
+                  label: 'Voice Deepfake Detector',
+                  dotColor: 'bg-indigo-600',
+                },
+                {
                   key: 'multilingual-speech',
                   label: 'Indic Speech ASR',
                   dotColor: 'bg-purple-600',
@@ -242,6 +453,11 @@ export default function Shell({
                   key: 'incident-notifications',
                   label: 'Incident Notifications',
                   dotColor: 'bg-indigo-500',
+                },
+                {
+                  key: 'advisory-subscriptions',
+                  label: 'Advisory Subscriptions',
+                  dotColor: 'bg-amber-600',
                 },
                 {
                   key: 'toolbox',
@@ -263,7 +479,12 @@ export default function Shell({
 
               {/* Operations Dropdown */}
               {dropdownMenu('officer-operations', 'Operations', [
+                { key: 'regional-threat-mesh', label: 'Regional Threat Mesh' },
+                { key: 'takedown-generator', label: 'Abuse Takedown Notice' },
+                { key: 'field-seizure', label: 'Field Seizure Companion' },
+                { key: 'voice-deepfake', label: 'Voice Deepfake Detector' },
                 { key: 'mule-freeze', label: 'Mule Account Freeze' },
+                { key: 'money-trail', label: 'Money Trail & Hop Reconstructor' },
                 { key: 'triage', label: 'Triage Engine' },
                 { key: 'evidence-affidavit-compiler', label: 'Section 63 BSA Affidavit' },
                 { key: 'cli-spoof-detector', label: 'CLI Spoof & Telecom Triage' },
@@ -273,6 +494,7 @@ export default function Shell({
                 { key: 'alerts', label: 'Alert Dispatch' },
                 { key: 'jurisdiction', label: 'Jurisdiction Config' },
                 { key: 'dpdp-redaction', label: 'DPDP Redaction & Masking' },
+                { key: 'stage-inspector', label: 'Stage & Uniform Inspector' },
               ])}
             </div>
 
@@ -296,6 +518,50 @@ export default function Shell({
               ])}
             </div>
           </nav>
+
+          {/* Compact mobile navigation panel: opens below the header, scoped to small widths */}
+          {mobileMenuOpen && (
+            <div
+              ref={mobileMenuRef}
+              id="mobile-menu"
+              role="navigation"
+              aria-label="Mobile navigation"
+              tabIndex="-1"
+              className="absolute top-full left-0 right-0 mt-1 z-30 max-h-[60vh] overflow-y-auto rounded-b-2xl border border-[var(--paper-line)] border-t-0 bg-white/95 backdrop-blur-md shadow-xl shadow-[var(--ink)]/10 p-2 animate-fade-up sm:hidden"
+            >
+              {mobileMenuSections.map((section) => (
+                <div key={section.label} className="space-y-1">
+                  <h2 className="px-3 py-2 text-[10px] font-mono font-bold uppercase tracking-widest text-[var(--ink-text)]/40">
+                    {section.label}
+                  </h2>
+                  {section.items.map((item) => {
+                    const isActive = isMobileItemActive(item);
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => navigateTo(item.key, item.portal)}
+                        className={[
+                          'w-full text-left px-3 py-3 rounded-xl text-base font-medium transition-colors min-h-[44px]',
+                          isActive
+                            ? 'bg-[var(--ink)] text-white font-semibold'
+                            : 'text-[var(--ink-text)]/85 hover:bg-[var(--paper)] hover:text-[var(--ink)]',
+                          'focus-visible:outline-2 focus-visible:outline-[var(--saffron)] focus-visible:outline-offset-2',
+                        ].join(' ')}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          {item.dotColor && (
+                            <span className={`w-1.5 h-1.5 rounded-full ${item.dotColor}`} />
+                          )}
+                          {item.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </header>
 

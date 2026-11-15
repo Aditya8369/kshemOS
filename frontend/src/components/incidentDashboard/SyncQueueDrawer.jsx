@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import {
+  clearOfflineData,
   clearSyncHistory,
   discardQueueItem,
   getSyncHistory,
@@ -22,12 +23,13 @@ import {
 import { STATUS_LABEL } from './display';
 
 export default function SyncQueueDrawer({ isOpen, onClose, onResolveConflict }) {
-  if (!isOpen) return null;
-
   const [activeTab, setActiveTab] = useState('queue');
   const [queue, setQueue] = useState(() => getSyncQueue());
   const [history, setHistory] = useState(() => getSyncHistory());
   const [syncing, setSyncing] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  if (!isOpen) return null;
 
   function refresh() {
     setQueue(getSyncQueue());
@@ -61,6 +63,19 @@ export default function SyncQueueDrawer({ isOpen, onClose, onResolveConflict }) 
   function handleClearHistory() {
     clearSyncHistory();
     refresh();
+  }
+
+  async function handleWipeDevice() {
+    const confirmed = globalThis.confirm?.(
+      'Sign out and erase all local field drafts, sync history, and cached incidents from this device?',
+    );
+
+    if (globalThis.confirm && !confirmed) return;
+
+    const result = await clearOfflineData('logout');
+    refresh();
+    globalThis.dispatchEvent?.(new Event(INCIDENTS_CHANGED_EVENT));
+    setNotice(result.message);
   }
 
   return (
@@ -272,20 +287,39 @@ export default function SyncQueueDrawer({ isOpen, onClose, onResolveConflict }) 
         </div>
 
         {/* Bottom Drawer Bar */}
-        <div className="pt-3 border-t border-[var(--navy-line)] flex items-center justify-between gap-3">
-          <div className="text-xs text-[var(--mist)]">
-            {isOnline() ? '🟢 HQ Backend reachable' : '🟡 Field offline mode'}
-          </div>
-          {activeTab === 'queue' && queue.length > 0 && (
-            <button
-              onClick={handleSyncAll}
-              disabled={!isOnline() || syncing}
-              className="px-4 py-2 bg-[var(--saffron)] text-[var(--ink)] font-semibold text-xs rounded-full hover:brightness-110 disabled:opacity-40 transition-all flex items-center gap-1.5"
+        <div className="pt-3 border-t border-[var(--navy-line)] space-y-2">
+          {notice && (
+            <div
+              role="status"
+              className="text-[11px] text-emerald-300 bg-emerald-950/40 border border-emerald-800/50 rounded-lg px-2.5 py-1.5"
             >
-              <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
-              <span>{syncing ? 'Syncing Outbox…' : 'Sync All Pending'}</span>
-            </button>
+              {notice}
+            </div>
           )}
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-xs text-[var(--mist)]">
+              {isOnline() ? '🟢 HQ Backend reachable' : '🟡 Field offline mode'}
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleWipeDevice}
+                className="text-[11px] text-[var(--mist)] hover:text-rose-300 underline"
+                title="Erase local drafts, sync history, and cached incidents"
+              >
+                Sign out &amp; wipe device data
+              </button>
+              {activeTab === 'queue' && queue.length > 0 && (
+                <button
+                  onClick={handleSyncAll}
+                  disabled={!isOnline() || syncing}
+                  className="px-4 py-2 bg-[var(--saffron)] text-[var(--ink)] font-semibold text-xs rounded-full hover:brightness-110 disabled:opacity-40 transition-all flex items-center gap-1.5"
+                >
+                  <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
+                  <span>{syncing ? 'Syncing Outbox…' : 'Sync All Pending'}</span>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
