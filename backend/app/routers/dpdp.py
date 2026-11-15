@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from app.models import (
     DpdpAuditLogEntry,
+    UnmaskReviewAction,
     PiiSanitizationRequest,
     PiiSanitizationResponse,
     PseudonymizeFeedRequest,
