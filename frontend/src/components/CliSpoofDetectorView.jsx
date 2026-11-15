@@ -34,6 +34,13 @@ import {
   fetchTelecomTriageSummaryApi,
 } from '../api.js';
 
+import FormField from './FormField.jsx';
+import { validateRouteForm } from '../formValidation.js';
+
+const fieldClass = (hasError) =>
+  'w-full rounded-xl bg-slate-900 border px-3 py-2 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--saffron)] disabled:opacity-50 disabled:cursor-not-allowed ' +
+  (hasError ? 'border-red-500' : 'border-[var(--navy-line)] focus:border-[var(--saffron)]');
+
 export default function CliSpoofDetectorView() {
   // Preset selector
   const [selectedPresetId, setSelectedPresetId] = useState('DEMO-CAMBODIA-SPOOF');
@@ -52,6 +59,11 @@ export default function CliSpoofDetectorView() {
   const [audioCodec, setAudioCodec] = useState('G711U');
   const [statedAgency, setStatedAgency] = useState('Mumbai Police Commissionerate');
   const [statedArrestThreat, setStatedArrestThreat] = useState(true);
+
+  const [errors, setErrors] = useState({});
+  function clearError(name) {
+    setErrors((prev) => (prev[name] ? { ...prev, [name]: undefined } : prev));
+  }
 
   // Analysis result state
   const [isVerifying, setIsVerifying] = useState(false);
@@ -88,6 +100,15 @@ export default function CliSpoofDetectorView() {
   // Run Route Verification
   async function handleVerifyRoute(e) {
     if (e && e.preventDefault) e.preventDefault();
+    const found = validateRouteForm({
+      callerCli, ingressIp, originatingCountry, latencyMs, jitterMs, packetLossPct,
+    });
+    setErrors(found);
+    const firstKey = Object.keys(found)[0];
+    if (firstKey) {
+      document.getElementById('field-' + firstKey)?.focus();
+      return;
+    }
     setIsVerifying(true);
     setTriageActionStatus('');
 
@@ -290,7 +311,7 @@ export default function CliSpoofDetectorView() {
               </div>
 
               {/* Technical Route Inspection Form */}
-              <form onSubmit={handleVerifyRoute} className="rounded-2xl bg-[var(--navy)] border border-[var(--navy-line)] p-4 sm:p-5 space-y-4">
+              <form onSubmit={handleVerifyRoute} noValidate className="rounded-2xl bg-[var(--navy)] border border-[var(--navy-line)] p-4 sm:p-5 space-y-4">
                 <div className="flex items-center justify-between border-b border-[var(--navy-line)] pb-3">
                   <h2 className="text-sm font-bold text-white uppercase tracking-wider font-mono flex items-center gap-1.5">
                     <Server className="w-4 h-4 text-[var(--saffron)]" />
@@ -332,37 +353,27 @@ export default function CliSpoofDetectorView() {
 
                 {/* Caller CLI & Ingress IP */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-[var(--mist)]">Displayed CLI / Caller Number</label>
-                    <input
-                      type="text"
-                      value={callerCli}
-                      onChange={(e) => setCallerCli(e.target.value)}
-                      placeholder="+91 22 2262 0111"
-                      className="w-full rounded-xl bg-slate-900 border border-[var(--navy-line)] px-3 py-2 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-[var(--saffron)]"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-[var(--mist)]">Ingress IP / Host</label>
-                    <input
-                      type="text"
-                      value={ingressIp}
-                      onChange={(e) => setIngressIp(e.target.value)}
-                      placeholder="45.154.255.42"
-                      className="w-full rounded-xl bg-slate-900 border border-[var(--navy-line)] px-3 py-2 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-[var(--saffron)]"
-                    />
-                  </div>
+                  <FormField id="field-callerCli" label="Displayed CLI / Caller Number"
+                    helperText="The number shown on the incoming call." error={errors.callerCli}>
+                    <input type="text" value={callerCli} placeholder="+91 22 2262 0111"
+                      onChange={(e) => { setCallerCli(e.target.value); clearError('callerCli'); }}
+                      className={fieldClass(errors.callerCli)} />
+                  </FormField>
+                  <FormField id="field-ingressIp" label="Ingress IP / Host"
+                    helperText="IPv4 address or host name of the gateway." error={errors.ingressIp}>
+                    <input type="text" value={ingressIp} placeholder="45.154.255.42"
+                      onChange={(e) => { setIngressIp(e.target.value); clearError('ingressIp'); }}
+                      className={fieldClass(errors.ingressIp)} />
+                  </FormField>
                 </div>
 
                 {/* Protocol & Originating Country */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-[var(--mist)]">Signaling Protocol</label>
-                    <select
-                      value={signalingProtocol}
+                  <FormField id="field-signalingProtocol" label="Signaling Protocol"
+                    helperText="How the call reached the network.">
+                    <select value={signalingProtocol}
                       onChange={(e) => setSignalingProtocol(e.target.value)}
-                      className="w-full rounded-xl bg-slate-900 border border-[var(--navy-line)] px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-[var(--saffron)]"
-                    >
+                      className={fieldClass(false)}>
                       <option value="SIP_UDP">SIP UDP (VoIP Trunk)</option>
                       <option value="SIP_TLS">SIP TLS (Encrypted SIP)</option>
                       <option value="WEBRTC_VOIP">WebRTC VoIP Gateway</option>
@@ -370,49 +381,32 @@ export default function CliSpoofDetectorView() {
                       <option value="PSTN_ISDN">PSTN ISDN PRI (Fixed line)</option>
                       <option value="GSM_2G_3G">GSM Cellular Trunk</option>
                     </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-[var(--mist)]">Originating Country</label>
-                    <input
-                      type="text"
-                      value={originatingCountry}
-                      onChange={(e) => setOriginatingCountry(e.target.value.toUpperCase())}
-                      placeholder="IN, KH, MM, AE..."
-                      className="w-full rounded-xl bg-slate-900 border border-[var(--navy-line)] px-3 py-2 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-[var(--saffron)]"
-                    />
-                  </div>
+                  </FormField>
+                  <FormField id="field-originatingCountry" label="Originating Country"
+                    helperText="2-letter code, e.g. IN, KH, MM, AE." error={errors.originatingCountry}>
+                    <input type="text" value={originatingCountry} placeholder="IN, KH, MM, AE..." maxLength={2}
+                      onChange={(e) => { setOriginatingCountry(e.target.value.toUpperCase()); clearError('originatingCountry'); }}
+                      className={fieldClass(errors.originatingCountry)} />
+                  </FormField>
                 </div>
 
-                {/* Latency & Jitter */}
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="space-y-1">
-                    <label className="text-[11px] text-[var(--mist)]">Latency (ms)</label>
-                    <input
-                      type="number"
-                      value={latencyMs}
-                      onChange={(e) => setLatencyMs(Number(e.target.value))}
-                      className="w-full rounded-xl bg-slate-900 border border-[var(--navy-line)] px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-[var(--saffron)]"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] text-[var(--mist)]">Jitter (ms)</label>
-                    <input
-                      type="number"
-                      value={jitterMs}
-                      onChange={(e) => setJitterMs(Number(e.target.value))}
-                      className="w-full rounded-xl bg-slate-900 border border-[var(--navy-line)] px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-[var(--saffron)]"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[11px] text-[var(--mist)]">Loss (%)</label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      value={packetLossPct}
-                      onChange={(e) => setPacketLossPct(Number(e.target.value))}
-                      className="w-full rounded-xl bg-slate-900 border border-[var(--navy-line)] px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-[var(--saffron)]"
-                    />
-                  </div>
+                {/* Latency, Jitter, Loss */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <FormField id="field-latencyMs" label="Latency (ms)" helperText="0 to 10000." error={errors.latencyMs}>
+                    <input type="number" value={latencyMs}
+                      onChange={(e) => { setLatencyMs(Number(e.target.value)); clearError('latencyMs'); }}
+                      className={fieldClass(errors.latencyMs)} />
+                  </FormField>
+                  <FormField id="field-jitterMs" label="Jitter (ms)" helperText="0 to 10000." error={errors.jitterMs}>
+                    <input type="number" value={jitterMs}
+                      onChange={(e) => { setJitterMs(Number(e.target.value)); clearError('jitterMs'); }}
+                      className={fieldClass(errors.jitterMs)} />
+                  </FormField>
+                  <FormField id="field-packetLossPct" label="Loss (%)" helperText="0 to 100." error={errors.packetLossPct}>
+                    <input type="number" step="0.1" value={packetLossPct}
+                      onChange={(e) => { setPacketLossPct(Number(e.target.value)); clearError('packetLossPct'); }}
+                      className={fieldClass(errors.packetLossPct)} />
+                  </FormField>
                 </div>
 
                 {/* SIP Headers */}
