@@ -352,11 +352,9 @@ export {
 
 export async function sendReportConfirmationEmail({
   reportId,
-  reporterName,
   recipientEmail,
   category,
-  description,
-  acknowledgement,
+  submittedAt,
 }) {
   if (
     !EMAILJS_SERVICE_ID ||
@@ -372,13 +370,13 @@ export async function sendReportConfirmationEmail({
 
   try {
     const templateParams = {
-      report_id: reportId,
-      reporter_name: reporterName,
-      recipient_email: recipientEmail,
-      report_category: category,
-      report_description: description,
-      acknowledgement,
-    };
+  report_id: reportId,
+  recipient_email: recipientEmail,
+  report_category: category,
+  submitted_at: submittedAt,
+  next_steps:
+    'Preserve relevant evidence. Do not share OTPs, passwords, or financial details. Contact the appropriate official authority if urgent assistance is needed.',
+};
 
     await emailjs.send(
       EMAILJS_SERVICE_ID,

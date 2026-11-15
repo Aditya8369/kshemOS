@@ -487,6 +487,7 @@ function Assistant() {
 function ReportForm({ addReport }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [emailConsent, setEmailConsent] = useState(false);
   const [category, setCategory] = useState('scam_call');
   const [description, setDescription] = useState('');
   const [language, setLanguage] = useState('English');
@@ -495,6 +496,7 @@ function ReportForm({ addReport }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [emailStatus, setEmailStatus] = useState(null);
+  const [referenceStatus, setReferenceStatus] = useState('');
 
   async function submit() {
     if (!name.trim() || !description.trim()) {
@@ -528,22 +530,19 @@ function ReportForm({ addReport }) {
       addReport({
         report_id: res.report_id,
         reporter_name: name,
-        email,
         category,
         description,
         acknowledgement: res.acknowledgement,
         submitted_at: res.submitted_at,
       });
 
-      if (email.trim()) {
+      if (email.trim() && emailConsent) {
         try {
           const emailResponse = await sendReportConfirmationEmail({
             reportId: res.report_id,
-            reporterName: name,
             recipientEmail: email,
             category,
-            description,
-            acknowledgement: res.acknowledgement,
+            submittedAt: res.submitted_at,
           });
 
           setEmailStatus(emailResponse);
@@ -558,7 +557,9 @@ function ReportForm({ addReport }) {
       } else {
         setEmailStatus({
           success: false,
-          message: 'No email entered. Confirmation email not sent.',
+          message: email.trim()
+            ? 'Confirmation email not sent because consent was not provided.'
+            : 'No email entered. Confirmation email not sent.',
         });
       }
     } catch (e) {
@@ -566,6 +567,29 @@ function ReportForm({ addReport }) {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function copyReportReference() {
+    try {
+      await navigator.clipboard.writeText(result.report_id);
+      setReferenceStatus('Report reference copied!');
+    } catch {
+      setReferenceStatus('Unable to copy. Please copy the reference manually.');
+    }
+  }
+
+  function downloadReportReference() {
+    const file = new Blob(
+      [`KshemOS Report Reference: ${result.report_id}`],
+      { type: 'text/plain' }
+    );
+
+    const url = URL.createObjectURL(file);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${result.report_id}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
   }
 
   return (
@@ -592,7 +616,20 @@ function ReportForm({ addReport }) {
         />
       </div>
 
-      <div className="grid sm:grid-cols-2 gap-3 mb-2">
+      <label className="flex items-start gap-2 text-sm mt-2">
+        <input
+          type="checkbox"
+          checked={emailConsent}
+          onChange={(e) => setEmailConsent(e.target.checked)}
+          className="mt-1"
+        />
+        <span>
+          I agree to receive a confirmation email about this report.
+          My email address will only be used for this confirmation.
+        </span>
+      </label>
+
+      <div className="grid sm:grid-cols-2 gap-3 mb-2 mt-3">
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
@@ -629,7 +666,6 @@ function ReportForm({ addReport }) {
         onChange={(e) => setDescription(e.target.value)}
       />
 
-      {/* Submit Button with Loading Spinner & Disabled State */}
       <button
         type="button"
         onClick={submit}
@@ -639,7 +675,6 @@ function ReportForm({ addReport }) {
       >
         {loading ? (
           <>
-            {/* Loading Spinner SVG */}
             <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -651,7 +686,6 @@ function ReportForm({ addReport }) {
         )}
       </button>
 
-      {/* Recoverable Error State with Dismiss Option */}
       {error && (
         <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg flex justify-between items-center text-sm text-[var(--alert)]">
           <span>{error}</span>
@@ -677,9 +711,8 @@ function ReportForm({ addReport }) {
         </p>
       )}
 
-      {/* Success State & Next-Step Feedback */}
       {result && (
-        <div className="mt-4 text-sm bg-green-50 rounded-xl p-4 border border-green-200 space-y-2 text-green-900">
+        <div className="mt-4 text-sm bg-green-50 rounded-xl p-4 border border-green-200 space-y-3 text-green-900">
           <div className="flex items-center justify-between">
             <h4 className="font-display font-bold text-base text-green-900">
               Report Submitted Successfully!
@@ -688,6 +721,30 @@ function ReportForm({ addReport }) {
               {result.report_id}
             </span>
           </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={copyReportReference}
+              className="rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-green-100"
+            >
+              Copy reference
+            </button>
+
+            <button
+              type="button"
+              onClick={downloadReportReference}
+              className="rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-green-100"
+            >
+              Download reference
+            </button>
+          </div>
+
+          {referenceStatus && (
+            <p className="text-xs text-[var(--safe)] font-semibold">
+              {referenceStatus}
+            </p>
+          )}
 
           <p className="text-sm">{result.acknowledgement}</p>
 
@@ -779,8 +836,7 @@ function ReportHistory({ reports }) {
             </p>
 
             <div className="mt-2 text-xs text-[var(--ink-text)]/60">
-              Reporter: {report.reporter_name}{' '}
-              {report.email ? `• ${report.email}` : ''}
+              Reporter: {report.reporter_name}
             </div>
           </div>
         ))}
@@ -838,148 +894,23 @@ export default function CitizenPortal({ setActiveView }) {
           Emergency & Quick Actions
         </h2>
 
-        <div className="grid gap-4 sm:grid-cols-1">
-          {/* Live Scam-Call Shield Quick Launch Banner */}
-          <div className="bg-gradient-to-r from-red-500/10 via-amber-500/10 to-transparent border border-red-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
-                🛡️
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-bold text-sm text-[var(--ink)]">
-                    On an active suspicious call right now?
-                  </span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-red-600 text-white">
-                    Live Guardian
-                  </span>
-                </div>
-                <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
-                  Activate consent-based live call transcription to detect digital arrest language and receive instant 1930 action directives.
-                </p>
-              </div>
-            </div>
-
-            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
-              Transcribe Hindi, Tamil, Telugu, and code-switched dialogues
-              with word-level confidence scores and interactive citizen
-              corrections.
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            setActiveView && setActiveView('multilingual-speech')
-          }
-          className="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
-        >
-          Open Multilingual ASR
-        </button>
-      </div>
-
-      {/* Public Incident Advisory Subscriptions Quick Launch Banner (Issue 43) */}
-      <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent border border-amber-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
-            📢
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-sm text-[var(--ink)]">
-                Public Safety Incident Advisory Alerts
-              </span>
-
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-amber-600 text-white">
-                Email &amp; In-App Feed
-              </span>
-            </div>
-
-            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
-              Subscribe to verified police and cyber emergency bulletins by district or topic. Opt into email updates or browse the in-app verified feed.
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() =>
-            setActiveView && setActiveView('advisory-subscriptions')
-          }
-          className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
-        >
-          Subscribe &amp; View Feed
-        </button>
-      </div>
-
-      {/* Live Scam-Call Shield Quick Launch Banner */}
-      <div className="bg-gradient-to-r from-red-500/10 via-amber-500/10 to-transparent border border-red-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
-            🛡️
-          </div>
-
-          {/* Emergency Financial Kill-Switch Quick Launch Banner */}
-          <div className="bg-gradient-to-r from-red-600/10 via-amber-500/10 to-transparent border border-red-300 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
-                ⚡
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-bold text-sm text-[var(--ink)]">
-                    Suspect unauthorized debit or shared your credentials?
-                  </span>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-red-600 text-white">
-                    Kill-Switch & AePS Defense
-                  </span>
-                </div>
-                <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
-                  Access verified one-tap USSD (*99#) & SMS freeze commands for all major banks, lock biometrics against fraud, and generate mitigation receipts.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setActiveView && setActiveView('emergency-killswitch')}
-              className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              Open Emergency Kill-Switch
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Regional Threat Mesh Quick Launch Banner */}
-      <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
-            🌐
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-sm text-[var(--ink)]">
-                Local Area Threat Advisories
-              </span>
-
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-emerald-600 text-white">
-                Geofenced Mesh
-              </span>
+        {/* Live Guardian Banner */}
+        <div className="bg-gradient-to-r from-red-500/10 via-amber-500/10 to-transparent border border-red-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+              🛡️
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-bold text-sm text-[var(--ink)]">
-                  Regional Language or Hinglish Call?
+                  On an active suspicious call right now?
                 </span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-purple-700 text-white">
-                  Bhashini ASR
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-red-600 text-white">
+                  Live Guardian
                 </span>
               </div>
               <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
-                Transcribe Hindi, Tamil, Telugu, and code-switched dialogues with word-level confidence scores and interactive citizen corrections.
+                Activate consent-based live call transcription to detect digital arrest language and receive instant 1930 action directives.
               </p>
             </div>
           </div>
@@ -992,49 +923,65 @@ export default function CitizenPortal({ setActiveView }) {
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            setActiveView && setActiveView('field-seizure')
-          }
-          className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
-        >
-          Open Seizure Companion
-        </button>
-      </div>
-
-      {/* Emergency Financial Kill-Switch Quick Launch Banner */}
-      <div className="bg-gradient-to-r from-red-600/10 via-amber-500/10 to-transparent border border-red-300 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
-            ⚡
-          </div>
-
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-sm text-[var(--ink)]">
-                Suspect unauthorized debit or shared your credentials?
-              </span>
-
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-red-600 text-white">
-                Kill-Switch & AePS Defense
-              </span>
+        {/* Public Safety Incident Advisory Subscriptions Banner */}
+        <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-transparent border border-amber-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+              📢
             </div>
-
-            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
-              Access verified one-tap USSD (*99#) & SMS freeze commands for all major banks, lock biometrics against fraud, and generate certified RBI Zero-Liability mitigation receipts.
-            </p>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm text-[var(--ink)]">
+                  Public Safety Incident Advisory Alerts
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-amber-600 text-white">
+                  Email &amp; In-App Feed
+                </span>
+              </div>
+              <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+                Subscribe to verified police and cyber emergency bulletins by district or topic. Opt into email updates or browse the in-app verified feed.
+              </p>
+            </div>
           </div>
           <button
             type="button"
-            onClick={() => setActiveView && setActiveView('voice-deepfake')}
-            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+            onClick={() => setActiveView && setActiveView('advisory-subscriptions')}
+            className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
           >
-            Inspect Voice Deepfake
+            Subscribe &amp; View Feed
           </button>
         </div>
 
-        {/* Regional Threat Mesh Quick Launch Banner */}
+        {/* Emergency Financial Kill-Switch Banner */}
+        <div className="bg-gradient-to-r from-red-600/10 via-amber-500/10 to-transparent border border-red-300 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+              ⚡
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm text-[var(--ink)]">
+                  Suspect unauthorized debit or shared your credentials?
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-red-600 text-white">
+                  Kill-Switch & AePS Defense
+                </span>
+              </div>
+              <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+                Access verified one-tap USSD (*99#) & SMS freeze commands for all major banks, lock biometrics against fraud, and generate certified RBI Zero-Liability mitigation receipts.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveView && setActiveView('emergency-killswitch')}
+            className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            Open Emergency Kill-Switch
+          </button>
+        </div>
+
+        {/* Regional Threat Mesh Banner */}
         <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-transparent border border-emerald-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
@@ -1053,10 +1000,6 @@ export default function CitizenPortal({ setActiveView }) {
                 View real-time privacy-preserving threat clusters and micro-advisories based on your immediate regional location.
               </p>
             </div>
-
-            <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
-              Verify synthetic voice clones, robotic pitch flatlines, and neural vocoder artifacts before transferring funds.
-            </p>
           </div>
           <button
             type="button"
@@ -1067,33 +1010,53 @@ export default function CitizenPortal({ setActiveView }) {
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() =>
-            setActiveView && setActiveView('voice-deepfake')
-          }
-          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
-        >
-          Inspect Voice Deepfake
-        </button>
-      </div>
-
-      {/* Phishing Website Takedown Quick Launch Banner */}
-      <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent border border-blue-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
-            🌐
+        {/* Voice Deepfake Inspector Banner */}
+        <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-transparent border border-indigo-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+              🎙️
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm text-[var(--ink)]">
+                  Voice Deepfake & Audio Clone Detector
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-indigo-600 text-white">
+                  Audio AI
+                </span>
+              </div>
+              <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+                Verify synthetic voice clones, robotic pitch flatlines, and neural vocoder artifacts before transferring funds.
+              </p>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setActiveView && setActiveView('voice-deepfake')}
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-sm shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            Inspect Voice Deepfake
+          </button>
+        </div>
 
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-sm text-[var(--ink)]">
-                Spotted a fake bank or police phishing website?
-              </span>
-
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-600 text-white">
-                Abuse Takedown
-              </span>
+        {/* Phishing Website Takedown Banner */}
+        <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-transparent border border-blue-200 rounded-2xl p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm font-bold text-lg">
+              🌐
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm text-[var(--ink)]">
+                  Spotted a fake bank or police phishing website?
+                </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-600 text-white">
+                  Abuse Takedown
+                </span>
+              </div>
+              <p className="text-xs text-[var(--ink-text)]/70 mt-0.5">
+                Generate automated abuse takedown reports and domain registrar escalation notices instantly.
+              </p>
             </div>
           </div>
           <button
