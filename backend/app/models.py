@@ -2,9 +2,11 @@
 Pydantic models shared across KshemOS backend routers.
 """
 from __future__ import annotations
+import math
+from mimetypes import guess_type
 from typing import Any, Dict, List, Literal, Optional
-from pydantic import BaseModel, EmailStr, Field, field_validator
-from datetime import datetime
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+from datetime import datetime, timezone
 
 # ---------- Scam / Digital Arrest Agent ----------
 
@@ -711,11 +713,32 @@ class InAppAdvisoryFeedItem(BaseModel):
 
 class RFC3161Token(BaseModel):
     serial_number: str
-    timestamp: int
+    timestamp: Optional[int] = None
     tsa_authority: str
-    policy_oid: str
-    hash_algorithm: str
-    signature: str
+    policy_oid: Optional[str] = None
+    hash_algorithm: Optional[str] = None
+    signature: Optional[str] = None
+    timestamp_iso: Optional[str] = None
+    digest_algorithm: Optional[str] = None
+    digest_value: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def support_legacy_timestamp_tokens(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+
+        data = dict(value)
+        if data.get("timestamp") is None and data.get("timestamp_iso"):
+            timestamp = datetime.fromisoformat(
+                str(data["timestamp_iso"]).replace("Z", "+00:00")
+            )
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=timezone.utc)
+            data["timestamp"] = int(timestamp.timestamp() * 1000)
+        if data.get("hash_algorithm") is None:
+            data["hash_algorithm"] = data.get("digest_algorithm")
+        return data
 
 
 class CustodialLogEntry(BaseModel):
@@ -729,28 +752,80 @@ class CustodialLogEntry(BaseModel):
     entry_hash: str
     details: str
 
+    @model_validator(mode="before")
+    @classmethod
+    def support_legacy_integrity_hash(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        if data.get("entry_hash") is None:
+            data["entry_hash"] = data.get("integrity_hash")
+        return data
+
 
 class EvidenceItem(BaseModel):
     id: str
     case_number: str
+    case_id: Optional[str] = None
     incident_id: Optional[str] = None
     title: str
     file_name: str
-    mime_type: str
+    mime_type: str = "application/octet-stream"
     file_size_bytes: int
     sha256_fingerprint: str
+    sha256_hash: Optional[str] = None
     rfc3161_token: RFC3161Token
     ingested_at: int
     ingested_by_badge: str
+    ingested_by: Optional[str] = None
     crime_category: str
+    category: Optional[str] = None
+    description: str = ""
+    evidence_type: str = "document"
+    source: Optional[str] = None
     statutory_retention_years: int
     retention_expiration_at: int
+    retention_days: Optional[int] = None
+    retention_until: Optional[int] = None
     legal_hold: bool = False
     legal_hold_reason: Optional[str] = None
     legal_hold_by_badge: Optional[str] = None
     legal_hold_at: Optional[int] = None
     status: str = "sealed"
+    custodial_status: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     custodial_ledger: list[CustodialLogEntry] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def support_legacy_evidence_items(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+
+        data = dict(value)
+        data.setdefault("case_number", data.get("case_id"))
+        data.setdefault("case_id", data.get("case_number"))
+        if not data.get("mime_type"):
+            data["mime_type"] = (
+                guess_type(data.get("file_name", ""))[0]
+                or "application/octet-stream"
+            )
+        data.setdefault("sha256_fingerprint", data.get("sha256_hash"))
+        data.setdefault("sha256_hash", data.get("sha256_fingerprint"))
+        data.setdefault("ingested_by_badge", data.get("ingested_by"))
+        data.setdefault("ingested_by", data.get("ingested_by_badge"))
+        data.setdefault("crime_category", data.get("category"))
+        data.setdefault("category", data.get("crime_category"))
+        data.setdefault("retention_expiration_at", data.get("retention_until"))
+        data.setdefault("retention_until", data.get("retention_expiration_at"))
+        if data.get("statutory_retention_years") is None:
+            retention_days = data.get("retention_days")
+            if retention_days is not None:
+                data["statutory_retention_years"] = math.ceil(
+                    retention_days / 365
+                )
+        return data
 
 
 class EvidenceIngestRequest(BaseModel):
@@ -793,15 +868,55 @@ class LegalHoldToggleRequest(BaseModel):
 
 class ForensicExportBundle(BaseModel):
     bundle_id: str
-    evidence_id: str
+    evidence_id: Optional[str] = None
     case_number: str
     generated_at: int
     master_sha256: str
-    manifest_signature: str
+    manifest_signature: Optional[str] = None
     court_admissible_certification: str
-    retention_status: dict[str, Any]
+    retention_status: dict[str, Any] = Field(default_factory=dict)
     custodial_trail: list[CustodialLogEntry]
-    raw_artifact_ref: str
+    raw_artifact_ref: Optional[str] = None
+    case_id: Optional[str] = None
+    generated_by: Optional[str] = None
+    evidence_items: list[EvidenceItem] = Field(default_factory=list)
+    manifest_sha256: Optional[str] = None
+    custodial_chain: list[CustodialLogEntry] = Field(default_factory=list)
+    tamper_verification_passed: Optional[bool] = None
+    attestation_statement: Optional[str] = None
+    export_format: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def support_legacy_export_bundles(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+
+        data = dict(value)
+        data.setdefault("case_number", data.get("case_id"))
+        data.setdefault("case_id", data.get("case_number"))
+        data.setdefault("master_sha256", data.get("manifest_sha256"))
+        data.setdefault("manifest_sha256", data.get("master_sha256"))
+        data.setdefault(
+            "court_admissible_certification",
+            data.get("attestation_statement"),
+        )
+        data.setdefault("attestation_statement", data.get("court_admissible_certification"))
+        data.setdefault("custodial_trail", data.get("custodial_chain", []))
+        data.setdefault("custodial_chain", data.get("custodial_trail", []))
+        if not data.get("retention_status"):
+            data["retention_status"] = {
+                "items": [
+                    {
+                        "evidence_id": item.get("id"),
+                        "legal_hold": item.get("legal_hold", False),
+                        "retention_until": item.get("retention_until"),
+                    }
+                    for item in data.get("evidence_items", [])
+                    if isinstance(item, dict)
+                ]
+            }
+        return data
 
 
 # ---------- Secure Evidence Upload Links ----------
