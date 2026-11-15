@@ -289,6 +289,7 @@ All API routers are prefixed under FastAPI and auto-documented at `http://localh
 | `awareness` | `AwarenessPage.jsx` | Public awareness resources |
 | `motivation` | `MotivationPage.jsx` | Why KshemOS exists — problem statement |
 | `about` | `AboutPage.jsx` | Project background and team |
+| `contributors` / `meet` | `ContributorsPage.jsx` | Dedicated Open Source Contributors Hub & Core Team directory |
 | `how-it-works` | `HowItWorksPage.jsx` | Technical explainer |
 | `contact` | `ContactPage.jsx` | Contact form and incident reporting |
 
@@ -497,3 +498,20 @@ Everything runs **end-to-end with zero paid services**, so the demo works even w
 | Web UI (Officer Dashboard) | ✅ **Built** | Graph lookup, case review, copilot |
 | Operational Incident Dashboard | ✅ **Built** | Live incidents by severity/region, escalations, staffing coverage, case drill-down — `/api/incidents` with browser-storage fallback |
 | Authentication / RBAC | 🔜 **Roadmap** | See blueprint's Security section for JWT/Firebase Auth plan |
+
+---
+
+## Contributing
+
+We welcome contributions from developers, researchers, designers, and community members! KshemOS is an active open-source project participating in community initiatives including **Winter of Code**.
+
+- Check out our [Contributing Guidelines](CONTRIBUTING.md) to get started with setup, coding conventions, and pull requests.
+- Browse the dedicated [Open Source Contributors Hub](frontend/src/components/ContributorsPage.jsx) in the application to explore contribution pathways and meet our community.
+- Review our [Code of Conduct](CODE_OF_CONDUCT.md) and [Security Policy](SECURITY.md).
+
+---
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
+

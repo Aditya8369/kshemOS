@@ -2,9 +2,11 @@
 Pydantic models shared across KshemOS backend routers.
 """
 from __future__ import annotations
+import math
+from mimetypes import guess_type
 from typing import Any, Dict, List, Literal, Optional
-from pydantic import BaseModel, Field, field_validator
-from datetime import datetime
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+from datetime import datetime, timezone
 
 # ---------- Scam / Digital Arrest Agent ----------
 
@@ -256,6 +258,13 @@ class Incident(BaseModel):
     opened_at: int = Field(..., description="Epoch milliseconds")
     first_response_at: Optional[int]
     resolved_at: Optional[int]
+    updated_at: Optional[int] = Field(
+        None, description="Epoch milliseconds of the last mutation"
+    )
+    version: int = Field(
+        1, description="Monotonic server version used for optimistic concurrency"
+    )
+    notes: List[str] = Field(default_factory=list)
 
 
 class IncidentCreateRequest(BaseModel):
@@ -264,6 +273,10 @@ class IncidentCreateRequest(BaseModel):
     region: Optional[str] = None
     report_id: Optional[str] = None
     linked_account: Optional[str] = None
+    operation_id: Optional[str] = Field(
+        None,
+        description="Client-generated idempotency key for offline/sync retries",
+    )
 
 
 class IncidentUpdateRequest(BaseModel):
@@ -271,18 +284,30 @@ class IncidentUpdateRequest(BaseModel):
     severity: Optional[Severity] = None
     assigned_to: Optional[str] = Field(None, description="Officer code; empty string unassigns")
     linked_account: Optional[str] = Field(None, description="Account ID; empty string unlinks")
+    notes: Optional[str] = Field(
+        None, description="Append a field note to the incident timeline"
+    )
     expected_version: Optional[int] = Field(None, description="Client's expected version for concurrency checking")
     force: bool = Field(False, description="Override concurrency conflict if true")
+    operation_id: Optional[str] = Field(
+        None,
+        description="Client-generated idempotency key for offline/sync retries",
+    )
 
 
 class SyncQueueItem(BaseModel):
     queue_id: str
     action: Literal["create", "update"]
     incident_id: Optional[str] = None
+    local_incident_id: Optional[str] = Field(
+        None,
+        description="Temporary offline ID used to resolve updates queued against an unsynced create",
+    )
     create_payload: Optional[IncidentCreateRequest] = None
     changes: Optional[IncidentUpdateRequest] = None
     expected_version: Optional[int] = None
     client_timestamp: Optional[int] = None
+    operation_id: Optional[str] = None
     force: bool = False
 
 
@@ -294,7 +319,9 @@ class SyncBatchResponse(BaseModel):
     applied_count: int
     conflict_count: int
     failed_count: int
+    replayed_count: int = 0
     results: list[dict[str, Any]]
+    server_time: Optional[int] = None
 
 
 class RegionStaffing(BaseModel):
@@ -499,6 +526,8 @@ class AdvisoryCreate(BaseModel):
     channels: Optional[ChannelConfig] = Field(default_factory=ChannelConfig)
     created_by_badge: Optional[str] = Field("BADGE-CMD-701")
     created_by_name: Optional[str] = Field("Commander Rajesh Varma")
+    source: Optional[str] = Field("Cyber Public Safety Command, New Delhi")
+    expires_in_hours: Optional[int] = Field(48, description="Validity duration before expiration in hours")
 
 
 class AdvisoryStatusUpdate(BaseModel):
@@ -569,6 +598,10 @@ class AdvisoryResponse(BaseModel):
     status: str = "draft"
     created_at: str
     updated_at: str
+    source: Optional[str] = "Cyber Public Safety Command, New Delhi"
+    issued_at: Optional[str] = None
+    expires_at: Optional[str] = None
+    is_expired: bool = False
     targeting: PerimeterTargeting = Field(default_factory=PerimeterTargeting)
     channels: ChannelConfig = Field(default_factory=ChannelConfig)
     dual_auth: DualAuthorization = Field(default_factory=DualAuthorization)
@@ -579,15 +612,133 @@ class AdvisoryResponse(BaseModel):
     audit_trail: List[Dict[str, Any]] = Field(default_factory=list)
 
 
+# ============================================================
+# PUBLIC INCIDENT ADVISORY SUBSCRIPTIONS & PREFERENCES (ISSUE 43)
+# ============================================================
+
+class AdvisorySubscriptionCreate(BaseModel):
+    email: EmailStr = Field(..., description="Citizen email address for advisory bulletins")
+    areas: List[str] = Field(default_factory=lambda: ["All"], description="Selected districts, regions, or service areas")
+    topics: List[str] = Field(default_factory=lambda: ["All"], description="Selected alert categories or topics")
+    channels: List[str] = Field(default_factory=lambda: ["email", "in_app"], description="Delivery channels: email, in_app")
+    consent_given: bool = Field(..., description="Explicit consent to receive verified law enforcement public safety alerts")
+
+
+class AdvisoryPreferenceUpdate(BaseModel):
+    areas: Optional[List[str]] = Field(None, description="Updated subscribed areas or districts")
+    topics: Optional[List[str]] = Field(None, description="Updated subscribed topics")
+    channels: Optional[List[str]] = Field(None, description="Updated delivery channels")
+    is_active: Optional[bool] = Field(None, description="Subscription active state (False to unsubscribe)")
+
+
+class AdvisorySubscriptionResponse(BaseModel):
+    id: str
+    email: str
+    areas: List[str]
+    topics: List[str]
+    channels: List[str]
+    is_active: bool
+    consent_given: bool
+    consent_timestamp: str
+    management_token: str
+    created_at: str
+    updated_at: str
+    unsubscribed_at: Optional[str] = None
+
+
+class PublicSubscriberSummary(BaseModel):
+    total_active_subscribers: int
+    total_unsubscribed: int
+    by_channel: Dict[str, int]
+    by_area: Dict[str, int]
+    by_topic: Dict[str, int]
+
+
+class AdvisoryNotificationDispatchRecord(BaseModel):
+    notification_id: str
+    advisory_id: str
+    subscription_id: str
+    recipient_email: str
+    recipient_masked_email: str
+    channel: str
+    delivery_status: str  # "delivered", "duplicate_suppressed", "failed", "unsubscribed_suppressed"
+    idempotency_key: str
+    subject: str
+    body_text: str
+    body_html: str
+    source: str
+    issued_at: str
+    expires_at: str
+    unsubscribe_link: str
+    preference_management_link: str
+    dispatched_at: str
+    attempt_count: int = 1
+    error: Optional[str] = None
+
+
+class AdvisoryDispatchSummary(BaseModel):
+    advisory_id: str
+    advisory_title: str
+    status: str
+    source: str
+    issued_at: Optional[str]
+    expires_at: Optional[str]
+    is_expired: bool
+    eligible_subscribers_count: int
+    sent_count: int
+    duplicate_prevented_count: int
+    suppressed_count: int
+    dispatches: List[AdvisoryNotificationDispatchRecord]
+
+
+class InAppAdvisoryFeedItem(BaseModel):
+    advisory_id: str
+    title: str
+    description: str
+    severity: str
+    affected_location: str
+    service_area_id: Optional[str] = None
+    target_audience: str
+    template_type: Optional[str] = None
+    source: str
+    status: str
+    issued_at: str
+    expires_at: str
+    is_expired: bool
+    action_checklist: List[str] = Field(default_factory=list)
+
+
+
 # ---------- Automated Chain of Custody & Evidence Vault ----------
 
 class RFC3161Token(BaseModel):
     serial_number: str
-    timestamp: int
+    timestamp: Optional[int] = None
     tsa_authority: str
-    policy_oid: str
-    hash_algorithm: str
-    signature: str
+    policy_oid: Optional[str] = None
+    hash_algorithm: Optional[str] = None
+    signature: Optional[str] = None
+    timestamp_iso: Optional[str] = None
+    digest_algorithm: Optional[str] = None
+    digest_value: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def support_legacy_timestamp_tokens(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+
+        data = dict(value)
+        if data.get("timestamp") is None and data.get("timestamp_iso"):
+            timestamp = datetime.fromisoformat(
+                str(data["timestamp_iso"]).replace("Z", "+00:00")
+            )
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=timezone.utc)
+            data["timestamp"] = int(timestamp.timestamp() * 1000)
+        if data.get("hash_algorithm") is None:
+            data["hash_algorithm"] = data.get("digest_algorithm")
+        return data
 
 
 class CustodialLogEntry(BaseModel):
@@ -601,28 +752,80 @@ class CustodialLogEntry(BaseModel):
     entry_hash: str
     details: str
 
+    @model_validator(mode="before")
+    @classmethod
+    def support_legacy_integrity_hash(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+        data = dict(value)
+        if data.get("entry_hash") is None:
+            data["entry_hash"] = data.get("integrity_hash")
+        return data
+
 
 class EvidenceItem(BaseModel):
     id: str
     case_number: str
+    case_id: Optional[str] = None
     incident_id: Optional[str] = None
     title: str
     file_name: str
-    mime_type: str
+    mime_type: str = "application/octet-stream"
     file_size_bytes: int
     sha256_fingerprint: str
+    sha256_hash: Optional[str] = None
     rfc3161_token: RFC3161Token
     ingested_at: int
     ingested_by_badge: str
+    ingested_by: Optional[str] = None
     crime_category: str
+    category: Optional[str] = None
+    description: str = ""
+    evidence_type: str = "document"
+    source: Optional[str] = None
     statutory_retention_years: int
     retention_expiration_at: int
+    retention_days: Optional[int] = None
+    retention_until: Optional[int] = None
     legal_hold: bool = False
     legal_hold_reason: Optional[str] = None
     legal_hold_by_badge: Optional[str] = None
     legal_hold_at: Optional[int] = None
     status: str = "sealed"
+    custodial_status: Optional[str] = None
+    tags: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
     custodial_ledger: list[CustodialLogEntry] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def support_legacy_evidence_items(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+
+        data = dict(value)
+        data.setdefault("case_number", data.get("case_id"))
+        data.setdefault("case_id", data.get("case_number"))
+        if not data.get("mime_type"):
+            data["mime_type"] = (
+                guess_type(data.get("file_name", ""))[0]
+                or "application/octet-stream"
+            )
+        data.setdefault("sha256_fingerprint", data.get("sha256_hash"))
+        data.setdefault("sha256_hash", data.get("sha256_fingerprint"))
+        data.setdefault("ingested_by_badge", data.get("ingested_by"))
+        data.setdefault("ingested_by", data.get("ingested_by_badge"))
+        data.setdefault("crime_category", data.get("category"))
+        data.setdefault("category", data.get("crime_category"))
+        data.setdefault("retention_expiration_at", data.get("retention_until"))
+        data.setdefault("retention_until", data.get("retention_expiration_at"))
+        if data.get("statutory_retention_years") is None:
+            retention_days = data.get("retention_days")
+            if retention_days is not None:
+                data["statutory_retention_years"] = math.ceil(
+                    retention_days / 365
+                )
+        return data
 
 
 class EvidenceIngestRequest(BaseModel):
@@ -665,15 +868,55 @@ class LegalHoldToggleRequest(BaseModel):
 
 class ForensicExportBundle(BaseModel):
     bundle_id: str
-    evidence_id: str
+    evidence_id: Optional[str] = None
     case_number: str
     generated_at: int
     master_sha256: str
-    manifest_signature: str
+    manifest_signature: Optional[str] = None
     court_admissible_certification: str
-    retention_status: dict[str, Any]
+    retention_status: dict[str, Any] = Field(default_factory=dict)
     custodial_trail: list[CustodialLogEntry]
-    raw_artifact_ref: str
+    raw_artifact_ref: Optional[str] = None
+    case_id: Optional[str] = None
+    generated_by: Optional[str] = None
+    evidence_items: list[EvidenceItem] = Field(default_factory=list)
+    manifest_sha256: Optional[str] = None
+    custodial_chain: list[CustodialLogEntry] = Field(default_factory=list)
+    tamper_verification_passed: Optional[bool] = None
+    attestation_statement: Optional[str] = None
+    export_format: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def support_legacy_export_bundles(cls, value: Any) -> Any:
+        if not isinstance(value, dict):
+            return value
+
+        data = dict(value)
+        data.setdefault("case_number", data.get("case_id"))
+        data.setdefault("case_id", data.get("case_number"))
+        data.setdefault("master_sha256", data.get("manifest_sha256"))
+        data.setdefault("manifest_sha256", data.get("master_sha256"))
+        data.setdefault(
+            "court_admissible_certification",
+            data.get("attestation_statement"),
+        )
+        data.setdefault("attestation_statement", data.get("court_admissible_certification"))
+        data.setdefault("custodial_trail", data.get("custodial_chain", []))
+        data.setdefault("custodial_chain", data.get("custodial_trail", []))
+        if not data.get("retention_status"):
+            data["retention_status"] = {
+                "items": [
+                    {
+                        "evidence_id": item.get("id"),
+                        "legal_hold": item.get("legal_hold", False),
+                        "retention_until": item.get("retention_until"),
+                    }
+                    for item in data.get("evidence_items", [])
+                    if isinstance(item, dict)
+                ]
+            }
+        return data
 
 
 # ---------- Secure Evidence Upload Links ----------
@@ -2012,30 +2255,568 @@ class FreezeStatsResponse(BaseModel):
     average_bank_latency_ms: float
     total_amount_protected_inr: float
 
+     # ============================================================
+# OFFLINE-FIRST FIELD SEIZURE & DEVICE TRIAGE COMPANION MODELS
+# ============================================================
 
-# =============================================================================
-# DIGITAL ARREST VIDEO CALL STAGE & UNIFORM ARTIFACT INSPECTOR MODELS
-# =============================================================================
+class FieldSeizureRecord(BaseModel):
+    seizure_id: str
+    case_id: str
+    incident_id: Optional[str] = None
+    officer_badge: str
+    officer_name: str
+    police_station: str = "Special Cyber Crime Cell, New Delhi"
+    device_category: str  # smartphone, laptop, tablet, hard_drive, crypto_hardware_wallet, sim_card, feature_phone
+    make_model: str
+    imei1: Optional[str] = None
+    imei2: Optional[str] = None
+    mac_address: Optional[str] = None
+    serial_number: Optional[str] = None
+    seizure_bag_barcode: str
+    faraday_bag_sealed: bool = True
+    power_state_at_seizure: str = "powered_off"  # powered_on, powered_off, airplane_mode_locked, damaged
+    sim_card_status: str = "removed_and_bagged"  # removed_and_bagged, kept_in_slot, no_sim
+    seizure_location: Dict[str, Any] = Field(default_factory=dict)
+    photo_hashes: List[str] = Field(default_factory=list)
+    photo_thumbnails: List[str] = Field(default_factory=list)
+    on_site_genesis_hash: str
+    offline_timestamp_iso: str
+    offline_timestamp_ms: int
+    rfc3161_token: Dict[str, Any] = Field(default_factory=dict)
+    genesis_receipt: Dict[str, Any] = Field(default_factory=dict)
+    sync_status: str = "queued_offline"  # queued_offline, synced_verified, synced_tamper_flagged
+    synced_at_iso: Optional[str] = None
+    central_intake_hash: Optional[str] = None
+    central_intake_at_iso: Optional[str] = None
+    intake_verified_by_badge: Optional[str] = None
+    tamper_flag: bool = False
+    tamper_reason: Optional[str] = None
+    chain_of_custody_events: List[Dict[str, Any]] = Field(default_factory=list)
 
-class VisualArtifactHallmark(BaseModel):
-    hallmark_type: str = Field(..., description="e.g. virtual_chroma_fringe, perspective_warp, non_standard_stars")
-    severity: str = Field(..., description="critical, high, medium, low")
-    confidence_score: float = Field(..., ge=0.0, le=1.0)
+
+class FieldSeizureCreateRequest(BaseModel):
+    case_id: str
+    officer_badge: str
+    officer_name: str
+    police_station: str = "Special Cyber Crime Cell, New Delhi"
+    incident_id: Optional[str] = None
+    device_category: str
+    make_model: str
+    imei1: Optional[str] = None
+    imei2: Optional[str] = None
+    mac_address: Optional[str] = None
+    serial_number: Optional[str] = None
+    seizure_bag_barcode: str
+    faraday_bag_sealed: bool = True
+    power_state_at_seizure: str = "powered_off"
+    sim_card_status: str = "removed_and_bagged"
+    seizure_location: Optional[Dict[str, Any]] = None
+    photo_hashes: Optional[List[str]] = None
+    photo_thumbnails: Optional[List[str]] = None
+    offline_timestamp_ms: Optional[int] = None
+
+
+class FieldSeizureSyncRequest(BaseModel):
+    records: List[FieldSeizureRecord]
+    sync_source: str = "kshemos_pwa_companion"
+    synced_by_badge: str = "OFF-FIELD-01"
+
+
+class CentralIntakeVerificationRequest(BaseModel):
+    seizure_id: str
+    verified_by_badge: str
+    received_bag_barcode: str
+    verified_imei1: Optional[str] = None
+    verified_serial: Optional[str] = None
+    verified_mac: Optional[str] = None
+    verified_make_model: Optional[str] = None
+    bag_seal_intact: bool = True
+    intake_notes: Optional[str] = None
+
+
+class FieldSeizureSyncResponse(BaseModel):
+    synced_count: int
+    conflict_count: int
+    tamper_flagged_count: int
+    records: List[FieldSeizureRecord]
+    sync_timestamp_iso: str
+
+
+class FieldSeizureStatsResponse(BaseModel):
+    total_seizures: int
+    offline_queued: int
+    synced_clean: int
+    tamper_flagged: int
+    faraday_sealed_percent: float
+
+
+# ============================================================
+# EMERGENCY FINANCIAL KILL-SWITCH & AADHAAR LOCK MODELS
+# ============================================================
+
+class EmergencyKillSwitchBankInfo(BaseModel):
+    bank_id: str
+    bank_name: str
+    category: str
+    ussd_code: str = "*99#"
+    ussd_instructions: str
+    sms_card_block_syntax: str
+    sms_card_block_number: str
+    sms_acc_freeze_syntax: Optional[str] = None
+    sms_acc_freeze_number: Optional[str] = None
+    sms_upi_disable_syntax: Optional[str] = None
+    sms_upi_disable_number: Optional[str] = None
+    phone_hotline: str
+    phone_alt: Optional[str] = None
+    netbanking_url: str
+    mobile_app_name: str
+    official_portal_guidance: str
+
+
+class AadhaarBiometricLockStep(BaseModel):
+    step_number: int
     title: str
-    description: str
-    bounding_box: Optional[Dict[str, float]] = Field(default=None, description="Normalized coordinates x, y, width, height")
-    regulation_reference: Optional[str] = None
+    instruction: str
+    warning: Optional[str] = None
+    official_url: Optional[str] = None
 
 
-class UniformInspectionResult(BaseModel):
-    claimed_agency: str
-    claimed_rank: Optional[str] = None
-    uniform_matches_agency: bool
-    insignia_validity: str = Field(..., description="forged, suspicious, compliant, inconclusive")
-    star_count_discrepancy: Optional[str] = None
-    discrepancies: List[str] = Field(default_factory=list)
-    official_regulation_summary: str
+class AadhaarBiometricLockGuide(BaseModel):
+    overview: str
+    why_lock_biometrics: str
+    aeps_vulnerability_explanation: str
+    myaadhaar_portal_url: str = "https://myaadhaar.uidai.gov.in"
+    uidai_helpline: str = "1947"
+    sms_1947_syntax: Dict[str, str] = Field(default_factory=dict)
+    steps: List[AadhaarBiometricLockStep] = Field(default_factory=list)
+    temporary_unlock_guidance: str
 
+
+class EmergencyMitigationReceiptRequest(BaseModel):
+    citizen_name: Optional[str] = "Citizen (Protected)"
+    selected_bank_id: str
+    bank_name: str
+    card_last_4: Optional[str] = None
+    account_last_4: Optional[str] = None
+    actions_attempted: List[str] = Field(default_factory=list)
+    reported_to_1930: bool = False
+    reported_to_portal: bool = False
+    aadhaar_biometrics_locked: bool = False
+    incident_description: Optional[str] = None
+
+
+class EmergencyMitigationReceipt(BaseModel):
+    receipt_id: str
+    citizen_name: str
+    selected_bank_id: str
+    bank_name: str
+    timestamp_iso: str
+    timestamp_ist: str
+    timestamp_ms: int
+    card_last_4: Optional[str] = None
+    account_last_4: Optional[str] = None
+    actions_attempted: List[str]
+    reported_to_1930: bool
+    reported_to_portal: bool
+    aadhaar_biometrics_locked: bool
+    rbi_circular_reference: str
+    legal_disclaimer: str
+    sha256_hash: str
+    verification_token: str
+
+
+# ============================================================
+# SYNDICATE MULE RING MONEY-TRAIL & FLOW HOP RECONSTRUCTOR
+# ============================================================
+
+class MoneyTrailTransaction(BaseModel):
+    utr_number: str
+    timestamp_iso: str
+    sender_account: str
+    sender_bank: Optional[str] = "Originating Bank"
+    sender_ifsc: Optional[str] = None
+    receiver_account: str
+    receiver_bank: Optional[str] = "Beneficiary Bank"
+    receiver_ifsc: Optional[str] = None
+    amount: float
+    txn_type: str = "IMPS"  # IMPS, RTGS, NEFT, UPI, ATM_CASH, CRYPTO_OTC
+    hop_level: Optional[int] = None
+
+
+class MoneyTrailNode(BaseModel):
+    account_id: str
+    label: str
+    bank_name: str
+    ifsc_code: Optional[str] = None
+    node_type: str  # victim, primary_mule, mule_hub, splitter_mule, exit_channel
+    hop_level: int
+    total_inflow: float
+    total_outflow: float
+    resting_balance: float
+    inflow_count: int
+    outflow_count: int
+    is_mule_hub: bool = False
+    mule_hub_score: float = 0.0
+    transfer_velocity_minutes: Optional[float] = None
+    freeze_priority: str = "TIER_3_MONITOR"  # TIER_1_CRITICAL_RESTING, TIER_2_HIGH_VELOCITY, TIER_3_MONITOR
+
+
+class MoneyTrailHopFlow(BaseModel):
+    from_hop: int
+    to_hop: int
+    source_node: str
+    target_node: str
+    amount: float
+    utr_number: str
+    timestamp_iso: str
+    velocity_minutes: Optional[float] = None
+
+
+class SankeyNode(BaseModel):
+    id: str
+    name: str
+    hop: int
+    category: str
+    amount: float
+
+
+class SankeyLink(BaseModel):
+    source: str
+    target: str
+    value: float
+    utr: str
+
+
+class SankeyDiagramData(BaseModel):
+    nodes: List[SankeyNode]
+    links: List[SankeyLink]
+
+
+class Section102CrPCScheduleItem(BaseModel):
+    schedule_index: int
+    beneficiary_account: str
+    bank_name: str
+    ifsc_code: str
+    branch_name: Optional[str] = None
+    suspect_name: Optional[str] = None
+    seized_amount_resting_inr: float
+    total_fraud_received_inr: float
+    utr_references: List[str]
+    freeze_mandate_priority: str
+    statutory_grounds: str
+
+
+class Section102CrPCScheduleResponse(BaseModel):
+    schedule_id: str
+    case_id: str
+    investigating_officer: str
+    police_station: str
+    total_resting_amount_inr: float
+    total_dispersed_amount_inr: float
+    accounts_count: int
+    mule_hubs_count: int
+    items: List[Section102CrPCScheduleItem]
+    statutory_declaration: str
+    generated_at_iso: str
+    schedule_hash: str
+
+
+class MoneyTrailIngestionRequest(BaseModel):
+    case_id: str = "CASE-2026-DELHI-01"
+    raw_csv: Optional[str] = None
+    transactions: Optional[List[MoneyTrailTransaction]] = None
+    format: str = "CSV"  # CSV | CFCFRMS_JSON
+
+
+class MoneyTrailAnalysisResponse(BaseModel):
+    case_id: str
+    total_volume_inr: float
+    total_victims: int
+    total_mules: int
+    mule_hubs: List[str]
+    active_resting_balance_inr: float
+    nodes: List[MoneyTrailNode]
+    edges: List[MoneyTrailHopFlow]
+    sankey_data: SankeyDiagramData
+    section_102_schedule: Section102CrPCScheduleResponse
+
+
+# ---------- Automated Registrar & Hosting Abuse Takedown Notice Generator ----------
+
+TakedownLifecycleStatus = Literal[
+    "DISPATCHED",
+    "UNDER_REVIEW",
+    "DOMAIN_SUSPENDED",
+    "SLA_BREACHED",
+]
+
+
+class DnsResolutionRecords(BaseModel):
+    domain: str = Field(..., description="Target domain, e.g. sbi-kyc-alert.top")
+    a_records: List[str] = Field(default_factory=list, description="Resolved IPv4 addresses")
+    cname_records: List[str] = Field(default_factory=list, description="CNAME aliases")
+    ns_records: List[str] = Field(default_factory=list, description="Authoritative nameservers")
+    mx_records: List[str] = Field(default_factory=list, description="Mail exchange records")
+    ip_address: Optional[str] = Field(default=None, description="Primary ingress or origin IP")
+    asn: Optional[str] = Field(default=None, description="Autonomous System Number (e.g. AS13335, AS16509)")
+    hosting_provider: str = Field(..., description="Hosting company (Cloudflare, AWS, Hostinger, Namecheap, etc.)")
+    registrar_name: str = Field(..., description="Domain registrar name")
+    registrar_abuse_email: str = Field(..., description="ICANN designated abuse email for registrar")
+    hosting_abuse_email: str = Field(..., description="Host abuse desk email")
+    ssl_issuer: Optional[str] = Field(default=None, description="SSL certificate authority")
+    ssl_valid_until: Optional[str] = Field(default=None, description="SSL expiry timestamp")
+    resolved_at: int = Field(..., description="Timestamp of DNS query resolution in milliseconds")
+
+
+class TakedownEvidencePackage(BaseModel):
+    target_url: str = Field(..., description="Exact malicious phishing or extortion URL")
+    sha256_dom_hash: str = Field(..., description="Cryptographic SHA-256 fingerprint of captured HTML DOM")
+    html_dom_snippet: str = Field(..., description="Sanitized source snippet of credential harvesting form")
+    screenshot_vault_id: Optional[str] = Field(default=None, description="Evidence vault artifact reference for full-page screenshot")
+    screenshot_filename: Optional[str] = Field(default="evidence_capture.png", description="Evidence capture screenshot file name")
+    malicious_indicators: List[str] = Field(default_factory=list, description="Forensic indicators of compromise (IoCs)")
+    target_brand_impersonated: str = Field(..., description="Brand, agency, or institution spoofed")
+
+
+class TakedownNoticeRequest(BaseModel):
+    target_url: str = Field(..., description="Phishing or scam URL, e.g. https://sbi-kyc-alert.top/login.php")
+    incident_id: Optional[str] = Field(default=None, description="Optional associated KshemOS incident ID")
+    brand_impersonated: Optional[str] = Field(default=None, description="Spoofed bank, police, or corporate brand")
+    officer_badge_id: str = Field(default="OFF-DELHI-104", description="Investigating officer badge ID")
+    officer_name: str = Field(default="Inspector Rajesh Sharma", description="Officer full legal name")
+    officer_email: str = Field(default="cybercell.delhi@gov.in", description="Official police or cyber desk email")
+    include_cert_in_cc: bool = Field(default=True, description="Whether to include incident@cert-in.org.in in CC")
+    urgency_level: Literal["CRITICAL_IMMINENT_FRAUD", "HIGH_CREDENTIAL_PHISH", "MODERATE_IMPERSONATION"] = "CRITICAL_IMMINENT_FRAUD"
+    custom_notes: Optional[str] = Field(default=None, description="Additional context or judicial complaint reference")
+    save_to_evidence_vault: bool = Field(default=True, description="Whether to seal certified package in Evidence Vault")
+
+
+class TakedownNoticeRecord(BaseModel):
+    notice_id: str = Field(..., description="Unique takedown notice ID, e.g. ABUSE-2026-1001")
+    target_url: str = Field(..., description="Malicious URL")
+    target_domain: str = Field(..., description="Domain name")
+    dns_records: DnsResolutionRecords
+    evidence_package: TakedownEvidencePackage
+    cert_in_reference_id: str = Field(..., description="Statutory CERT-In incident tracking ID")
+    rfc_email_subject: str = Field(..., description="RFC-compliant abuse email subject line")
+    rfc_email_body: str = Field(..., description="Full certified takedown email text with legal clauses")
+    primary_recipient: str = Field(..., description="Primary abuse email address (host or registrar)")
+    cc_recipients: List[str] = Field(default_factory=list, description="CC recipient addresses")
+    status: TakedownLifecycleStatus = Field(default="DISPATCHED")
+    dispatched_at: int = Field(..., description="Timestamp of dispatch in ms")
+    sla_deadline: int = Field(..., description="SLA cutoff timestamp in ms (typically 6-24 hrs)")
+    sla_breached: bool = Field(default=False)
+    domain_offline: bool = Field(default=False, description="Whether domain currently fails DNS resolution or returns HTTP error")
+    current_nameservers: List[str] = Field(default_factory=list)
+    lifecycle_events: List[Dict[str, Any]] = Field(default_factory=list)
+    vaulted_evidence_id: Optional[str] = None
+    officer_badge_id: str
+    officer_name: str
+
+
+class TakedownNoticeStatusUpdateRequest(BaseModel):
+    new_status: TakedownLifecycleStatus
+    officer_badge_id: str = Field(default="OFF-DELHI-104")
+    notes: Optional[str] = None
+
+class TakedownStatsResponse(BaseModel):
+    total_notices_dispatched: int
+    active_under_review: int
+    domains_suspended: int
+    sla_breached_count: int
+    offline_domains_detected: int
+    average_takedown_time_hours: float
+
+
+# =============================================================================
+# MULTILINGUAL AUTOMATED VOICE SAFETY HOTLINE MODELS
+# =============================================================================
+
+class VoiceHotlineLanguageInfo(BaseModel):
+    code: str = Field(..., description="ISO 639-1 language code e.g. hi, ta, te")
+    name: str = Field(..., description="English name of language")
+    native_name: str = Field(..., description="Autonym in native script")
+    dtmf_key: str = Field(..., description="DTMF digit assigned for selection")
+    tts_locale: str = Field(..., description="BCP 47 language tag e.g. hi-IN")
+
+
+class VoiceHotlineCallRequest(BaseModel):
+    caller_phone: Optional[str] = Field(default="+91 98765 43210", description="Caller phone number (anonymized in logs)")
+    initial_language: Optional[str] = Field(default="en", description="Default initial language (en, hi, ta, te, kn, bn, mr, gu)")
+    telecom_circle: Optional[str] = Field(default="Delhi", description="Telecom circle of the incoming line")
+    is_forwarded_call: bool = Field(default=False, description="Whether call was forwarded from citizen active call")
+
+
+class VoiceHotlineInputRequest(BaseModel):
+    session_id: str = Field(..., description="Unique IVR session identifier")
+    dtmf_digit: str = Field(..., description="DTMF keypad press (1, 2, 3...)")
+    speech_input: Optional[str] = Field(default=None, description="Optional transcribed voice utterance")
+
+
+class VoiceHotlinePromptResponse(BaseModel):
+    session_id: str
+    current_step: str
+    selected_language: str
+    audio_text: str
+    audio_locale: str
+    allowed_dtmf_keys: List[str]
+    claimed_authority: Optional[bool] = None
+    demanded_money: Optional[bool] = None
+    reassurance_delivered: bool = False
+    sms_dispatched: bool = False
+    sms_summary: Optional[str] = None
+    nearest_cyber_desk: Optional[str] = None
+    triage_incident_id: Optional[str] = None
+    is_completed: bool = False
+
+
+class VoiceHotlineSessionRecord(BaseModel):
+    session_id: str
+    caller_phone_masked: str
+    language: str
+    telecom_circle: str
+    call_status: str
+    created_at: int
+    updated_at: int
+    current_step: str
+    dtmf_history: List[Dict[str, Any]] = Field(default_factory=list)
+    claimed_authority: Optional[bool] = None
+    demanded_money: Optional[bool] = None
+    reassurance_delivered: bool = False
+    sms_dispatched: bool = False
+    sms_text: Optional[str] = None
+    nearest_cyber_desk: Optional[str] = None
+    triage_incident_id: Optional[str] = None
+
+
+# ---------- Voice Deepfake & Synthetic Audio Impersonation Detector ----------
+
+class AcousticAnomalySpan(BaseModel):
+    start_ms: float = Field(..., description="Start offset of acoustic anomaly in milliseconds")
+    end_ms: float = Field(..., description="End offset of acoustic anomaly in milliseconds")
+    anomaly_type: str = Field(..., description="Category of anomaly, e.g. PITCH_FREEZE_FLATLINING, VOCODER_HIGH_FREQ_SMEARING")
+    confidence_score: float = Field(..., ge=0.0, le=1.0, description="Detection confidence for this span")
+    explanation: str = Field(..., description="Forensic acoustic reason for anomaly")
+    severity: Literal["low", "medium", "high", "critical"] = "medium"
+
+
+class SpectralMetrics(BaseModel):
+    jitter_pct: float = Field(..., description="Cycle-to-cycle fundamental frequency perturbation percentage (Normal: 0.5% - 1.2%)")
+    shimmer_pct: float = Field(..., description="Cycle-to-cycle amplitude perturbation percentage (Normal: 1.5% - 3.8%)")
+    hnr_db: float = Field(..., description="Harmonics-to-Noise Ratio in decibels (Normal human voiced: 14 - 24 dB)")
+    spectral_rolloff_hz: float = Field(..., description="High-frequency rolloff / Nyquist attenuation cutoff in Hertz")
+    vocoder_footprint_score: float = Field(..., ge=0.0, le=1.0, description="Neural vocoder checkerboard / transposed-conv artifact likelihood")
+    pitch_stability_index: float = Field(..., ge=0.0, le=1.0, description="Robotic unnatural pitch rigidity index (1.0 = completely frozen F0)")
+
+
+class VoiceDeepfakeInspectionRequest(BaseModel):
+    audio_data: str = Field(..., description="Base64-encoded audio bytes, audio data URI, or sample content")
+    file_name: str = Field(default="voice_evidence.wav", description="File name with extension (.wav, .mp3, .m4a)")
+    duration_seconds: Optional[float] = Field(default=None, description="Optional audio duration in seconds")
+    case_id: Optional[str] = Field(default="CASE-2026-ARREST-VOICE", description="Associated investigation or triage case ID")
+    caller_claimed_identity: Optional[str] = Field(default=None, description="Claimed identity (e.g. Grandson, CBI Officer, Mumbai Police)")
+    scam_context: Optional[str] = Field(default="Digital Arrest / Family Extortion", description="Scenario context")
+    save_to_evidence_vault: bool = Field(default=True, description="Whether to ingest directly into Evidence Vault")
+    officer_badge_id: Optional[str] = Field(default="CITIZEN-SAFETY-PORTAL", description="Reporting citizen or inspecting officer badge ID")
+
+
+class VoiceDeepfakeInspectionResponse(BaseModel):
+    inspection_id: str
+    file_name: str
+    file_sha256: str
+    file_size_bytes: int
+    duration_seconds: float
+    synthetic_probability_score: float = Field(..., ge=0.0, le=1.0, description="Score 0.0 to 1.0 (0=natural, 1=synthetic)")
+    risk_band: Literal["LOW_PROBABILITY_NATURAL", "SUSPICIOUS", "HIGH_PROBABILITY_SYNTHETIC"]
+    verdict_summary: str
+    spectral_metrics: SpectralMetrics
+    anomaly_spans: List[AcousticAnomalySpan]
+    tactical_guidance: str
+    tactical_checklist: List[str]
+    vaulted_evidence_id: Optional[str] = None
+    inspection_timestamp: int
+    caller_claimed_identity: Optional[str] = None
+
+
+class VoiceDeepfakeStatsResponse(BaseModel):
+    total_evaluated: int
+    high_synthetic_detected: int
+    suspicious_detected: int
+    natural_confirmed: int
+    vault_evidence_preserved: int
+
+# ---------- Privacy-Preserving Regional Threat Broadcast & Micro-Advisory Mesh ----------
+
+MicroAdvisoryStatus = Literal[
+    "DRAFTED_PENDING_APPROVAL",
+    "PUBLISHED_ACTIVE",
+    "DISMISSED",
+    "EXPIRED",
+]
+
+
+class RegionalThreatCluster(BaseModel):
+    cluster_id: str = Field(..., description="Unique cluster ID, e.g. CLUST-DELHI-NORTH-01")
+    service_area_id: str = Field(..., description="Target service area ID, e.g. SA-NORTH-01")
+    service_area_name: str = Field(..., description="Metropolitan service area name")
+    police_station_circle: str = Field(..., description="Designated police station jurisdiction")
+    postal_pincodes: List[str] = Field(default_factory=list, description="Target postal pin codes")
+    scam_category: str = Field(..., description="Category: electricity_bill_scam, digital_arrest, etc.")
+    scam_category_label: str = Field(..., description="Human-readable scam label")
+    complaint_count: int = Field(..., ge=3, description="Aggregated report count within 24h window (3+ required)")
+    first_complaint_timestamp: int
+    last_complaint_timestamp: int
+    window_hours: float = Field(..., le=24.0, description="Elapsed hours of cluster window (<= 24.0h)")
+    privacy_guarantee: str = Field(default="K-Anonymity Verified: Zero PII or individual loss figures retained")
+    anonymized_report_refs: List[str] = Field(default_factory=list)
+
+
+class RegionalMicroAdvisory(BaseModel):
+    advisory_id: str = Field(..., description="Unique micro-advisory identifier e.g. ADV-MESH-2026-101")
+    cluster_id: str = Field(..., description="Associated threat cluster reference")
+    title: str = Field(..., description="Headline alert, e.g. 'Notice: Fake electricity bill payment SMS active in North Delhi area.'")
+    summary_guidance: str = Field(..., description="Human-readable plain language advisory guidance")
+    scam_category: str
+    service_area_id: str
+    service_area_name: str
+    police_station_circle: str
+    target_pincodes: List[str]
+    geofence_center: Dict[str, float] = Field(default_factory=lambda: {"lat": 28.6920, "lng": 77.2150})
+    geofence_radius_km: float = Field(default=5.5)
+    complaints_aggregated: int
+    window_hours: float
+    status: MicroAdvisoryStatus = Field(default="DRAFTED_PENDING_APPROVAL")
+    urgency: Literal["low", "medium", "high", "critical"] = "high"
+    action_checklist: List[str] = Field(default_factory=list)
+    drafted_at: int
+    published_at: Optional[int] = None
+    approved_by_commander_badge: Optional[str] = None
+    approved_by_commander_name: Optional[str] = None
+    active_portal_banner_text: str
+
+
+class CommanderSignoffRequest(BaseModel):
+    commander_badge_id: str = Field(default="CMD-DELHI-NORTH", description="Authorizing commander badge")
+    commander_name: str = Field(default="DCP Vikram Malhotra", description="Commanding officer name")
+    action: Literal["approve_publish", "dismiss"] = "approve_publish"
+    notes: Optional[str] = None
+
+class CitizenMeshAdvisoryQuery(BaseModel):
+    pincode: Optional[str] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    service_area_id: Optional[str] = None
+
+
+class RegionalThreatMeshStats(BaseModel):
+    total_active_clusters: int
+    drafted_pending_signoff: int
+    published_active_advisories: int
+    covered_pincodes_count: int
+    total_reports_aggregated: int
+
+
+# ---------- Stage & Uniform Inspector / Voice Safety Hotline (restored) ----------
 
 class StageUniformInspectionRequest(BaseModel):
     image_data: str = Field(..., description="Base64 encoded screenshot data or image URL")
@@ -2077,3 +2858,35 @@ class StageInspectionStatsResponse(BaseModel):
     cbi_impersonations: int
     police_uniform_forgeries: int
     vault_evidence_preserved: int
+
+
+class VisualArtifactHallmark(BaseModel):
+    hallmark_type: str = Field(..., description="e.g. virtual_chroma_fringe, perspective_warp, non_standard_stars")
+    severity: str = Field(..., description="critical, high, medium, low")
+    confidence_score: float = Field(..., ge=0.0, le=1.0)
+    title: str
+    description: str
+    bounding_box: Optional[Dict[str, float]] = Field(default=None, description="Normalized coordinates x, y, width, height")
+    regulation_reference: Optional[str] = None
+
+
+class UniformInspectionResult(BaseModel):
+    claimed_agency: str
+    claimed_rank: Optional[str] = None
+    uniform_matches_agency: bool
+    insignia_validity: str = Field(..., description="forged, suspicious, compliant, inconclusive")
+    star_count_discrepancy: Optional[str] = None
+    discrepancies: List[str] = Field(default_factory=list)
+    official_regulation_summary: str
+
+
+class VoiceHotlineStatsResponse(BaseModel):
+    total_calls: int
+    active_calls: int
+    completed_calls: int
+    languages_breakdown: Dict[str, int]
+    authorities_flagged: int
+    extortions_flagged: int
+    reassurances_delivered: int
+    sms_dispatched_count: int
+    triage_incidents_logged: int

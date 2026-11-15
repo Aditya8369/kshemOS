@@ -56,6 +56,8 @@ def incident_id():
 def test_default_evidence_items(principal):
     items = router.list_evidence(principal=principal)
     assert len(items) >= 4
+    for item in items:
+        EvidenceItem.model_validate(item)
     assert all(item["incident_id"] for item in items)
     item_ids = [i["id"] for i in items]
     assert "EVID-2026-00101" in item_ids
@@ -100,7 +102,10 @@ def test_ingest_evidence_and_fingerprinting(principal, incident_id):
     assert created["case_id"] == "CASE-2026-EAST-04"
     assert created["incident_id"] == incident_id
     assert created["ingested_by"] == principal.officer_id
-    EvidenceItem.model_validate(created)
+    parsed = EvidenceItem.model_validate(created)
+    assert parsed.case_number == created["case_id"]
+    assert parsed.sha256_fingerprint == expected_sha
+    assert parsed.statutory_retention_years == 5
     assert created["sha256_hash"] == expected_sha
     assert created["rfc3161_token"]["digest_value"] == expected_sha
     assert created["rfc3161_token"]["serial_number"].startswith("TSA-")
@@ -279,7 +284,9 @@ def test_forensic_export_bundle_generation(principal):
     assert len(bundle["manifest_sha256"]) == 64
     assert bundle["tamper_verification_passed"] is True
     assert "Section 65B" in bundle["attestation_statement"]
-    ForensicExportBundle.model_validate(bundle)
+    parsed_bundle = ForensicExportBundle.model_validate(bundle)
+    assert parsed_bundle.case_number == case_id
+    assert parsed_bundle.master_sha256 == bundle["manifest_sha256"]
 
     # Check that each evidence item in the bundle received an EXPORT_BUNDLE log entry
     for ev in bundle["evidence_items"]:

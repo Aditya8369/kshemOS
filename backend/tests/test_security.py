@@ -69,6 +69,40 @@ def test_valid_token_resolves_trusted_principal(monkeypatch):
     assert "Central Zone" in principal.regions
 
 
+def test_registered_officer_tokens_work_alongside_access_tokens(monkeypatch):
+    access_token = "test-access-token-that-is-long-enough-123456"
+    monkeypatch.setenv(
+        "KSHEMOS_ACCESS_TOKENS",
+        json.dumps({
+            access_token: {
+                "subject": "ADMIN-TEST",
+                "role": "admin",
+                "jurisdictions": [],
+                "case_ids": [],
+            }
+        }),
+    )
+    monkeypatch.setenv(
+        "KSHEMOS_API_TOKENS",
+        json.dumps({TOKEN: "OFF-DELHI-101"}),
+    )
+    monkeypatch.setattr(
+        security.incident_notifications,
+        "get_registered_officer",
+        lambda officer_id: {
+            "officer_id": officer_id,
+            "role": "responder",
+            "jurisdiction_id": "JUR-DELHI-METRO",
+            "regions": ["Central Zone"],
+        },
+    )
+
+    principal = security.get_current_principal(credentials())
+
+    assert principal.officer_id == "OFF-DELHI-101"
+    assert principal.jurisdiction_id == "JUR-DELHI-METRO"
+
+
 def test_role_requirement_rejects_responder_as_commander():
     principal = security.Principal(
         officer_id="OFF-DELHI-101",

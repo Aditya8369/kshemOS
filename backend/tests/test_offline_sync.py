@@ -1,6 +1,7 @@
 import pytest
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
+
 from app import security
 from app.routers import incidents as router
 from app.models import (
@@ -51,23 +52,21 @@ def test_incident_versioning_and_concurrency(principals):
     assert created["version"] == 1
     assert created["updated_at"] is not None
 
-    # First update increments version to 2
-    u1 = router.update(
+    updated = router.update(
         created["id"],
         IncidentUpdateRequest(status="in_progress", assigned_to="OFF-FIELD-1"),
         principal=principals["delhi"],
     )
-    assert u1["version"] == 2
-    assert u1["status"] == "in_progress"
-    assert u1["assigned_to"] == "OFF-FIELD-1"
+    assert updated["version"] == 2
+    assert updated["status"] == "in_progress"
+    assert updated["assigned_to"] == "OFF-FIELD-1"
 
-    # Conflicting update with stale expected_version=1 fails with 409
-    with pytest.raises(Exception) as exc_info:
+    with pytest.raises(HTTPException) as exc_info:
         router.update(
             created["id"],
             IncidentUpdateRequest(
                 status="escalated",
-                expected_version=1,  # Stale: server is already v2
+                expected_version=1,
             ),
             principal=principals["delhi"],
         )
@@ -78,7 +77,6 @@ def test_incident_versioning_and_concurrency(principals):
     assert conflict_detail["expected_version"] == 1
     assert "status" in conflict_detail["conflicting_fields"]
 
-    # Force update overrides the conflict
     with pytest.raises(HTTPException) as exc_info:
         router.update(
             created["id"],
@@ -94,8 +92,7 @@ def test_incident_versioning_and_concurrency(principals):
 
 def test_batch_offline_sync(principals):
     incidents.reset()
-    # Create incident on HQ
-    hq_inc = router.create(
+    hq_incident = router.create(
         IncidentCreateRequest(
             category="other",
             description="HQ incident reported earlier.",
@@ -103,19 +100,14 @@ def test_batch_offline_sync(principals):
         ),
         principal=principals["south"],
     )
-    assert hq_inc["version"] == 1
+    assert hq_incident["version"] == 1
 
-    # Simulate HQ update to version 2
     router.update(
-        hq_inc["id"],
+        hq_incident["id"],
         IncidentUpdateRequest(severity="high"),
         principal=principals["south"],
     )
 
-    # Now field unit reconnects with a batch of 3 items:
-    # Item 1: new incident created while field unit was offline
-    # Item 2: update to hq_inc but field unit had expected_version=1 (conflict)
-    # Item 3: update to non-existent incident (failed)
     batch = SyncBatchRequest(
         items=[
             SyncQueueItem(
@@ -131,28 +123,35 @@ def test_batch_offline_sync(principals):
             SyncQueueItem(
                 queue_id="Q-102",
                 action="update",
-                incident_id=hq_inc["id"],
-                changes=IncidentUpdateRequest(status="triaged", assigned_to="OFF-WEST-2"),
-                expected_version=1,  # Stale, HQ is at v2
+                incident_id=hq_incident["id"],
+                changes=IncidentUpdateRequest(
+                    status="triaged",
+                    assigned_to="OFF-WEST-2",
+                ),
+                expected_version=1,
                 client_timestamp=1700000001000,
                 force=False,
             ),
         ]
     )
 
-    res = router.sync_batch(batch, principal=principals["south"])
-    assert res["applied_count"] == 1
-    assert res["conflict_count"] == 1
-    assert res["failed_count"] == 0
+    result = router.sync_batch(batch, principal=principals["south"])
+    assert result["applied_count"] == 1
+    assert result["conflict_count"] == 1
+    assert result["failed_count"] == 0
 
-    r1 = next(r for r in res["results"] if r["queue_id"] == "Q-101")
-    assert r1["status"] == "applied"
-    assert r1["incident"]["category"] == "fraud_tx"
+    created_result = next(
+        item for item in result["results"] if item["queue_id"] == "Q-101"
+    )
+    assert created_result["status"] == "applied"
+    assert created_result["incident"]["category"] == "fraud_tx"
 
-    r2 = next(r for r in res["results"] if r["queue_id"] == "Q-102")
-    assert r2["status"] == "conflict"
-    assert r2["server_incident"]["version"] == 2
-    assert "status" in r2["conflicting_fields"]
+    conflict_result = next(
+        item for item in result["results"] if item["queue_id"] == "Q-102"
+    )
+    assert conflict_result["status"] == "conflict"
+    assert conflict_result["server_incident"]["version"] == 2
+    assert "status" in conflict_result["conflicting_fields"]
 
     with pytest.raises(HTTPException) as exc_info:
         router.update(
