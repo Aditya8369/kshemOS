@@ -90,6 +90,7 @@ export default function Shell({
               {[
                 { key: 'home', label: 'Home' },
                 { key: 'toolbox', label: 'Toolbox' },
+                { key: 'intelligence', label: 'Scam Intelligence' },
               ].map((item) =>
                 navButton(
                   item.key,
