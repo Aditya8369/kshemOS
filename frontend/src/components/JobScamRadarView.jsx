@@ -9,11 +9,11 @@ export default function JobScamRadarView() {
   const [result, setResult] = useState(null);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6">
-        <div className="text-xs font-mono uppercase tracking-[0.3em] text-[var(--saffron)]">JobScam Radar</div>
-        <h2 className="font-display text-3xl font-semibold text-[var(--ink)]">Fake job offer detector</h2>
-        <p className="mt-2 max-w-2xl text-sm text-[var(--ink-text)]/70">Check recruitment messages for upfront fees, unrealistic salaries, and aggressive pressure tactics.</p>
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-10 space-y-6 sm:space-y-8 w-full">
+      <div className="space-y-2">
+        <div className="text-xs font-mono uppercase tracking-[0.25em] font-semibold text-[var(--saffron)]">JobScam Radar</div>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--ink)]">Fake job offer detector</h1>
+        <p className="max-w-2xl text-xs sm:text-sm text-[var(--ink-text)]/70 leading-relaxed">Check recruitment messages for upfront fees, unrealistic salaries, and aggressive pressure tactics.</p>
       </div>
       <CyberFeatureCard eyebrow="Career opportunity check" title="Assess a job offer" description="This flags suspicious fee requests and urgency language used in fake job scams.">
         <input value={company} onChange={(e) => setCompany(e.target.value)} className="w-full rounded-2xl border border-[var(--paper-line)] p-3 text-sm" placeholder="Company" />

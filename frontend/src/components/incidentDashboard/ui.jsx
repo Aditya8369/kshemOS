@@ -25,9 +25,15 @@ export function SeverityBadge({ severity }) {
 }
 
 export function CoverageBadge({ status }) {
-  const { label, color, Icon } = COVERAGE_STYLE[status];
+  const { label, description, color, Icon } = COVERAGE_STYLE[status];
+
   return (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold" style={{ color }}>
+    <span
+      className="inline-flex items-center gap-1 text-xs font-semibold"
+      style={{ color }}
+      title={description}
+      aria-label={`${label}: ${description}`}
+    >
       <Icon size={14} aria-hidden="true" />
       {label}
     </span>

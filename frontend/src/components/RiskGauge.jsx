@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const BANDS = {
   low: { color: 'var(--safe)', label: 'Low risk' },
@@ -13,23 +13,62 @@ function scoreToAngle(score) {
 }
 
 export default function RiskGauge({ score = 0, band = 'low' }) {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(
+    () =>
+      typeof window !== 'undefined' &&
+      (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches ?? false)
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) {
+      return;
+    }
+
+    const mediaQuery = window.matchMedia(
+      '(prefers-reduced-motion: reduce)'
+    );
+
+    const handleChange = (event) => {
+      setPrefersReducedMotion(event.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
   const [display, setDisplay] = useState(0);
+  const displayRef = useRef(0);
 
   useEffect(() => {
+    if (prefersReducedMotion) {
+      displayRef.current = score;
+      setDisplay(score);
+      return;
+    }
+
     let raf;
     const start = performance.now();
-    const from = display;
+    const from = displayRef.current;
     const duration = 700;
+
     function tick(now) {
       const t = Math.min(1, (now - start) / duration);
       const eased = 1 - Math.pow(1 - t, 3);
-      setDisplay(Math.round(from + (score - from) * eased));
-      if (t < 1) raf = requestAnimationFrame(tick);
+
+      const nextDisplay = Math.round(from + (score - from) * eased);
+      displayRef.current = nextDisplay;
+      setDisplay(nextDisplay);
+
+      if (t < 1) {
+        raf = requestAnimationFrame(tick);
+      }
     }
+
     raf = requestAnimationFrame(tick);
+
     return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [score]);
+  }, [score, prefersReducedMotion]);
 
   const angle = scoreToAngle(display);
   const meta = BANDS[band] || BANDS.low;
@@ -43,8 +82,16 @@ export default function RiskGauge({ score = 0, band = 'low' }) {
   const needleTip = polar(cx, cy, radius - 14, angle);
 
   return (
-    <div className="flex flex-col items-center">
-      <svg viewBox="0 0 200 130" className="w-full max-w-[260px]">
+    <div
+      className="flex flex-col items-center"
+      role="group"
+      aria-label={`Risk score: ${score} out of 100. Risk level: ${meta.label}.`}
+    >
+      <svg
+        viewBox="0 0 200 130"
+        className="w-full max-w-[260px]"
+        aria-hidden="true"
+      >
         <path
           d={`M ${trackStart.x} ${trackStart.y} A ${radius} ${radius} 0 1 1 ${trackEnd.x} ${trackEnd.y}`}
           fill="none"
@@ -91,6 +138,10 @@ export default function RiskGauge({ score = 0, band = 'low' }) {
       >
         {meta.label}
       </div>
+
+      <p className="mt-2 text-sm font-medium text-[var(--ink)]">
+        Risk score: {score} out of 100
+      </p>
     </div>
   );
 }

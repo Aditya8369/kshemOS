@@ -89,17 +89,17 @@ export default function CyberCaseBuilderView() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-6 sm:space-y-8 w-full">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="text-xs font-mono uppercase tracking-[0.3em] text-[var(--saffron)]">
+        <div className="space-y-1">
+          <div className="text-xs font-mono uppercase tracking-[0.25em] font-semibold text-[var(--saffron)]">
             CyberCase Builder & Evidence Vault
           </div>
-          <h2 className="font-display text-3xl font-semibold text-[var(--ink)]">
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--ink)]">
             Case Assembly & Digital Evidence Chain
-          </h2>
-          <p className="mt-1 max-w-2xl text-sm text-[var(--ink-text)]/70">
+          </h1>
+          <p className="max-w-2xl text-xs sm:text-sm text-[var(--ink-text)]/70 leading-relaxed">
             Build investigation case summaries, attach cryptographically hashed digital artifacts, and export court-admissible forensic packages.
           </p>
         </div>

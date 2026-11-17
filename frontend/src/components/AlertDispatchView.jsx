@@ -36,11 +36,12 @@ export default function AlertDispatchView() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <div className="flex justify-between items-center border-b pb-4">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Dynamic Alert Dispatch & Suppression</h1>
-          <p className="text-xs text-gray-500">Hash-based deduplication window, targeted routing, and acknowledgment workflow.</p>
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8 w-full">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-4 gap-2">
+        <div className="space-y-1">
+          <div className="text-xs font-mono uppercase tracking-[0.25em] font-semibold text-[var(--saffron)]">Incident Response</div>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Dynamic Alert Dispatch & Suppression</h1>
+          <p className="text-xs sm:text-sm text-gray-500 max-w-2xl leading-relaxed">Hash-based deduplication window, targeted routing, and acknowledgment workflow.</p>
         </div>
       </div>
 

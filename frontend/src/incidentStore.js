@@ -6,7 +6,7 @@
 
  * Responders in the field may lose connectivity at any time. This store:
 
- * 1. Automatically caches the incident feed in localStorage (`kshemos.cache.incidents.v2`).
+ * 1. Automatically caches the incident feed in encrypted local storage (`kshemos.cache.incidents.v2`).
 
  * 2. When offline, serves the cached snapshot with queued local changes merged optimistically.
 
@@ -36,13 +36,25 @@ import {
 
   enqueueUpdate,
 
+  clearOfflineData,
+
+  createOperationId,
+
   getSyncQueue,
 
+  hydrateSyncQueue,
+
   isOnline,
+
+  localIncidentIdFor,
+
+  markQueueItemConflict,
 
   processSyncQueue,
 
 } from './syncQueue.js';
+
+import { getCachedJson, saveJson } from './secureDraftStore.js';
 
 const BASE_URL = import.meta.env?.VITE_API_URL || '';
 
@@ -58,25 +70,6 @@ const BACKEND_RETRY_MS = 15 * 1000;
 
 let backendDownUntil = 0;
 
-const storeMemory = new Map();
-const fallbackStore = {
-  getItem: (k) => storeMemory.get(k) ?? null,
-  setItem: (k, v) => storeMemory.set(k, String(v)),
-  removeItem: (k) => storeMemory.delete(k),
-  clear: () => storeMemory.clear(),
-};
-
-function safeLocalStorage() {
-  try {
-    if (typeof globalThis.localStorage?.getItem === 'function' && typeof globalThis.localStorage?.setItem === 'function') {
-      return globalThis.localStorage;
-    }
-  } catch {
-    // fallback
-  }
-  return fallbackStore;
-}
-
 async function backendRequest(path, options = {}) {
 
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -86,6 +79,11 @@ async function backendRequest(path, options = {}) {
     headers: { 'Content-Type': 'application/json', ...options.headers },
 
   });
+
+  if (res.status === 401) {
+    // Device/session revoked: local drafts must not outlive the session.
+    await clearOfflineData('session_revoked');
+  }
 
   if (!(res.headers.get('content-type') || '').includes('application/json')) {
 
@@ -115,33 +113,47 @@ function isUnavailable(error) {
 
 }
 
-function readCache(storage = safeLocalStorage()) {
+function readCache(storage = null) {
 
-  try {
+  if (storage) {
 
-    const raw = storage?.getItem(CACHE_KEY);
+    try {
 
-    return raw ? JSON.parse(raw) : null;
+      const raw = storage.getItem(CACHE_KEY);
 
-  } catch {
+      return raw ? JSON.parse(raw) : null;
 
-    return null;
+    } catch {
+
+      return null;
+
+    }
 
   }
+
+  return getCachedJson(CACHE_KEY, null);
 
 }
 
-function writeCache(feed, storage = safeLocalStorage()) {
+function writeCache(feed, storage = null) {
 
-  try {
+  if (storage) {
 
-    storage?.setItem(CACHE_KEY, JSON.stringify(feed));
+    try {
 
-  } catch {
+      storage.setItem(CACHE_KEY, JSON.stringify(feed));
 
-    // Ignore storage issues in test/private mode
+    } catch {
+
+      // Ignore storage issues in test/private mode
+
+    }
+
+    return;
 
   }
+
+  saveJson(CACHE_KEY, feed);
 
 }
 
@@ -181,7 +193,7 @@ export function overlaySyncQueue(baseIncidents = [], queue = getSyncQueue()) {
 
     } else if (item.action === 'create' && item.input) {
 
-      const tempId = `INC-PENDING-${item.queueId.slice(-4)}`;
+      const tempId = item.localIncidentId || localIncidentIdFor(item.queueId);
 
       if (!incidentMap.has(tempId)) {
 
@@ -213,9 +225,13 @@ export function overlaySyncQueue(baseIncidents = [], queue = getSyncQueue()) {
 
 }
 
-export function createLocalIncidentStore(storage = safeLocalStorage(), { notify = () => {} } = {}) {
+export function createLocalIncidentStore(storage = null, { notify = () => {} } = {}) {
+
+  const secure = storage === null;
 
   function read(key, fallback) {
+
+    if (secure) return getCachedJson(key, fallback);
 
     try {
 
@@ -233,13 +249,21 @@ export function createLocalIncidentStore(storage = safeLocalStorage(), { notify 
 
   function write(key, value) {
 
-    try {
+    if (secure) {
 
-      storage?.setItem(key, JSON.stringify(value));
+      saveJson(key, value);
 
-    } catch {
+    } else {
 
-      throw new Error('Could not save to browser storage');
+      try {
+
+        storage?.setItem(key, JSON.stringify(value));
+
+      } catch {
+
+        throw new Error('Could not save to browser storage');
+
+      }
 
     }
 
@@ -269,7 +293,7 @@ export function createLocalIncidentStore(storage = safeLocalStorage(), { notify 
 
     },
 
-    create(input, now = Date.now()) {
+    create(input, now = Date.now(), preferredId = null) {
 
       const all = incidents();
 
@@ -277,7 +301,11 @@ export function createLocalIncidentStore(storage = safeLocalStorage(), { notify 
 
       const severity = analyzeScamTranscript(input.description || '').risk_band;
 
-      const incident = createIncident(input, { id: `INC-L${String(next).padStart(4, '0')}`, severity, now });
+      const incident = createIncident(input, {
+        id: preferredId || `INC-L${String(next).padStart(4, '0')}`,
+        severity,
+        now,
+      });
 
       write(INCIDENTS_KEY, [...all, incident]);
 
@@ -328,6 +356,8 @@ const local = createLocalIncidentStore(undefined, {
 });
 
 export async function fetchIncidentFeed() {
+
+  await hydrateSyncQueue();
 
   const online = isOnline();
 
@@ -411,11 +441,17 @@ export async function fetchIncidentFeed() {
 
 export async function recordIncident(input) {
 
+  const operationId = createOperationId();
+
   if (!isOnline()) {
 
-    const queueItem = enqueueCreate({ input });
+    const queueItem = enqueueCreate({ input, operationId });
 
-    const localIncident = local.create(input);
+    const localIncident = local.create(
+      input,
+      Date.now(),
+      queueItem.localIncidentId,
+    );
 
     const incidentWithSync = { ...localIncident, _syncStatus: 'pending', _queueId: queueItem.queueId };
 
@@ -431,7 +467,7 @@ export async function recordIncident(input) {
 
       method: 'POST',
 
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, operation_id: operationId }),
 
     });
 
@@ -441,9 +477,13 @@ export async function recordIncident(input) {
 
     if (isUnavailable(error)) {
 
-      const queueItem = enqueueCreate({ input });
+      const queueItem = enqueueCreate({ input, operationId });
 
-      const localIncident = local.create(input);
+      const localIncident = local.create(
+        input,
+        Date.now(),
+        queueItem.localIncidentId,
+      );
 
       const incidentWithSync = { ...localIncident, _syncStatus: 'pending', _queueId: queueItem.queueId };
 
@@ -461,6 +501,8 @@ export async function recordIncident(input) {
 
 export async function updateIncident(id, changes, source, baseIncident = null) {
 
+  const operationId = createOperationId();
+
   const online = isOnline();
 
   // If responder is offline or in simulated offline mode:
@@ -474,6 +516,8 @@ export async function updateIncident(id, changes, source, baseIncident = null) {
       changes,
 
       baseIncident,
+
+      operationId,
 
     });
 
@@ -529,6 +573,8 @@ export async function updateIncident(id, changes, source, baseIncident = null) {
 
       expected_version: baseIncident?.version,
 
+      operation_id: operationId,
+
       force: false,
 
     };
@@ -573,39 +619,21 @@ export async function updateIncident(id, changes, source, baseIncident = null) {
 
         baseIncident,
 
+        operationId,
+
       });
 
-      // Mark queue item as conflict
+      // Mark queue item as conflict (without writing plaintext directly)
+      const conflictingFields = error.detail?.conflicting_fields || ['status'];
+      const message =
+        error.detail?.message ||
+        'Server incident was modified by another officer';
 
-      const queue = getSyncQueue();
-
-      const updatedQueue = queue.map((i) =>
-
-        i.queueId === queueItem.queueId
-
-          ? {
-
-              ...i,
-
-              status: 'conflict',
-
-              serverConflictData: {
-
-                serverIncident,
-
-                conflictingFields: error.detail?.conflicting_fields || ['status'],
-
-                message: error.detail?.message || 'Server incident was modified by another officer',
-
-              },
-
-            }
-
-          : i
-
-      );
-
-      safeLocalStorage()?.setItem('kshemos.sync_queue.v1', JSON.stringify(updatedQueue));
+      markQueueItemConflict(queueItem.queueId, {
+        serverIncident,
+        conflictingFields,
+        message,
+      });
 
       globalThis.dispatchEvent?.(new Event(INCIDENTS_CHANGED_EVENT));
 
@@ -636,13 +664,10 @@ export async function updateIncident(id, changes, source, baseIncident = null) {
       // Connection dropped during update — queue for offline sync
 
       const queueItem = enqueueUpdate({
-
         incidentId: id,
-
         changes,
-
         baseIncident,
-
+        operationId,
       });
 
       const cached = readCache();

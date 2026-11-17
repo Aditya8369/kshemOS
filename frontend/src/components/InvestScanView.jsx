@@ -9,11 +9,11 @@ export default function InvestScanView() {
   const [result, setResult] = useState(null);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6">
-        <div className="text-xs font-mono uppercase tracking-[0.3em] text-[var(--saffron)]">InvestScan</div>
-        <h2 className="font-display text-3xl font-semibold text-[var(--ink)]">Investment and Ponzi scheme detector</h2>
-        <p className="mt-2 max-w-2xl text-sm text-[var(--ink-text)]/70">Look for unrealistic returns, guaranteed profits, and urgency that suggest a Ponzi or crypto scam.</p>
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-10 space-y-6 sm:space-y-8 w-full">
+      <div className="space-y-2">
+        <div className="text-xs font-mono uppercase tracking-[0.25em] font-semibold text-[var(--saffron)]">InvestScan</div>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-[var(--ink)]">Investment and Ponzi scheme detector</h1>
+        <p className="max-w-2xl text-xs sm:text-sm text-[var(--ink-text)]/70 leading-relaxed">Look for unrealistic returns, guaranteed profits, and urgency that suggest a Ponzi or crypto scam.</p>
       </div>
       <CyberFeatureCard eyebrow="Investment pitch check" title="Assess an investment offer" description="This screens for unrealistic profits, guaranteed returns, and pressure tactics.">
         <input value={platform} onChange={(e) => setPlatform(e.target.value)} className="w-full rounded-2xl border border-[var(--paper-line)] p-3 text-sm" placeholder="Platform" />
