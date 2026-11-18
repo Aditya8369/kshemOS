@@ -601,19 +601,13 @@ export default function IncidentDashboardView() {
                 <div className="lg:border-l lg:border-[var(--navy-line)] lg:pl-5">
 
                   <IncidentDetail
-
                     key={selected.id}
-
                     incident={selected}
-
                     now={now}
-
                     onClose={() => setSelectedId(null)}
-
                     onUpdate={handleUpdate}
-
                     onOpenConflict={handleOpenConflict}
-
+                    onOpenOutbox={() => setOutboxOpen(true)}
                   />
 
                 </div>

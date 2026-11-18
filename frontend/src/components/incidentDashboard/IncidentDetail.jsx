@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  Inbox,
   Send,
   Siren,
   X,
@@ -24,6 +25,7 @@ import {
 
 import { STATUS_LABEL, minutesSince, formatClock } from './display';
 import { SeverityBadge } from './ui';
+import { explainActionOutcome } from '../../syncStatusMeta';
 
 // Reusable row for displaying read-only incident information.
 function DetailRow({ label, children }) {
@@ -44,14 +46,24 @@ function DetailRow({ label, children }) {
 function FieldResponderBar({ incident, onUpdate }) {
   const [noteText, setNoteText] = useState('');
   const [saving, setSaving] = useState(false);
+  const [feedback, setFeedback] = useState(null);
 
   async function handleQuickStatus(status) {
     if (saving || incident.status === status) return;
 
     setSaving(true);
+    setFeedback(null);
 
     try {
-      await onUpdate(incident.id, { status }, incident);
+      const res = await onUpdate(incident.id, { status }, incident);
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      const outcome = explainActionOutcome({
+        actionName: `Status set to ${STATUS_LABEL[status] || status}`,
+        syncStatus: res?._syncStatus || incident._syncStatus,
+        isOnline,
+        version: res?.version || incident.version,
+      });
+      setFeedback(outcome);
     } finally {
       setSaving(false);
     }
@@ -63,15 +75,24 @@ function FieldResponderBar({ incident, onUpdate }) {
     if (!noteText.trim() || saving) return;
 
     setSaving(true);
+    setFeedback(null);
 
     try {
-      await onUpdate(
+      const res = await onUpdate(
         incident.id,
         { notes: noteText.trim() },
         incident
       );
 
       setNoteText('');
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      const outcome = explainActionOutcome({
+        actionName: 'Field note added',
+        syncStatus: res?._syncStatus || incident._syncStatus,
+        isOnline,
+        version: res?.version || incident.version,
+      });
+      setFeedback(outcome);
     } finally {
       setSaving(false);
     }
@@ -151,13 +172,23 @@ function IncidentActions({ incident, onUpdate }) {
   const [account, setAccount] = useState(incident.linked_account || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [feedback, setFeedback] = useState(null);
 
   async function save(changes) {
     setSaving(true);
     setError(null);
+    setFeedback(null);
 
     try {
-      await onUpdate(incident.id, changes, incident);
+      const res = await onUpdate(incident.id, changes, incident);
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      const outcome = explainActionOutcome({
+        actionName: 'Incident details updated',
+        syncStatus: res?._syncStatus || incident._syncStatus,
+        isOnline,
+        version: res?.version || incident.version,
+      });
+      setFeedback(outcome);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -264,6 +295,28 @@ function IncidentActions({ incident, onUpdate }) {
         </button>
       </form>
 
+      {feedback && (
+        <div
+          role="status"
+          className={`p-2.5 rounded-xl text-xs flex items-center justify-between gap-2 border ${
+            feedback.confirmedByServer
+              ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300'
+              : feedback.conflict
+              ? 'bg-rose-950/40 border-rose-500/50 text-rose-300'
+              : 'bg-amber-950/40 border-amber-500/50 text-amber-300'
+          }`}
+        >
+          <span>{feedback.message}</span>
+          <button
+            type="button"
+            onClick={() => setFeedback(null)}
+            className="text-[10px] opacity-75 hover:opacity-100 font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {error && (
         <p className="text-sm text-[var(--alert)] break-words" role="alert">
           {error}
@@ -280,6 +333,7 @@ export default function IncidentDetail({
   onClose,
   onUpdate,
   onOpenConflict,
+  onOpenOutbox,
 }) {
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -343,31 +397,55 @@ export default function IncidentDetail({
 
             {/* Offline Sync State Badge */}
             {syncStatus === 'synced' ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-mono text-emerald-400 bg-emerald-950/40 border border-emerald-500/50 px-2 py-1 rounded-full">
-                <CheckCircle2 size={11} />
+              <span
+                className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold text-emerald-400 bg-emerald-950/40 border border-emerald-500/50 px-2.5 py-1 rounded-full"
+                title="Confirmed by Headquarters server"
+                aria-label="HQ Confirmed: Synchronized with headquarters"
+              >
+                <CheckCircle2 size={12} aria-hidden="true" />
+                <span className="uppercase text-[9px] opacity-75" aria-hidden="true">[HQ]</span>
                 <span>Synced to HQ</span>
               </span>
             ) : syncStatus === 'conflict' ? (
               <button
+                type="button"
                 onClick={() => onOpenConflict?.(incident)}
-                className="inline-flex items-center gap-1 text-[11px] font-mono text-rose-300 bg-rose-950/60 border border-rose-500 px-2.5 py-1 rounded-full hover:bg-rose-900/80 cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold text-rose-300 bg-rose-950/60 border border-rose-500 px-2.5 py-1 rounded-full hover:bg-rose-900/80 cursor-pointer"
+                title="Headquarters record was modified while offline. Click to review."
+                aria-label="Sync Conflict: Headquarters version differs from local field update. Review now."
               >
                 <AlertTriangle
-                  size={11}
+                  size={12}
                   className="text-rose-400 animate-pulse"
+                  aria-hidden="true"
                 />
+                <span className="uppercase text-[9px]" aria-hidden="true">[CONFLICT]</span>
                 <span>Conflict (Resolve Now)</span>
               </button>
             ) : syncStatus === 'failed' ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-mono text-rose-300 bg-rose-950/40 border border-rose-500/40 px-2 py-1 rounded-full">
-                <AlertTriangle size={11} />
-                <span>Push Failed</span>
-              </span>
+              <button
+                type="button"
+                onClick={onOpenOutbox}
+                className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold text-rose-300 bg-rose-950/40 border border-rose-500/40 px-2.5 py-1 rounded-full hover:bg-rose-900/40 cursor-pointer"
+                title="Transmission failed. Click to open Outbox."
+                aria-label="Push Failed: Click to open Outbox and retry transmission."
+              >
+                <AlertTriangle size={12} aria-hidden="true" />
+                <span className="uppercase text-[9px]" aria-hidden="true">[FAILED]</span>
+                <span>Push Failed (Retry)</span>
+              </button>
             ) : (
-              <span className="inline-flex items-center gap-1 text-[11px] font-mono text-amber-300 bg-amber-950/40 border border-amber-500/50 px-2 py-1 rounded-full">
-                <Clock size={11} />
+              <button
+                type="button"
+                onClick={onOpenOutbox}
+                className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold text-amber-300 bg-amber-950/40 border border-amber-500/50 px-2.5 py-1 rounded-full hover:bg-amber-900/40 cursor-pointer"
+                title="Saved locally on this device only — has NOT reached Headquarters yet."
+                aria-label="Saved locally on this device only; pending sync to headquarters. Click to open Outbox."
+              >
+                <Clock size={12} aria-hidden="true" />
+                <span className="uppercase text-[9px] opacity-75" aria-hidden="true">[LOCAL]</span>
                 <span>Saved Locally · Pending Sync</span>
-              </span>
+              </button>
             )}
           </div>
 
@@ -389,25 +467,72 @@ export default function IncidentDetail({
         </button>
       </div>
 
+      {/* Pending Sync Notice */}
+      {syncStatus === 'pending' && (
+        <div
+          role="status"
+          className="rounded-xl border border-amber-500/60 bg-amber-950/30 p-3.5 my-3 text-xs space-y-2.5"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-amber-300 font-semibold">
+              <Clock size={15} aria-hidden="true" />
+              <span>Saved Locally On Device — Pending Sync</span>
+            </div>
+            <span className="text-[10px] font-mono bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/40 font-bold uppercase">
+              Not at HQ
+            </span>
+          </div>
+
+          <p className="text-[var(--mist)] leading-relaxed">
+            Your recent updates to this case are encrypted and saved in this device's local outbox. They have <strong>not</strong> reached Headquarters or Command Center yet.
+          </p>
+
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onOpenOutbox}
+              className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/60 font-semibold rounded-lg transition-colors flex items-center gap-1.5 text-xs cursor-pointer"
+            >
+              <Inbox size={13} aria-hidden="true" />
+              <span>Review in Outbox</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Conflict Warning */}
       {syncStatus === 'conflict' && (
         <div className="rounded-xl border border-rose-500/70 bg-rose-950/30 p-3 my-3 text-xs space-y-2">
-          <div className="flex items-center gap-1.5 text-rose-300 font-semibold">
-            <AlertTriangle size={14} />
-            <span>HQ Version Conflict</span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5 text-rose-300 font-semibold">
+              <AlertTriangle size={14} aria-hidden="true" />
+              <span>HQ Version Conflict</span>
+            </div>
+            <span className="text-[10px] font-mono bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full border border-rose-500/40 font-bold uppercase">
+              Action Required
+            </span>
           </div>
 
           <p className="text-[var(--mist)]">
             Command Center modified this case while your field unit was offline.
-            Resolve to update HQ safely.
+            Local updates have <strong>not</strong> been merged into HQ. Resolve to update HQ safely.
           </p>
 
           <button
+            type="button"
             onClick={() => onOpenConflict?.(incident)}
-            className="px-3 py-2 bg-rose-500 text-white font-semibold rounded-lg hover:bg-rose-600 transition-colors"
+            className="px-3 py-2 bg-rose-500 hover:bg-rose-600 text-white font-semibold rounded-lg transition-colors text-xs cursor-pointer shadow-sm"
           >
-            Review & Resolve Conflict
+            Review &amp; Resolve Conflict
           </button>
+        </div>
+      )}
+
+      {/* Server Confirmed Note */}
+      {syncStatus === 'synced' && (
+        <div className="rounded-lg bg-emerald-950/20 border border-emerald-800/40 px-3 py-1.5 text-[11px] text-emerald-400/90 flex items-center gap-1.5 font-mono">
+          <CheckCircle2 size={12} className="text-emerald-400 shrink-0" aria-hidden="true" />
+          <span>Confirmed by Headquarters server · Version v{incident.version || 1} acknowledged</span>
         </div>
       )}
 

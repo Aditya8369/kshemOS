@@ -13,7 +13,7 @@ export default function HomePage({ setActiveView }) {
         <div className="hidden sm:block absolute right-[4%] bottom-[10%] h-3 w-3 rounded-full bg-[var(--navy)]/60 animate-glow-pulse delay-150" />
       </div>
 
-      <div className="relative mx-auto grid max-w-7xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
+      <div className="relative mx-auto grid max-w-7xl items-center gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-12">
         <div className="space-y-6 sm:space-y-7 animate-fade-up">
           <div className="space-y-4">
             <div className="inline-flex max-w-full items-center rounded-2xl border border-[var(--saffron)]/30 bg-[var(--saffron)]/10 px-3 py-1.5 text-[11px] font-mono uppercase tracking-[0.12em] text-[var(--saffron)] sm:rounded-full sm:py-1 sm:text-xs sm:tracking-[0.22em]">
@@ -88,7 +88,7 @@ export default function HomePage({ setActiveView }) {
                   <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--saffron)] text-[var(--ink)]" aria-hidden="true">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                   </span>
-                  <span>Pause before sharing OTPs, payment details, or sensitive info.</span>
+                  <span>Pause before sharing OTPs, Aadhaar, or payment details.</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--saffron)] text-[var(--ink)]" aria-hidden="true">
