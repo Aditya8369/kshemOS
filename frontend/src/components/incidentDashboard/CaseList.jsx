@@ -1,5 +1,7 @@
 import {
   AlertTriangle,
+  CheckCircle2,
+  Clock,
   Filter,
   FilterX,
   MapPin,
@@ -379,19 +381,45 @@ export function IncidentList({
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <SeverityBadge severity={incident.severity} />
-                {incident._syncStatus === 'pending' && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                    Queued
+                {incident._syncStatus === 'pending' ? (
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/50 flex items-center gap-1"
+                    title="Saved locally on device — has NOT reached Headquarters yet"
+                    aria-label="Pending Sync: Saved locally on this device only, not yet confirmed by headquarters"
+                  >
+                    <Clock size={10} aria-hidden="true" />
+                    <span className="uppercase text-[8px] opacity-75" aria-hidden="true">[LOCAL]</span>
+                    <span>Queued</span>
                   </span>
-                )}
-                {incident._syncStatus === 'conflict' && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500 animate-pulse font-bold">
-                    Conflict
+                ) : incident._syncStatus === 'conflict' ? (
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500 animate-pulse flex items-center gap-1"
+                    title="HQ conflict — requires manual resolution"
+                    aria-label="Sync Conflict: Headquarters version differs from local field update"
+                  >
+                    <AlertTriangle size={10} aria-hidden="true" />
+                    <span className="uppercase text-[8px]" aria-hidden="true">[CONFLICT]</span>
+                    <span>Conflict</span>
                   </span>
-                )}
-                {incident._syncStatus === 'failed' && (
-                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40">
-                    Push Failed
+                ) : incident._syncStatus === 'failed' ? (
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold bg-rose-950/40 text-rose-300 border border-rose-500/40 flex items-center gap-1"
+                    title="Push to HQ failed — click Outbox to retry"
+                    aria-label="Push Failed: Local change could not be delivered to headquarters"
+                  >
+                    <AlertTriangle size={10} aria-hidden="true" />
+                    <span className="uppercase text-[8px]" aria-hidden="true">[FAILED]</span>
+                    <span>Push Failed</span>
+                  </span>
+                ) : (
+                  <span
+                    className="px-2 py-0.5 rounded-full text-[9px] font-mono font-semibold bg-emerald-950/30 text-emerald-400 border border-emerald-500/40 flex items-center gap-1"
+                    title="Confirmed on Headquarters server"
+                    aria-label="HQ Confirmed: Synchronized with headquarters"
+                  >
+                    <CheckCircle2 size={10} aria-hidden="true" />
+                    <span className="uppercase text-[8px] opacity-75" aria-hidden="true">[HQ]</span>
+                    <span>Confirmed</span>
                   </span>
                 )}
               </div>

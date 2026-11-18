@@ -73,9 +73,12 @@ export default function ConflictResolutionModal({ conflictItem, onClose }) {
           </button>
         </div>
 
-        <p className="text-sm text-[var(--mist)]">
-          This incident was updated at Command Center while your field unit was offline. Review the conflicting values below and choose how to reconcile them:
-        </p>
+        <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-500/40 text-amber-200 text-xs flex items-center gap-2">
+          <AlertTriangle size={15} className="text-amber-400 shrink-0" aria-hidden="true" />
+          <span>
+            <strong>Truth-in-State Notice:</strong> Your offline field change has <strong>not</strong> been applied to Headquarters because the server version changed. Review the conflicting values below and choose how to reconcile them:
+          </span>
+        </div>
 
         {/* Side-by-side Comparison Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -85,8 +88,9 @@ export default function ConflictResolutionModal({ conflictItem, onClose }) {
               <span className="text-xs font-mono uppercase tracking-wider text-[var(--saffron)] font-bold">
                 Your Field Update (Offline)
               </span>
-              <span className="text-[10px] bg-[var(--saffron)]/20 text-[var(--saffron)] px-2 py-0.5 rounded-full font-mono">
-                Local Queued
+              <span className="text-[10px] bg-[var(--saffron)]/20 text-[var(--saffron)] px-2 py-0.5 rounded-full font-mono font-bold flex items-center gap-1">
+                <span>[LOCAL]</span>
+                <span>Queued</span>
               </span>
             </div>
 
@@ -121,8 +125,9 @@ export default function ConflictResolutionModal({ conflictItem, onClose }) {
               <span className="text-xs font-mono uppercase tracking-wider text-emerald-400 font-bold">
                 Command Center (Server Live)
               </span>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-mono">
-                v{serverIncident.version || 2} Live
+              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-mono font-bold flex items-center gap-1">
+                <span>[HQ]</span>
+                <span>v{serverIncident.version || 2} Live</span>
               </span>
             </div>
 

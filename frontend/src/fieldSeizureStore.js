@@ -548,7 +548,8 @@ export async function triggerVaultSync() {
       conflicts: 0,
       tamperFlagged: 0,
       offline: true,
-      message: 'Offline mode active: captures safely encrypted in local IndexedDB queue.',
+      message:
+        'Offline mode active: captures safely encrypted in local IndexedDB queue. Has NOT reached Central Evidence Vault yet.',
     };
   }
 

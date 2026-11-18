@@ -211,12 +211,26 @@ export default function FieldSeizureCompanionView() {
                   ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
                   : 'bg-amber-50 border-amber-300 text-amber-800'
               }`}
+              title={
+                online
+                  ? 'Live Connected: Uplink to Central Evidence Vault is active'
+                  : 'Field Offline: Local IndexedDB encryption active. Records have not reached HQ.'
+              }
+              aria-label={
+                online
+                  ? 'Cellular Active: Online and connected to Evidence Vault'
+                  : 'Offline Field Mode: Local device storage only'
+              }
             >
               <span
                 className={`w-2 h-2 rounded-full ${
                   online ? 'bg-emerald-600 animate-pulse' : 'bg-amber-600'
                 }`}
+                aria-hidden="true"
               />
+              <span className="font-mono text-[10px] opacity-75 uppercase" aria-hidden="true">
+                {online ? '[LIVE]' : '[OFFLINE]'}
+              </span>
               <span>{online ? 'Cellular Active (Online)' : 'Offline Field Mode'}</span>
             </div>
 
@@ -296,6 +310,34 @@ export default function FieldSeizureCompanionView() {
             <div className="text-[10px] text-[var(--ink-text)]/50 mt-1">Anti-remote wipe sealed</div>
           </div>
         </div>
+
+        {/* Truth-in-State Field Warning Banner */}
+        {stats.offlineQueued > 0 && (
+          <div
+            role="status"
+            className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="text-base" aria-hidden="true">📡</span>
+              <div>
+                <span className="font-bold block">
+                  {stats.offlineQueued} Hardware Capture{stats.offlineQueued > 1 ? 's' : ''} Stored Locally (Pending Uplink):
+                </span>
+                <span className="text-[11px] text-amber-800">
+                  Genesis receipts are cryptographically sealed in local IndexedDB. These records have <strong>not</strong> reached the Central Evidence Vault yet.
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleManualSync}
+              disabled={syncing || !online}
+              className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 cursor-pointer disabled:opacity-40 shadow-sm"
+            >
+              {syncing ? 'Syncing…' : 'Sync to Central Vault Now'}
+            </button>
+          </div>
+        )}
 
         {/* Navigation Tabs */}
         <div className="flex border-b border-[var(--paper-line)] gap-2">
@@ -400,19 +442,44 @@ export default function FieldSeizureCompanionView() {
                             </h3>
                           </div>
                           {isTampered ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300 shrink-0">
-                              ⚠️ TAMPER FLAGGED
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-300 shrink-0"
+                              title="Tamper warning: on-scene and central hashes mismatch"
+                              aria-label="Tamper Flagged: On-scene capture differs from central intake verification"
+                            >
+                              [TAMPER] ⚠️ TAMPER FLAGGED
                             </span>
                           ) : isOfflineQueued ? (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 shrink-0">
-                              📡 QUEUED OFFLINE
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 shrink-0"
+                              title="Saved locally on device — has NOT reached Central Evidence Vault yet"
+                              aria-label="Queued Offline: Saved locally on this device only, not yet confirmed by Central Evidence Vault"
+                            >
+                              [LOCAL ONLY] 📡 QUEUED OFFLINE
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
-                              ✓ VAULT SYNCED
+                            <span
+                              className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0"
+                              title="Confirmed on Central Evidence Vault"
+                              aria-label="Vault Synced: Confirmed by Central Evidence Vault"
+                            >
+                              [CONFIRMED] ✓ VAULT SYNCED
                             </span>
                           )}
                         </div>
+
+                        {/* Truth-in-State Card Level Indicator */}
+                        {isOfflineQueued ? (
+                          <div className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-950 text-[11px] leading-relaxed">
+                            <span className="font-bold block text-[10px] font-mono text-amber-850 uppercase">[LOCAL STORAGE ONLY]</span>
+                            Genesis receipt generated &amp; encrypted. Has <strong>not</strong> reached Central Evidence Vault yet.
+                          </div>
+                        ) : !isTampered && (
+                          <div className="p-1.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-950 text-[10px] font-mono flex items-center gap-1.5">
+                            <span className="text-emerald-700 font-bold uppercase">[CONFIRMED]</span>
+                            <span>Central Evidence Vault verified</span>
+                          </div>
+                        )}
 
                         {/* Tamper Warning Banner */}
                         {isTampered && r.tamper_reason && (

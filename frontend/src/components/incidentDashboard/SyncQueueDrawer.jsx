@@ -145,104 +145,154 @@ export default function SyncQueueDrawer({ isOpen, onClose, onResolveConflict }) 
                 </div>
               </div>
             ) : (
-              queue.map((item) => (
+              <>
+                {/* Truth-in-State Disclaimer Notice */}
                 <div
-                  key={item.queueId}
-                  className="bg-[var(--ink)] border border-[var(--navy-line)] rounded-2xl p-4 space-y-2.5 text-xs"
+                  role="status"
+                  className="bg-amber-950/30 border border-amber-500/40 rounded-xl p-3 text-xs text-amber-200/90 space-y-1"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono font-semibold text-white">
-                      {item.action === 'create' ? 'New Field Incident' : `Update · ${item.incidentId}`}
-                    </span>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-mono uppercase font-bold flex items-center gap-1 ${
-                        item.status === 'conflict'
-                          ? 'bg-rose-500/20 text-rose-300 border border-rose-500'
-                          : item.status === 'failed'
-                          ? 'bg-amber-500/20 text-amber-300 border border-amber-500'
-                          : item.status === 'syncing'
-                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500'
-                          : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/50'
-                      }`}
-                    >
-                      {item.status === 'syncing' && <RefreshCw size={10} className="animate-spin" />}
-                      {item.status === 'conflict' && <AlertTriangle size={10} />}
-                      {item.status === 'pending' && <Clock size={10} />}
-                      {item.status}
-                    </span>
+                  <div className="flex items-center gap-1.5 font-semibold text-amber-300">
+                    <AlertTriangle size={13} aria-hidden="true" />
+                    <span>Local Device Storage Only</span>
                   </div>
-
-                  {/* Changes Summary */}
-                  <div className="space-y-1 bg-[var(--navy)]/60 p-2.5 rounded-xl text-[11px] text-[var(--mist)]">
-                    {item.changes?.status && (
-                      <div>
-                        Status: <span className="text-white font-medium capitalize">{STATUS_LABEL[item.changes.status] || item.changes.status}</span>
-                      </div>
-                    )}
-                    {item.changes?.severity && (
-                      <div>
-                        Severity: <span className="text-white font-medium capitalize">{item.changes.severity}</span>
-                      </div>
-                    )}
-                    {item.changes?.assigned_to != null && (
-                      <div>
-                        Assignee: <span className="text-white font-mono">{item.changes.assigned_to || '(Unassigned)'}</span>
-                      </div>
-                    )}
-                    {item.changes?.notes && (
-                      <div>
-                        Note: <span className="text-white italic">"{item.changes.notes}"</span>
-                      </div>
-                    )}
-                    {item.input?.description && (
-                      <div className="line-clamp-2">
-                        Description: <span className="text-white">{item.input.description}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {item.error && (
-                    <div className="p-2 bg-rose-950/40 border border-rose-500/40 rounded-xl text-rose-300 text-[11px]">
-                      {item.error}
-                    </div>
-                  )}
-
-                  {/* Item Actions */}
-                  <div className="flex items-center justify-between pt-1 text-[11px]">
-                    <span className="text-[var(--mist)] font-mono text-[10px]">
-                      Queued {new Date(item.queuedAt).toLocaleTimeString()}
-                    </span>
-
-                    <div className="flex items-center gap-2">
-                      {item.status === 'conflict' ? (
-                        <button
-                          onClick={() => {
-                            onClose();
-                            onResolveConflict(item);
-                          }}
-                          className="px-2.5 py-1 bg-rose-500 text-white font-semibold rounded-lg hover:bg-rose-600 transition-colors"
-                        >
-                          Resolve Conflict
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleRetry(item.queueId)}
-                          className="px-2.5 py-1 bg-[var(--navy-line)] text-white hover:text-[var(--saffron)] rounded-lg transition-colors"
-                        >
-                          Retry
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleDiscard(item.queueId)}
-                        className="p-1 text-[var(--mist)] hover:text-rose-400 transition-colors"
-                        title="Discard this change"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
+                  <p className="text-[11px] leading-relaxed text-[var(--mist)]">
+                    Items in this outbox are <strong>stored locally on this device only</strong>. They have <strong>not</strong> reached Headquarters until successfully confirmed by the server.
+                  </p>
                 </div>
-              ))
+
+                {queue.map((item) => (
+                  <div
+                    key={item.queueId}
+                    className={`bg-[var(--ink)] border rounded-2xl p-4 space-y-2.5 text-xs ${
+                      item.status === 'conflict'
+                        ? 'border-rose-500/80 ring-1 ring-rose-500/40'
+                        : item.status === 'failed'
+                        ? 'border-amber-500/70'
+                        : 'border-[var(--navy-line)]'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-semibold text-white">
+                        {item.action === 'create' ? 'New Field Incident' : `Update · ${item.incidentId}`}
+                      </span>
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-mono uppercase font-bold flex items-center gap-1 ${
+                          item.status === 'conflict'
+                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500'
+                            : item.status === 'failed'
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500'
+                            : item.status === 'syncing'
+                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500'
+                            : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/50'
+                        }`}
+                        aria-label={`Queue Status: ${item.status}. ${
+                          item.status === 'conflict'
+                            ? 'Conflict with server'
+                            : 'Saved locally, not yet at headquarters'
+                        }`}
+                      >
+                        {item.status === 'syncing' && <RefreshCw size={10} className="animate-spin" aria-hidden="true" />}
+                        {item.status === 'conflict' && <AlertTriangle size={10} aria-hidden="true" />}
+                        {item.status === 'pending' && <Clock size={10} aria-hidden="true" />}
+                        <span className="text-[9px] opacity-75">
+                          {item.status === 'conflict'
+                            ? '[CONFLICT]'
+                            : item.status === 'failed'
+                            ? '[FAILED]'
+                            : item.status === 'syncing'
+                            ? '[SYNCING]'
+                            : '[LOCAL ONLY]'}
+                        </span>
+                        <span>{item.status === 'pending' ? 'Queued' : item.status}</span>
+                      </span>
+                    </div>
+
+                    {/* Truth-in-State Item Line */}
+                    <div className="text-[10px] font-mono">
+                      {item.status === 'conflict' ? (
+                        <span className="text-rose-300 font-semibold">
+                          ⚠️ HQ conflict: Server has differing version. Review required.
+                        </span>
+                      ) : (
+                        <span className="text-amber-300/80">
+                          ℹ️ Stored locally on device &bull; Not confirmed by HQ
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Changes Summary */}
+                    <div className="space-y-1 bg-[var(--navy)]/60 p-2.5 rounded-xl text-[11px] text-[var(--mist)]">
+                      {item.changes?.status && (
+                        <div>
+                          Status: <span className="text-white font-medium capitalize">{STATUS_LABEL[item.changes.status] || item.changes.status}</span>
+                        </div>
+                      )}
+                      {item.changes?.severity && (
+                        <div>
+                          Severity: <span className="text-white font-medium capitalize">{item.changes.severity}</span>
+                        </div>
+                      )}
+                      {item.changes?.assigned_to != null && (
+                        <div>
+                          Assignee: <span className="text-white font-mono">{item.changes.assigned_to || '(Unassigned)'}</span>
+                        </div>
+                      )}
+                      {item.changes?.notes && (
+                        <div>
+                          Note: <span className="text-white italic">"{item.changes.notes}"</span>
+                        </div>
+                      )}
+                      {item.input?.description && (
+                        <div className="line-clamp-2">
+                          Description: <span className="text-white">{item.input.description}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {item.error && (
+                      <div className="p-2 bg-rose-950/40 border border-rose-500/40 rounded-xl text-rose-300 text-[11px]">
+                        {item.error}
+                      </div>
+                    )}
+
+                    {/* Item Actions */}
+                    <div className="flex items-center justify-between pt-1 text-[11px]">
+                      <span className="text-[var(--mist)] font-mono text-[10px]">
+                        Queued {new Date(item.queuedAt).toLocaleTimeString()}
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        {item.status === 'conflict' ? (
+                          <button
+                            onClick={() => {
+                              onClose();
+                              onResolveConflict(item);
+                            }}
+                            className="px-2.5 py-1 bg-rose-500 hover:bg-rose-600 text-white font-semibold rounded-lg transition-colors cursor-pointer shadow-sm"
+                          >
+                            Resolve Conflict
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleRetry(item.queueId)}
+                            className="px-2.5 py-1 bg-[var(--navy-line)] text-white hover:text-[var(--saffron)] rounded-lg transition-colors cursor-pointer"
+                          >
+                            Retry
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleDiscard(item.queueId)}
+                          className="p-1 text-[var(--mist)] hover:text-rose-400 transition-colors cursor-pointer"
+                          title="Discard this local change"
+                          aria-label="Discard local change"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>
             )
           ) : (
             history.length === 0 ? (
