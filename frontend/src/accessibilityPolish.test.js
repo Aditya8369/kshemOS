@@ -118,6 +118,24 @@ test('CitizenPortal.jsx includes accessible form labels and aria attributes', ()
     /aria-label="Your full name"/,
     'Report name input must have accessible aria-label'
   );
+
+  assert.match(
+    portal,
+    /aria-busy=\{loading\}/,
+    'Citizen report submit button must indicate loading status via aria-busy'
+  );
+
+  assert.match(
+    portal,
+    /animate-spin/,
+    'Citizen report submit button must render a visual loading spinner'
+  );
+
+  assert.match(
+    portal,
+    /role="status"/,
+    'Citizen report result section must include role="status" for screen reader confirmation'
+  );
 });
 
 test('OfficerCommandCenter.jsx prevents mobile tab overflow and labels inputs', () => {

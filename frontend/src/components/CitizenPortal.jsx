@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Loader2, CheckCircle2 } from 'lucide-react';
 
 import RiskGauge from './RiskGauge';
 
@@ -142,8 +143,9 @@ function ScamCheck() {
 
       <textarea
         id="citizen-call-transcript"
+        disabled={loading}
         aria-label="Paste the suspicious call transcript"
-        className="w-full h-28 rounded-lg border border-[var(--paper-line)] p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--saffron)]"
+        className="w-full h-28 rounded-lg border border-[var(--paper-line)] p-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] disabled:opacity-50 disabled:cursor-not-allowed"
         value={transcript}
         onChange={(e) => setTranscript(e.target.value)}
         placeholder="Paste the suspicious call transcript..."
@@ -151,8 +153,9 @@ function ScamCheck() {
 
       <input
         id="citizen-caller-claim"
+        disabled={loading}
         aria-label="Caller claimed identity"
-        className="w-full mt-2 rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)]"
+        className="w-full mt-2 rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] disabled:opacity-50 disabled:cursor-not-allowed"
         placeholder="Caller claims to be (e.g. CBI officer)"
         value={claim}
         onChange={(e) => setClaim(e.target.value)}
@@ -162,10 +165,18 @@ function ScamCheck() {
         type="button"
         onClick={run}
         disabled={loading || !transcript.trim()}
+        aria-busy={loading}
         aria-label={loading ? 'Analyzing call transcript...' : 'Check this call'}
-        className="mt-3 bg-[var(--ink)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
+        className="mt-3 bg-[var(--ink)] hover:opacity-90 text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer min-h-[44px] inline-flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-[var(--saffron)] transition-all"
       >
-        {loading ? 'Analyzing…' : 'Check this call'}
+        {loading ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin text-white" aria-hidden="true" />
+            <span>Analyzing…</span>
+          </>
+        ) : (
+          <span>Check this call</span>
+        )}
       </button>
 
       {error && (
@@ -327,10 +338,18 @@ function CurrencyScanner() {
             type="button"
             onClick={run}
             disabled={!file || loading}
+            aria-busy={loading}
             aria-label={loading ? 'Scanning currency note...' : 'Scan note'}
-            className="bg-[var(--ink)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
+            className="bg-[var(--ink)] hover:opacity-90 text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer min-h-[44px] inline-flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-[var(--saffron)] transition-all"
           >
-            {loading ? 'Scanning…' : 'Scan note'}
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-white" aria-hidden="true" />
+                <span>Scanning…</span>
+              </>
+            ) : (
+              <span>Scan note</span>
+            )}
           </button>
 
           {error && (
@@ -438,10 +457,11 @@ function Assistant() {
     >
       <div className="flex flex-col sm:flex-row gap-2 mb-2">
         <select
+          disabled={loading}
           value={language}
           onChange={(e) => setLanguage(e.target.value)}
           aria-label="Select assistant language"
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {LANGUAGES.map((l) => (
             <option key={l} value={l}>
@@ -451,7 +471,8 @@ function Assistant() {
         </select>
 
         <input
-          className="flex-1 rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
+          disabled={loading}
+          className="flex-1 rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
           placeholder="e.g. Is a video call from 'income tax department' normal?"
           aria-label="Question for citizen assistant"
           value={question}
@@ -462,10 +483,18 @@ function Assistant() {
           type="button"
           onClick={run}
           disabled={loading || !question.trim()}
+          aria-busy={loading}
           aria-label={loading ? 'Submitting question to assistant...' : 'Ask citizen assistant'}
-          className="bg-[var(--ink)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--saffron)]"
+          className="bg-[var(--ink)] hover:opacity-90 text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer min-h-[44px] inline-flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-[var(--saffron)] transition-all"
         >
-          {loading ? 'Asking…' : 'Ask'}
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin text-white" aria-hidden="true" />
+              <span>Asking…</span>
+            </>
+          ) : (
+            <span>Ask</span>
+          )}
         </button>
       </div>
 
@@ -489,12 +518,23 @@ function ReportForm({ addReport }) {
   const [email, setEmail] = useState('');
   const [category, setCategory] = useState('scam_call');
   const [description, setDescription] = useState('');
-  const [language, setLanguage] = useState('English');
+  const [language] = useState('English');
   const [region, setRegion] = useState('');
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [emailStatus, setEmailStatus] = useState(null);
+
+  function resetForm() {
+    setName('');
+    setEmail('');
+    setCategory('scam_call');
+    setDescription('');
+    setRegion('');
+    setResult(null);
+    setError(null);
+    setEmailStatus(null);
+  }
 
   async function submit() {
     if (!name.trim() || !description.trim()) {
@@ -575,7 +615,8 @@ function ReportForm({ addReport }) {
     >
       <div className="grid sm:grid-cols-2 gap-3 mb-2">
         <input
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
+          disabled={loading}
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
           placeholder="Your name"
           aria-label="Your full name"
           value={name}
@@ -583,7 +624,8 @@ function ReportForm({ addReport }) {
         />
 
         <input
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
+          disabled={loading}
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
           placeholder="Your email for confirmation"
           aria-label="Your email address for confirmation"
           type="email"
@@ -594,10 +636,11 @@ function ReportForm({ addReport }) {
 
       <div className="grid sm:grid-cols-2 gap-3 mb-2">
         <select
+          disabled={loading}
           value={category}
           onChange={(e) => setCategory(e.target.value)}
           aria-label="Incident category"
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <option value="scam_call">Digital arrest / scam call</option>
           <option value="counterfeit">Counterfeit currency</option>
@@ -606,9 +649,10 @@ function ReportForm({ addReport }) {
         </select>
 
         <select
+          disabled={loading}
           value={region}
           onChange={(e) => setRegion(e.target.value)}
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px]"
+          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
           aria-label="Your region"
         >
           <option value="">Select your region</option>
@@ -622,7 +666,8 @@ function ReportForm({ addReport }) {
       </div>
 
       <textarea
-        className="w-full h-20 rounded-lg border border-[var(--paper-line)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)]"
+        disabled={loading}
+        className="w-full h-20 rounded-lg border border-[var(--paper-line)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] disabled:opacity-50 disabled:cursor-not-allowed"
         placeholder="What happened?"
         aria-label="Describe what happened"
         value={description}
@@ -633,14 +678,22 @@ function ReportForm({ addReport }) {
         type="button"
         onClick={submit}
         disabled={loading}
+        aria-busy={loading}
         aria-label={loading ? 'Submitting citizen report...' : 'Submit citizen report'}
-        className="mt-2 bg-[var(--saffron)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
+        className="mt-2 bg-[var(--saffron)] hover:opacity-90 text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer min-h-[44px] inline-flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-[var(--ink)] transition-all"
       >
-        {loading ? 'Submitting…' : 'Submit report'}
+        {loading ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin text-white" aria-hidden="true" />
+            <span>Submitting…</span>
+          </>
+        ) : (
+          <span>Submit report</span>
+        )}
       </button>
 
       {error && (
-        <p className="text-sm text-[var(--alert)] mt-2">
+        <p className="text-sm text-[var(--alert)] mt-2" role="alert">
           {error}
         </p>
       )}
@@ -658,12 +711,22 @@ function ReportForm({ addReport }) {
       )}
 
       {result && (
-        <div className="mt-3 text-sm bg-[var(--paper)] rounded-lg p-3 border border-[var(--paper-line)] space-y-2">
-          <p className="font-mono text-xs text-[var(--saffron)]">
-            {result.report_id}
-          </p>
+        <div
+          role="status"
+          aria-live="polite"
+          className="mt-3 text-sm bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3.5 space-y-2"
+        >
+          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold">
+            <CheckCircle2 className="w-4 h-4 shrink-0" />
+            <span>Report submitted successfully!</span>
+          </div>
 
-          <p>{result.acknowledgement}</p>
+          <div className="text-xs space-y-1">
+            <p className="font-mono text-[var(--saffron)] font-medium">
+              ID: {result.report_id}
+            </p>
+            <p>{result.acknowledgement}</p>
+          </div>
 
           {result.incident_id && (
             <p className="text-xs text-[var(--ink-text)]/70">
@@ -680,15 +743,23 @@ function ReportForm({ addReport }) {
             </p>
           )}
 
-          <details>
+          <details className="text-xs">
             <summary className="cursor-pointer font-semibold">
               Draft FIR statement
             </summary>
 
-            <p className="mt-1 whitespace-pre-line">
+            <p className="mt-1 whitespace-pre-line font-mono text-[11px] p-2 bg-[var(--paper)] rounded border border-[var(--paper-line)]">
               {result.draft_fir}
             </p>
           </details>
+
+          <button
+            type="button"
+            onClick={resetForm}
+            className="mt-2 text-xs font-semibold text-[var(--saffron)] hover:underline inline-flex items-center gap-1 cursor-pointer"
+          >
+            + File another report
+          </button>
         </div>
       )}
     </SectionCard>
