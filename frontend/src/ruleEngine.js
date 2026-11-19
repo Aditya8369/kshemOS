@@ -701,7 +701,7 @@ export function askCitizenAssistantLocally(question, language) {
 
 export function submitCitizenReportLocally(payload) {
   const category = payload?.category || 'other';
-  const reportId = `RPT-${Math.floor(1000 + Math.random() * 9000)}`;
+  const reportId = `RPT-${crypto.randomUUID().toUpperCase()}`;
   const description = payload?.description || 'No description supplied.';
   const reporter = payload?.reporter_name || 'Anonymous';
   const language = payload?.language || 'English';

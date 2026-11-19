@@ -335,6 +335,11 @@ export {
   clearSyncHistory,
   setSyncStorage,
   emitSyncChange,
+  hydrateSyncQueue,
+  clearOfflineData,
+  purgeExpiredLocalData,
+  createOperationId,
+  markQueueItemConflict,
   SYNC_QUEUE_KEY,
   SYNC_HISTORY_KEY,
   SIMULATED_OFFLINE_KEY,
@@ -347,11 +352,9 @@ export {
 
 export async function sendReportConfirmationEmail({
   reportId,
-  reporterName,
   recipientEmail,
   category,
-  description,
-  acknowledgement,
+  submittedAt,
 }) {
   if (
     !EMAILJS_SERVICE_ID ||
@@ -367,13 +370,13 @@ export async function sendReportConfirmationEmail({
 
   try {
     const templateParams = {
-      report_id: reportId,
-      reporter_name: reporterName,
-      recipient_email: recipientEmail,
-      report_category: category,
-      report_description: description,
-      acknowledgement,
-    };
+  report_id: reportId,
+  recipient_email: recipientEmail,
+  report_category: category,
+  submitted_at: submittedAt,
+  next_steps:
+    'Preserve relevant evidence. Do not share OTPs, passwords, or financial details. Contact the appropriate official authority if urgent assistance is needed.',
+};
 
     await emailjs.send(
       EMAILJS_SERVICE_ID,
@@ -587,6 +590,29 @@ export {
   AdvisoryBroadcastStore,
   defaultBroadcastStore,
 } from './advisoryBroadcastStore.js';
+
+// ======================================================
+// PUBLIC INCIDENT ADVISORY SUBSCRIPTIONS & FEED APIs (ISSUE 43)
+// ======================================================
+
+export {
+  subscribeToAdvisoriesApi,
+  fetchSubscriptionPreferencesApi,
+  updateSubscriptionPreferencesApi,
+  unsubscribeAdvisoriesApi,
+  fetchInAppAdvisoryFeedApi,
+  fetchSubscriberSummaryApi,
+  fetchRestrictedSubscribersApi,
+  dispatchAdvisoryToSubscribersApi,
+  AVAILABLE_ZONES,
+  AVAILABLE_TOPICS,
+  DEFAULT_SEED_SUBSCRIBERS,
+  ADVISORY_SUBSCRIPTION_STORAGE_KEY,
+  ACTIVE_TOKEN_STORAGE_KEY,
+  SUBSCRIPTION_CHANGED_EVENT,
+  AdvisorySubscriptionStore,
+  defaultSubscriptionStore,
+} from './advisorySubscriptionStore.js';
 
 // ======================================================
 // AI TELEPHONY HONEYPOT & CALL-PATTERN TRIANGULATION APIs

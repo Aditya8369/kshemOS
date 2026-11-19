@@ -32,6 +32,7 @@ from app.routers import (
     field_seizure,
     emergency_killswitch,
     voice_deepfake,
+    advisory_subscriptions,
 )
 
 app = FastAPI(
@@ -83,6 +84,7 @@ app.include_router(takedown.router)
 app.include_router(field_seizure.router)
 app.include_router(emergency_killswitch.router)
 app.include_router(voice_deepfake.router)
+app.include_router(advisory_subscriptions.router)
 
 
 @app.get("/", tags=["Health"])

@@ -1,8 +1,56 @@
 /**
- * Verified Contributors Data for KshemOS Open Source Hub.
- * All contributors and contribution areas are verified from official git commits and merged pull requests.
- * No identities, contribution counts, or fictitious contributors are invented.
+ * Community Contributors & Maintainers Data for KshemOS Open Source Hub.
+ * Entries reflect actual git history and merged pull requests without fabricated rankings, totals, or badges.
  */
+
+export const CONTRIBUTION_CATEGORIES = [
+  {
+    id: 'all',
+    label: 'All Categories',
+    description: 'Browse listed maintainers and community contributors across all contribution areas.',
+    issuesUrl: 'https://github.com/GoldRay19/kshemOS/issues',
+  },
+  {
+    id: 'frontend',
+    label: 'Frontend',
+    description: 'Citizen tools, responsive interfaces, visual hierarchy, and operational UI dashboards.',
+    issuesUrl: 'https://github.com/GoldRay19/kshemOS/issues?q=is%3Aissue+is%3Aopen+label%3AUI',
+  },
+  {
+    id: 'backend',
+    label: 'Backend',
+    description: 'FastAPI services, audit logging, triage engines, and graph or spatial APIs.',
+    issuesUrl: 'https://github.com/GoldRay19/kshemOS/issues?q=is%3Aissue+is%3Aopen+label%3Abackend',
+  },
+  {
+    id: 'ai-research',
+    label: 'AI / Research',
+    description: 'Scam heuristics, explainable risk scoring, threat intelligence, and fraud analysis.',
+    issuesUrl: 'https://github.com/GoldRay19/kshemOS/issues?q=is%3Aissue+is%3Aopen+label%3Asecurity',
+  },
+  {
+    id: 'documentation',
+    label: 'Documentation',
+    description: 'Architecture blueprints, contributor guides, threat briefs, and onboarding docs.',
+    issuesUrl: 'https://github.com/GoldRay19/kshemOS/blob/main/CONTRIBUTING.md',
+  },
+  {
+    id: 'testing',
+    label: 'Testing',
+    description: 'Unit tests, edge-case suites, deduplication checks, and regression coverage.',
+    issuesUrl: 'https://github.com/GoldRay19/kshemOS/issues?q=is%3Aissue+is%3Aopen',
+  },
+  {
+    id: 'accessibility',
+    label: 'Accessibility',
+    description: 'Keyboard navigation, screen reader semantics, contrast, and mobile ergonomics.',
+    issuesUrl: 'https://github.com/GoldRay19/kshemOS/issues?q=is%3Aissue+is%3Aopen+label%3AUI',
+  },
+];
+
+export const CONTRIBUTION_CATEGORY_MAP = Object.fromEntries(
+  CONTRIBUTION_CATEGORIES.map((category) => [category.id, category])
+);
 
 export const CORE_TEAM = [
   {
@@ -19,6 +67,7 @@ export const CORE_TEAM = [
     color: '#ff7a1a', // var(--saffron)
     githubUrl: 'https://github.com/GoldRay19',
     domain: 'Core Architecture',
+    categories: ['frontend', 'backend', 'ai-research'],
   },
   {
     id: 'eshita-jha',
@@ -28,12 +77,13 @@ export const CORE_TEAM = [
     type: 'core',
     typeLabel: 'Core Maintainer',
     bio: 'Engineering intelligent rule-based systems for phishing, impersonation, and financial fraud detection. Focused on creating scalable, explainable, and privacy-first safety solutions.',
-    area: 'AI Scam Intelligence, Explainable Heuristics & 60+ Cyber Defense Modules',
-    highlights: ['60+ Cyber Safety Modules', 'Phishing & Impersonation Heuristics', 'AI Security Models', 'DETAILS.md Architecture'],
+    area: 'AI Scam Intelligence, Explainable Heuristics & Cyber Defense Modules',
+    highlights: ['Cyber Safety Modules', 'Phishing & Impersonation Heuristics', 'AI Security Models', 'System Blueprint'],
     initials: 'EJ',
     color: '#3f8f6b', // var(--safe)
     githubUrl: 'https://github.com/Eshitajha19',
     domain: 'AI & Security Research',
+    categories: ['ai-research'],
   },
 ];
 
@@ -52,6 +102,7 @@ export const COMMUNITY_CONTRIBUTORS = [
     color: '#2563eb', // Royal Blue
     githubUrl: 'https://github.com/Aditya8369',
     domain: 'Spatial & AI Systems',
+    categories: ['frontend', 'backend', 'ai-research'],
   },
   {
     id: 'khushi-agarwal',
@@ -67,6 +118,7 @@ export const COMMUNITY_CONTRIBUTORS = [
     color: '#db2777', // Rose Pink
     githubUrl: 'https://github.com/Khushi-agarwal1401',
     domain: 'Frontend & UX',
+    categories: ['frontend', 'accessibility'],
   },
   {
     id: 'bhavesh-patil',
@@ -75,13 +127,14 @@ export const COMMUNITY_CONTRIBUTORS = [
     role: 'Open Source Contributor',
     type: 'community',
     typeLabel: 'Community Contributor',
-    bio: 'Built enterprise-grade compliance infrastructure, including centralized immutable audit logging and command drill simulation engines for incident response preparedness.',
+    bio: 'Built compliance infrastructure including centralized immutable audit logging and command drill simulation engines for incident response preparedness.',
     area: 'Centralized Audit Logging, Statutory Compliance APIs & Command Drill Simulation',
     highlights: ['Centralized Audit Trail Engine', 'Statutory Compliance APIs', 'Command Drill Simulation Router'],
     initials: 'BP',
     color: '#7c3aed', // Violet
     githubUrl: 'https://github.com/bhavesh-patil2007',
     domain: 'Audit & Compliance',
+    categories: ['backend'],
   },
   {
     id: 'venkatasai',
@@ -97,6 +150,7 @@ export const COMMUNITY_CONTRIBUTORS = [
     color: '#059669', // Emerald
     githubUrl: 'https://github.com/Venkatasai200628',
     domain: 'Fraud Graph & Intelligence',
+    categories: ['frontend', 'backend', 'ai-research'],
   },
   {
     id: 'he-ruoxin',
@@ -112,6 +166,7 @@ export const COMMUNITY_CONTRIBUTORS = [
     color: '#d97706', // Amber
     githubUrl: 'https://github.com/Roxyh-code',
     domain: 'Incident Intelligence',
+    categories: ['ai-research', 'testing'],
   },
   {
     id: 'soham-gonbhare',
@@ -120,13 +175,14 @@ export const COMMUNITY_CONTRIBUTORS = [
     role: 'Open Source Contributor',
     type: 'community',
     typeLabel: 'Community Contributor',
-    bio: 'Architected the core automated triage engine, supervisor overrides, dynamic alert dispatch with hash deduplication, public advisory bulletins, and digital evidence vaulting.',
+    bio: 'Architected the automated triage engine, supervisor overrides, dynamic alert dispatch with hash deduplication, public advisory bulletins, and digital evidence vaulting.',
     area: 'Automated Triage Engine, Alert Dispatch, Public Advisories & Evidence Vault',
     highlights: ['Automated Triage Engine', 'Supervisor Override Flow', 'Alert Dispatch Deduplication', 'Public Advisory Composer', 'Secure Digital Evidence Vault'],
     initials: 'SG',
     color: '#0891b2', // Cyan
     githubUrl: 'https://github.com/CoderSoham345',
     domain: 'Triage & Incident Response',
+    categories: ['frontend', 'backend'],
   },
   {
     id: 'kartik-manral',
@@ -135,13 +191,14 @@ export const COMMUNITY_CONTRIBUTORS = [
     role: 'Open Source Contributor',
     type: 'community',
     typeLabel: 'Community Contributor',
-    bio: 'Designed and built the real-time operational incident dashboard for field officers, enabling rapid response monitoring and operational visibility.',
+    bio: 'Designed and built the operational incident dashboard for field officers, enabling rapid response monitoring and operational visibility.',
     area: 'Operational Incident Dashboard & Real-Time Monitoring for Field Officers',
     highlights: ['Real-Time Incident Dashboard', 'Officer Operational Console', 'Response Target Tracking'],
     initials: 'KM',
     color: '#4f46e5', // Indigo
     githubUrl: 'https://github.com/KartikManral092006',
     domain: 'Officer Operations',
+    categories: ['frontend'],
   },
   {
     id: 'purnima-sukhija',
@@ -157,6 +214,7 @@ export const COMMUNITY_CONTRIBUTORS = [
     color: '#0d9488', // Teal
     githubUrl: 'https://github.com/sukhijapurnima888',
     domain: 'Dispatch & Operations',
+    categories: ['frontend', 'backend'],
   },
 ];
 
@@ -180,14 +238,8 @@ export const CONTRIBUTION_AREAS_GUIDE = [
   {
     title: 'Frontend & UI Components',
     tech: 'React 19, Tailwind CSS v4, Lucide Icons',
-    description: 'Create intuitive public safety calculators, citizen awareness widgets, and accessible mobile interfaces.',
-    link: 'https://github.com/GoldRay19/kshemOS/issues?q=is%3Aissue+is%3Aopen+label%3Afrontend',
-  },
-  {
-    title: 'Threat Detection & Rule Heuristics',
-    tech: 'JavaScript Heuristics, Pattern Matching, Indic NLP',
-    description: 'Expand scam patterns targeting UPI, digital arrest scams, impersonation fraud, and regional language variations.',
-    link: 'https://github.com/GoldRay19/kshemOS/issues?q=is%3Aissue+is%3Aopen+label%3Asecurity',
+    description: 'Create intuitive public safety calculators, citizen awareness widgets, and responsive interfaces.',
+    link: 'https://github.com/GoldRay19/kshemOS/issues?q=is%3Aissue+is%3Aopen+label%3AUI',
   },
   {
     title: 'Backend Services & APIs',
@@ -196,21 +248,56 @@ export const CONTRIBUTION_AREAS_GUIDE = [
     link: 'https://github.com/GoldRay19/kshemOS/issues?q=is%3Aissue+is%3Aopen+label%3Abackend',
   },
   {
-    title: 'Documentation & Case Studies',
-    tech: 'Markdown, Threat Modeling, Reproducible Tests',
-    description: 'Document standard operating procedures, threat analysis briefs, testing edge cases, and citizen education materials.',
+    title: 'AI, Research & Rule Heuristics',
+    tech: 'JavaScript Heuristics, Pattern Matching, Indic NLP',
+    description: 'Expand scam patterns targeting UPI, digital arrest scams, impersonation fraud, and regional language variations.',
+    link: 'https://github.com/GoldRay19/kshemOS/issues?q=is%3Aissue+is%3Aopen+label%3Asecurity',
+  },
+  {
+    title: 'Documentation & Guides',
+    tech: 'Markdown, Architecture Notes, Citizen Education',
+    description: 'Document standard operating procedures, threat analysis briefs, setup steps, and citizen education materials.',
     link: 'https://github.com/GoldRay19/kshemOS/blob/main/CONTRIBUTING.md',
+  },
+  {
+    title: 'Testing & Quality Assurance',
+    tech: 'Node.js Tests, Pytest, Edge-Case Verification',
+    description: 'Write reproducible unit tests, validate edge-case heuristics, and guard against UI and API regressions.',
+    link: 'https://github.com/GoldRay19/kshemOS/issues?q=is%3Aissue+is%3Aopen',
+  },
+  {
+    title: 'Accessibility & Mobile Ergonomics',
+    tech: 'WCAG Semantics, Keyboard Focus, Responsive Layout',
+    description: 'Improve screen reader clarity, touch targets, color contrast, and reduced-motion ergonomics across devices.',
+    link: 'https://github.com/GoldRay19/kshemOS/issues?q=is%3Aissue+is%3Aopen+label%3AUI',
   },
 ];
 
 /**
- * Filter contributors by type, domain, and text query
+ * Look up contribution category metadata by id, falling back to 'all'.
  */
-export function filterContributors(contributors, { type = 'all', domain = 'All Domains', query = '' } = {}) {
+export function getContributionCategory(categoryId = 'all') {
+  return CONTRIBUTION_CATEGORY_MAP[categoryId] || CONTRIBUTION_CATEGORIES[0];
+}
+
+/**
+ * Filter contributors by type, contribution category, legacy domain, and text query.
+ */
+export function filterContributors(
+  contributors,
+  { type = 'all', category = 'all', domain = 'All Domains', query = '' } = {}
+) {
   return contributors.filter((c) => {
     // Filter by type (core vs community)
     if (type !== 'all' && c.type !== type) {
       return false;
+    }
+
+    // Filter by contribution category
+    if (category && category !== 'all') {
+      if (!Array.isArray(c.categories) || !c.categories.includes(category)) {
+        return false;
+      }
     }
 
     // Filter by domain
@@ -218,7 +305,7 @@ export function filterContributors(contributors, { type = 'all', domain = 'All D
       return false;
     }
 
-    // Filter by query (name, github handle, area, highlights)
+    // Filter by query (name, github handle, area, bio, highlights, categories)
     if (query && query.trim()) {
       const q = query.trim().toLowerCase();
       const matchesName = c.name.toLowerCase().includes(q);
@@ -226,8 +313,19 @@ export function filterContributors(contributors, { type = 'all', domain = 'All D
       const matchesArea = c.area.toLowerCase().includes(q);
       const matchesBio = (c.bio || '').toLowerCase().includes(q);
       const matchesHighlights = (c.highlights || []).some((h) => h.toLowerCase().includes(q));
+      const matchesCategories = (c.categories || []).some((catId) => {
+        const label = CONTRIBUTION_CATEGORY_MAP[catId]?.label || catId;
+        return catId.toLowerCase().includes(q) || label.toLowerCase().includes(q);
+      });
 
-      if (!matchesName && !matchesGithub && !matchesArea && !matchesBio && !matchesHighlights) {
+      if (
+        !matchesName &&
+        !matchesGithub &&
+        !matchesArea &&
+        !matchesBio &&
+        !matchesHighlights &&
+        !matchesCategories
+      ) {
         return false;
       }
     }

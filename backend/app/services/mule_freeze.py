@@ -144,7 +144,7 @@ def parse_financial_entities(text: str) -> dict[str, Any]:
             "extracted_count": 0,
         }
 
-    raw_vpas = [match[0] for match in VPA_REGEX.findall(text)]
+    raw_vpas = ["@".join(match) for match in VPA_REGEX.findall(text)]
     validated_vpas = []
     phone_vpas = []
     for raw in raw_vpas:
@@ -714,4 +714,3 @@ def get_freeze_stats() -> dict[str, Any]:
             "average_bank_latency_ms": avg_latency_ms,
             "total_amount_protected_inr": total_amount_saved,
         }
-
