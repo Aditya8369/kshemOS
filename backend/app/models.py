@@ -2745,6 +2745,26 @@ class VoiceDeepfakeStatsResponse(BaseModel):
     natural_confirmed: int
     vault_evidence_preserved: int
 
+
+class VoiceDeepfakeStreamTelemetry(BaseModel):
+    type: str = "telemetry"
+    timestamp_ms: int
+    buffer_duration_sec: float
+    synthetic_prob: float = Field(..., ge=0.0, le=1.0)
+    jitter_pct: float
+    shimmer_pct: float
+    hnr_db: float
+    spectral_flux: float
+    jitter_anomaly: bool
+    shimmer_anomaly: bool
+    hnr_anomaly: bool
+    vocoder_footprint_score: float
+    risk_band: Literal["LOW_PROBABILITY_NATURAL", "SUSPICIOUS", "HIGH_PROBABILITY_SYNTHETIC"]
+    tactical_guidance: str
+    tactical_checklist: List[str] = Field(default_factory=list)
+    amplitudes: List[float] = Field(default_factory=list)
+    is_silent_frame: bool = False
+
 # ---------- Privacy-Preserving Regional Threat Broadcast & Micro-Advisory Mesh ----------
 
 MicroAdvisoryStatus = Literal[
