@@ -203,3 +203,138 @@ def test_router_endpoints_and_stats():
         router_endpoints.get_takedown_notice_endpoint("ABUSE-NONEXISTENT")
     assert excinfo.value.status_code == 404
 
+
+def test_cloudflare_abuse_client():
+    client = takedown_service.CloudflareAbuseClient()
+    res = client.report_phishing(
+        target_url="https://sbi-phishing.top/login.php",
+        target_domain="sbi-phishing.top",
+        officer_name="Inspector Rajesh Sharma",
+        officer_badge_id="OFF-DELHI-104",
+        officer_email="cybercell@delhipolice.gov.in",
+        cert_in_ref="CERT-IN-2026-PHISH-84901",
+        sha256_dom_hash="a"*64,
+        brand_impersonated="State Bank of India (SBI)",
+    )
+    assert res["provider"] == "Cloudflare"
+    assert res["dispatch_status"] == "SUCCESS"
+    assert res["act"] == "phishing"
+    assert res["tracking_id"].startswith("CF-ABUSE-")
+    assert "Section 79(3)(b)" in res["comments"]
+    assert res["action_taken"] == "PHISHING_REPORT_SUBMITTED"
+
+
+def test_google_safebrowsing_reporter():
+    reporter = takedown_service.GoogleSafeBrowsingReporter()
+    res = reporter.report_malicious_url(
+        target_url="https://sbi-phishing.top/login.php",
+        threat_type="SOCIAL_ENGINEERING",
+        cert_in_ref="CERT-IN-2026-PHISH-84901",
+    )
+    assert res["provider"] == "Google Safe Browsing"
+    assert res["dispatch_status"] == "SUCCESS"
+    assert res["submission_id"].startswith("GSB-SUB-")
+    assert res["threat_type"] == "SOCIAL_ENGINEERING"
+    assert res["action_taken"] == "BLOCKLIST_INGESTION_QUEUED"
+
+
+def test_cert_in_report_builder_xml_and_pgp():
+    builder = takedown_service.CertInReportBuilder()
+    dummy_notice = {
+        "target_domain": "sbi-kyc-alert.top",
+        "target_url": "https://sbi-kyc-alert.top/login.php",
+        "cert_in_reference_id": "CERT-IN-2026-PHISH-99120",
+        "officer_name": "Inspector Rajesh Sharma",
+        "officer_badge_id": "OFF-DELHI-104",
+        "primary_recipient": "cybercell.delhi@gov.in",
+        "evidence_package": {
+            "sha256_dom_hash": "f" * 64,
+            "target_brand_impersonated": "State Bank of India (SBI)",
+            "malicious_indicators": ["Credential harvesting form", "Fake SBI logo"],
+        },
+    }
+    xml_report = builder.build_xml_report(dummy_notice)
+    assert "<IncidentReport xmlns=\"urn:cert-in:incident:v2\">" in xml_report
+    assert "CERT-IN-2026-PHISH-99120" in xml_report
+    assert "sbi-kyc-alert.top" in xml_report
+    assert "IT Act § 70B" in xml_report
+
+    envelope = builder.build_and_encrypt_report(dummy_notice)
+    assert envelope["provider"] == "CERT-In Incident Desk"
+    assert envelope["dispatch_status"] == "ENCRYPTED_AND_DISPATCHED"
+    assert envelope["pgp_key_id"] == "0x9A48F12C"
+    assert "-----BEGIN PGP MESSAGE-----" in envelope["pgp_encrypted_payload"]
+    assert "-----END PGP MESSAGE-----" in envelope["pgp_encrypted_payload"]
+
+
+def test_dispatch_takedown_api_pipeline():
+    req = TakedownNoticeRequest(
+        target_url="https://sbi-banking-phish.top/index.php",
+        brand_impersonated="State Bank of India (SBI)",
+        officer_badge_id="OFF-DELHI-104",
+        officer_name="Inspector Rajesh Sharma",
+    )
+    notice = takedown_service.generate_takedown_notice(req)
+    assert notice.status == "DISPATCHED"
+
+    dispatch_res = takedown_service.dispatch_takedown_api(notice.notice_id)
+    assert dispatch_res is not None
+    assert dispatch_res["status"] == "API_DISPATCHED"
+    assert len(dispatch_res["dispatches"]) == 3
+
+    providers = [d["provider"] for d in dispatch_res["dispatches"]]
+    assert "Cloudflare" in providers
+    assert "Google Safe Browsing" in providers
+    assert "CERT-In Incident Desk" in providers
+
+    # Verify updated record in store
+    updated_rec = takedown_service.get_takedown_notice(notice.notice_id)
+    assert updated_rec.status == "API_DISPATCHED"
+    assert len(updated_rec.api_dispatch_results) == 3
+    assert any(e["action"] == "API_TAKEDOWN_DISPATCHED" for e in updated_rec.lifecycle_events)
+
+
+def test_probe_domain_status_http_nxdomain_suspension():
+    req = TakedownNoticeRequest(
+        target_url="https://active-phish-node.top/login.php",
+        brand_impersonated="State Bank of India (SBI)",
+    )
+    notice = takedown_service.generate_takedown_notice(req)
+    assert notice.status == "DISPATCHED"
+    assert notice.domain_offline is False
+
+    # Probe with simulated HTTP 404 (teardown verified)
+    probe_res = takedown_service.probe_domain_status(notice.notice_id, simulated_http_status=404)
+    assert probe_res["is_offline"] is True
+    assert probe_res["status"] == "DOMAIN_SUSPENDED"
+    assert "HTTP 404" in probe_res["officer_alert"]
+
+    # Verify updated record
+    rec = takedown_service.get_takedown_notice(notice.notice_id)
+    assert rec.status == "DOMAIN_SUSPENDED"
+    assert rec.domain_offline is True
+    assert any(e["action"] == "DOMAIN_SUSPENDED_CONFIRMED" for e in rec.lifecycle_events)
+
+
+def test_poll_all_domains_once():
+    results = takedown_service.poll_all_domains_once()
+    assert len(results) >= 3
+    assert all("notice_id" in r for r in results)
+
+
+def test_router_dispatch_api_endpoints():
+    req = TakedownNoticeRequest(
+        target_url="https://sbi-api-test-phish.top/test.html",
+        brand_impersonated="State Bank of India (SBI)",
+    )
+    created = router_endpoints.generate_takedown_notice_endpoint(req)
+
+    # Test /notices/{id}/dispatch-api endpoint
+    dispatch_res = router_endpoints.dispatch_takedown_api_endpoint(created.notice_id)
+    assert dispatch_res["status"] == "API_DISPATCHED"
+    assert len(dispatch_res["dispatches"]) == 3
+
+    # Test poll-all endpoint
+    poll_res = router_endpoints.poll_all_takedowns_endpoint()
+    assert len(poll_res) >= 1
+

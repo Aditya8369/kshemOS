@@ -85,6 +85,31 @@ def check_domain_dns_endpoint(
     return probe_result
 
 
+@router.post("/{notice_id}/dispatch-api")
+@router.post("/notices/{notice_id}/dispatch-api")
+def dispatch_takedown_api_endpoint(
+    notice_id: str = Path(..., description="Takedown notice identifier e.g. ABUSE-2026-1001"),
+):
+    """
+    Automated Abuse Dispatch API Integration:
+    Queries detected provider (Cloudflare, Safe Browsing, CERT-In) and dispatches
+    API abuse reports and PGP-encrypted XML packages.
+    """
+    result = takedown_service.dispatch_takedown_api(notice_id)
+    if not result:
+        raise HTTPException(status_code=404, detail=f"Takedown notice {notice_id} not found.")
+    return result
+
+
+@router.post("/poll-all")
+def poll_all_takedowns_endpoint():
+    """
+    Triggers an automated polling sweep across all active takedown notices,
+    probing HTTP 404/403/NXDOMAIN states and updating suspended domains.
+    """
+    return takedown_service.poll_all_domains_once()
+
+
 @router.get("/stats", response_model=TakedownStatsResponse)
 def get_takedown_stats_endpoint():
     """
