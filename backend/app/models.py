@@ -2541,6 +2541,33 @@ class MoneyTrailAnalysisResponse(BaseModel):
     section_102_schedule: Section102CrPCScheduleResponse
 
 
+class Section102PdfGenerationRequest(BaseModel):
+    case_id: str = "CASE-2026-DELHI-01"
+    officer_name: str = "Inspector R. K. Sharma"
+    officer_badge_id: str = "CYBER-INV-7749"
+    police_station: str = "Special Cyber Crime Police Station, Central District, Delhi"
+    fir_number: Optional[str] = None
+    court_jurisdiction: Optional[str] = None
+    complaint_ref: Optional[str] = None
+    account_ids: Optional[List[str]] = None
+    accounts: Optional[List[Dict[str, Any]]] = None
+    resting_balance_threshold_inr: Optional[float] = None
+
+
+class Section102NoticePreviewResponse(BaseModel):
+    requisition_id: str
+    case_id: str
+    fir_number: str
+    court_jurisdiction: str
+    complaint_ref: str
+    statutory_authority: str
+    issuing_authority: Dict[str, str]
+    issued_at_iso: str
+    accounts: List[Dict[str, Any]]
+    total_freeze_amount_inr: float
+    sha256_digest: str
+
+
 # ---------- Automated Registrar & Hosting Abuse Takedown Notice Generator ----------
 
 TakedownLifecycleStatus = Literal[
