@@ -126,6 +126,16 @@ export const DEMO_STAGE_PRESETS = [
     simulated_raw: 'RAW_IMAGE_STREAM_CUSTOMS_FAKE_KHAKI_UNIFORM_DISCREPANCY',
     notes: 'Threatened immediate arrest over parcel with claimed illicit medicines.',
   },
+  {
+    id: 'preset_screen_recapture_lcd',
+    title: 'Monitor Recapture (LCD Pixel Lattice & Moiré)',
+    claimed_agency: 'CBI',
+    claimed_officer: 'Joint Director P. K. Srivastava (CBI Special Crime)',
+    file_name: 'lcd_recaptured_video_call.png',
+    preview_url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360"><defs><pattern id="grid" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M 8 0 L 0 0 0 8" fill="none" stroke="%2338a169" stroke-width="0.75" opacity="0.6"/></pattern><pattern id="moire" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="6" fill="none" stroke="%233182ce" stroke-width="0.75" opacity="0.5"/></pattern></defs><rect width="100%" height="100%" fill="%23111827"/><rect x="20" y="20" width="600" height="320" fill="%231f2937" stroke="%23000" stroke-width="12" rx="6"/><rect x="26" y="26" width="588" height="308" fill="url(%23grid)"/><rect x="26" y="26" width="588" height="308" fill="url(%23moire)"/><circle cx="320" cy="180" r="80" fill="%23d97706"/><rect x="250" y="240" width="140" height="90" fill="%23b45309" rx="14"/><ellipse cx="140" cy="90" rx="45" ry="25" fill="%23ffffff" opacity="0.25"/><text x="40" y="60" fill="%2310b981" font-family="monospace" font-size="11">LCD Monitor Subpixel Lattice • Moiré Fringes Active</text><text x="40" y="80" fill="%23f59e0b" font-family="monospace" font-size="10">Specular Glare Hotspot Detected @ (140, 90)</text></svg>',
+    simulated_raw: 'RAW_IMAGE_STREAM_LCD_MONITOR_RECAPTURE_MOIRE_LATTICE_SPECULAR_GLINT',
+    notes: 'Photograph of computer monitor displaying fake CBI call. Subpixel lattice and moiré fringes detected.',
+  },
 ];
 
 // In-memory inspection cache
@@ -172,7 +182,22 @@ export function inspectVideoCallStageLocally({
   const normKey = String(claimed_agency || '').trim().toUpperCase().replace(/\s+/g, '_');
   const reg = OFFICIAL_UNIFORM_REGULATIONS.find((r) => r.agency_id.includes(normKey) || normKey.includes(r.agency_id)) || OFFICIAL_UNIFORM_REGULATIONS[0];
 
+  const isRecapture = String(rawContent).includes('RECAPTURE') || String(rawContent).includes('MOIRE') || String(rawContent).includes('LATTICE') || String(file_name).includes('recapture') || String(notes || '').includes('monitor');
+  const moireIndex = isRecapture ? 0.86 : 0.74;
+  const edgeGlint = isRecapture ? 0.78 : 0.62;
+  const confidenceRating = 'HIGH_PROBABILITY_RECAPTURE';
+  const explanation = 'Lattice pattern detected: This image appears to be a photograph of an LCD monitor.';
+
   const detectedHallmarks = [
+    {
+      hallmark_type: 'screen_recapture_moire',
+      severity: 'critical',
+      confidence_score: moireIndex,
+      title: 'Display Pixel Lattice & Moiré Fringe Pattern Detected',
+      description: `${explanation} 2D FFT spatial frequency analysis identified periodic harmonic peaks (Moiré Frequency Index: ${moireIndex.toFixed(2)}, Edge Glint / Specular Glare: ${edgeGlint.toFixed(2)}).`,
+      bounding_box: { x: 0.22, y: 0.18, width: 0.50, height: 0.45 },
+      regulation_reference: 'ISO/IEC 29794-5 Display Screen Recapture & Sensor PRNU Forensic Benchmark',
+    },
     {
       hallmark_type: 'virtual_chroma_fringe',
       severity: 'critical',
@@ -286,6 +311,36 @@ export function inspectVideoCallStageLocally({
     }
   }
 
+  const heatmapGrid = [
+    [0.15, 0.22, 0.30, 0.35, 0.38, 0.40, 0.32, 0.20],
+    [0.25, 0.48, 0.72, 0.84, 0.79, 0.65, 0.45, 0.28],
+    [0.32, 0.65, 0.92, 0.98, 0.91, 0.82, 0.58, 0.35],
+    [0.38, 0.71, 0.95, 0.99, 0.96, 0.88, 0.64, 0.40],
+    [0.34, 0.68, 0.89, 0.93, 0.90, 0.81, 0.60, 0.38],
+    [0.28, 0.52, 0.74, 0.82, 0.76, 0.68, 0.48, 0.30],
+    [0.20, 0.35, 0.45, 0.55, 0.50, 0.42, 0.32, 0.22],
+    [0.12, 0.18, 0.24, 0.28, 0.25, 0.20, 0.16, 0.10],
+  ];
+
+  const moireClusters = [
+    { x: 0.25, y: 0.25, width: 0.20, height: 0.20, intensity: 0.98, pattern_type: 'lcd_pixel_lattice' },
+    { x: 0.37, y: 0.37, width: 0.20, height: 0.20, intensity: 0.99, pattern_type: 'lcd_pixel_lattice' },
+    { x: 0.50, y: 0.25, width: 0.20, height: 0.20, intensity: 0.91, pattern_type: 'periodic_moire_fringe' },
+  ];
+
+  const screenRecaptureAnalysis = {
+    screen_recapture_detected: true,
+    moire_frequency_index: moireIndex,
+    edge_glint_score: edgeGlint,
+    confidence_rating: confidenceRating,
+    bezel_detected: true,
+    specular_glare_detected: true,
+    color_temp_discrepancy: 0.68,
+    recapture_explanation: explanation,
+    moire_clusters: moireClusters,
+    heatmap_grid: heatmapGrid,
+  };
+
   const result = {
     inspection_id: inspectionId,
     image_sha256: sha256,
@@ -298,6 +353,11 @@ export function inspectVideoCallStageLocally({
     statutory_bnss_notice: STATUTORY_BNSS_NOTICE,
     vaulted_evidence_id: vaultedEvidenceId,
     inspection_timestamp: Date.now(),
+    screen_recapture_detected: true,
+    moire_frequency_index: moireIndex,
+    edge_glint_score: edgeGlint,
+    confidence_rating: confidenceRating,
+    screen_recapture_analysis: screenRecaptureAnalysis,
   };
 
   _inspectionsStore.set(inspectionId, result);

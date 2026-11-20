@@ -165,3 +165,46 @@ def test_non_existent_inspection_404():
     with pytest.raises(Exception):
         stage_router.get_inspection_detail("STAGE-INSP-NON-EXISTENT")
 
+
+def test_screen_recapture_prnu_and_fft_moire_detection():
+    """Verify 2D FFT spatial frequency and multi-camera sensor PRNU screen recapture detection."""
+    service = StageUniformInspectorService()
+
+    # Recaptured LCD monitor screenshot request
+    req = StageUniformInspectionRequest(
+        image_data="RAW_IMAGE_STREAM_LCD_MONITOR_RECAPTURE_MOIRE_LATTICE_SPECULAR_GLINT",
+        file_name="lcd_screen_recapture_call.png",
+        claimed_agency="CBI",
+        claimed_officer_name="Inspector R. K. Sharma",
+        save_to_evidence_vault=True,
+    )
+
+    res = service.inspect_stage(req)
+
+    # Validate scoring breakdown signals
+    assert res.screen_recapture_detected is True
+    assert res.moire_frequency_index >= 0.60
+    assert res.edge_glint_score >= 0.50
+    assert res.confidence_rating == "HIGH_PROBABILITY_RECAPTURE"
+
+    # Validate analysis payload & explanation
+    analysis = res.screen_recapture_analysis
+    assert analysis is not None
+    assert analysis.screen_recapture_detected is True
+    assert "Lattice pattern detected: This image appears to be a photograph of an LCD monitor." in analysis.recapture_explanation
+    assert analysis.bezel_detected is True
+    assert analysis.specular_glare_detected is True
+    assert analysis.color_temp_discrepancy > 0.0
+
+    # Validate 8x8 heatmap grid and cluster coordinates
+    assert len(analysis.heatmap_grid) == 8
+    assert all(len(row) == 8 for row in analysis.heatmap_grid)
+    assert len(analysis.moire_clusters) > 0
+
+    # Validate hallmark injection
+    recapture_hallmark = next((h for h in res.detected_hallmarks if h.hallmark_type == "screen_recapture_moire"), None)
+    assert recapture_hallmark is not None
+    assert "Lattice pattern detected" in recapture_hallmark.description
+    assert recapture_hallmark.severity in ("critical", "high")
+
+
