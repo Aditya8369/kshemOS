@@ -323,3 +323,32 @@ def fulfill_evidence_upload(payload: UploadEvidenceViaLinkRequest):
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+@router.post("/{evidence_id}/verify-tsa")
+def verify_tsa_certificate_endpoint(evidence_id: str):
+    """
+    Verify the RFC 3161 Hardware TSA certificate chain, root authority,
+    serial number, and timestamp validity status for an evidence item.
+    """
+    try:
+        return evidence_service.verify_tsa_certificate_chain(evidence_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"TSA verification error: {str(exc)}")
+
+
+@router.post("/{evidence_id}/bind-tsa")
+def bind_tsa_timestamp_endpoint(evidence_id: str):
+    """
+    Bind external RFC 3161 Hardware TSA timestamp upon network uplink restoration,
+    upgrading any offline Ed25519-stamped token.
+    """
+    try:
+        return evidence_service.bind_pending_tsa_timestamp(evidence_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"TSA binding error: {str(exc)}")
+
