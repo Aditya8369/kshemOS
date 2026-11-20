@@ -530,12 +530,14 @@ function ReportForm({ addReport }) {
   function resetForm() {
     setName('');
     setEmail('');
+    setEmailConsent(false);
     setCategory('scam_call');
     setDescription('');
     setRegion('');
     setResult(null);
     setError(null);
     setEmailStatus(null);
+    setReferenceStatus('');
   }
 
   async function submit() {
@@ -543,11 +545,8 @@ function ReportForm({ addReport }) {
       setError('Please enter your name and report description.');
       return;
     }
-
     if (!region) {
-      setError(
-        'Please select your region so the report reaches the right cyber desk.'
-      );
+      setError('Please select your region so the report reaches the right cyber desk.');
       return;
     }
 
@@ -555,18 +554,9 @@ function ReportForm({ addReport }) {
     setError(null);
     setEmailStatus(null);
     setResult(null);
-
     try {
-      const res = await submitCitizenReport({
-        reporter_name: name,
-        language,
-        category,
-        description,
-        region,
-      });
-
+      const res = await submitCitizenReport({ reporter_name: name, language, category, description, region });
       setResult(res);
-
       addReport({
         report_id: res.report_id,
         reporter_name: name,
@@ -584,14 +574,11 @@ function ReportForm({ addReport }) {
             category,
             submittedAt: res.submitted_at,
           });
-
           setEmailStatus(emailResponse);
         } catch (emailError) {
           setEmailStatus({
             success: false,
-            message:
-              emailError.message ||
-              'Report submitted, but confirmation email could not be sent.',
+            message: emailError.message || 'Report submitted, but confirmation email could not be sent.',
           });
         }
       } else {
@@ -610,6 +597,7 @@ function ReportForm({ addReport }) {
   }
 
   async function copyReportReference() {
+    if (!result?.report_id) return;
     try {
       await navigator.clipboard.writeText(result.report_id);
       setReferenceStatus('Report reference copied!');
@@ -619,11 +607,8 @@ function ReportForm({ addReport }) {
   }
 
   function downloadReportReference() {
-    const file = new Blob(
-      [`KshemOS Report Reference: ${result.report_id}`],
-      { type: 'text/plain' }
-    );
-
+    if (!result?.report_id) return;
+    const file = new Blob([`KshemOS Report Reference: ${result.report_id}`], { type: 'text/plain' });
     const url = URL.createObjectURL(file);
     const link = document.createElement('a');
     link.href = url;
@@ -633,258 +618,76 @@ function ReportForm({ addReport }) {
   }
 
   return (
-    <SectionCard
-      eyebrow="Zero-Click Reporting"
-      title="File a report"
-    >
+    <SectionCard eyebrow="Zero-Click Reporting" title="File a report">
       <div className="grid sm:grid-cols-2 gap-3 mb-2">
-        <input
-          disabled={loading}
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
-          placeholder="Your name"
-          aria-label="Your full name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-
-        <input
-          disabled={loading}
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
-          placeholder="Your email for confirmation"
-          aria-label="Your email address for confirmation"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
+        <input disabled={loading} className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed" placeholder="Your name" aria-label="Your full name" value={name} onChange={(e) => setName(e.target.value)} />
+        <input disabled={loading} className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed" placeholder="Your email for confirmation" aria-label="Your email address for confirmation" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
       </div>
 
       <label className="flex items-start gap-2 text-sm mt-2">
-        <input
-          type="checkbox"
-          checked={emailConsent}
-          onChange={(e) => setEmailConsent(e.target.checked)}
-          className="mt-1"
-        />
-        <span>
-          I agree to receive a confirmation email about this report.
-          My email address will only be used for this confirmation.
-        </span>
+        <input type="checkbox" checked={emailConsent} disabled={loading} onChange={(e) => setEmailConsent(e.target.checked)} className="mt-1" />
+        <span>I agree to receive a confirmation email about this report. My email address will only be used for this confirmation.</span>
       </label>
 
       <div className="grid sm:grid-cols-2 gap-3 mb-2 mt-3">
-        <select
-          disabled={loading}
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          aria-label="Incident category"
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <select disabled={loading} value={category} onChange={(e) => setCategory(e.target.value)} aria-label="Incident category" className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed">
           <option value="scam_call">Digital arrest / scam call</option>
           <option value="counterfeit">Counterfeit currency</option>
           <option value="fraud_tx">Fraudulent transaction</option>
           <option value="other">Other</option>
         </select>
-
-        <select
-          disabled={loading}
-          value={region}
-          onChange={(e) => setRegion(e.target.value)}
-          className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
-          aria-label="Your region"
-        >
+        <select disabled={loading} value={region} onChange={(e) => setRegion(e.target.value)} aria-label="Your region" className="rounded-lg border border-[var(--paper-line)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed">
           <option value="">Select your region</option>
-
-          {REGIONS.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
+          {REGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
       </div>
 
-      <textarea
-        disabled={loading}
-        className="w-full h-20 rounded-lg border border-[var(--paper-line)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] disabled:opacity-50 disabled:cursor-not-allowed"
-        placeholder="What happened?"
-        aria-label="Describe what happened"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-      />
+      <textarea disabled={loading} className="w-full h-20 rounded-lg border border-[var(--paper-line)] p-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--saffron)] disabled:opacity-50 disabled:cursor-not-allowed" placeholder="What happened?" aria-label="Describe what happened" value={description} onChange={(e) => setDescription(e.target.value)} />
 
-      <button
-        type="button"
-        onClick={submit}
-        disabled={loading}
-        aria-busy={loading}
-        aria-label={loading ? 'Submitting citizen report...' : 'Submit citizen report'}
-
-        className="mt-2 bg-[var(--saffron)] hover:opacity-90 text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer min-h-[44px] inline-flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-[var(--ink)] transition-all"
-      >
-        {loading ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin text-white" aria-hidden="true" />
-
-        className="mt-2 bg-[var(--saffron)] text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-40 min-h-[44px] inline-flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-[var(--ink)]"
-      >
-        {loading ? (
-          <>
-            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-
-            <span>Submitting…</span>
-          </>
-        ) : (
-          <span>Submit report</span>
-        )}
+      <button type="button" onClick={submit} disabled={loading} aria-busy={loading} aria-label={loading ? 'Submitting citizen report...' : 'Submit citizen report'} className="mt-2 bg-[var(--saffron)] hover:opacity-90 text-white rounded-full px-5 py-2.5 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer min-h-[44px] inline-flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-[var(--ink)] transition-all">
+        {loading ? <><Loader2 className="w-4 h-4 animate-spin text-white" aria-hidden="true" /><span>Submitting…</span></> : <span>Submit report</span>}
       </button>
 
       {error && (
-
-        <p className="text-sm text-[var(--alert)] mt-2" role="alert">
-          {error}
-        </p>
-
-        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg flex justify-between items-center text-sm text-[var(--alert)]">
+        <div className="mt-2 p-3 bg-red-50 border border-red-200 rounded-lg flex justify-between items-center text-sm text-[var(--alert)]" role="alert">
           <span>{error}</span>
-          <button 
-            type="button" 
-            onClick={() => setError(null)}
-            className="text-xs bg-red-100 hover:bg-red-200 text-red-800 px-2 py-1 rounded ml-2"
-          >
-            Dismiss
-          </button>
+          <button type="button" onClick={() => setError(null)} className="text-xs bg-red-100 hover:bg-red-200 text-red-800 px-2 py-1 rounded ml-2">Dismiss</button>
         </div>
-
       )}
 
       {emailStatus && (
-        <p
-          className={`text-sm mt-2 ${
-            emailStatus.success
-              ? 'text-[var(--safe)]'
-              : 'text-[var(--alert)]'
-          }`}
-        >
-          {emailStatus.message}
-        </p>
+        <p className={`text-sm mt-2 ${emailStatus.success ? 'text-[var(--safe)]' : 'text-[var(--alert)]'}`}>{emailStatus.message}</p>
       )}
 
       {result && (
-
-        <div
-          role="status"
-          aria-live="polite"
-          className="mt-3 text-sm bg-emerald-500/10 border border-emerald-500/30 rounded-lg p-3.5 space-y-2"
-        >
-          <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-semibold">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>Report submitted successfully!</span>
+        <div role="status" aria-live="polite" className="mt-4 text-sm bg-green-50 rounded-xl p-4 border border-green-200 space-y-3 text-green-900">
+          <div className="flex items-center justify-between gap-3">
+            <h4 className="font-display font-bold text-base text-green-900">Report submitted successfully!</h4>
+            <span className="font-mono text-xs font-bold bg-green-200 px-2 py-0.5 rounded text-green-800">{result.report_id}</span>
           </div>
-
-          <div className="text-xs space-y-1">
-            <p className="font-mono text-[var(--saffron)] font-medium">
-              ID: {result.report_id}
-            </p>
-            <p>{result.acknowledgement}</p>
-
-        <div className="mt-4 text-sm bg-green-50 rounded-xl p-4 border border-green-200 space-y-3 text-green-900">
-          <div className="flex items-center justify-between">
-            <h4 className="font-display font-bold text-base text-green-900">
-              Report Submitted Successfully!
-            </h4>
-            <span className="font-mono text-xs font-bold bg-green-200 px-2 py-0.5 rounded text-green-800">
-              {result.report_id}
-            </span>
-          </div>
-
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={copyReportReference}
-              className="rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-green-100"
-            >
-              Copy reference
-            </button>
-
-            <button
-              type="button"
-              onClick={downloadReportReference}
-              className="rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-green-100"
-            >
-              Download reference
-            </button>
+            <button type="button" onClick={copyReportReference} className="rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-green-100">Copy reference</button>
+            <button type="button" onClick={downloadReportReference} className="rounded-lg border border-green-300 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-green-100">Download reference</button>
           </div>
-
-          {referenceStatus && (
-            <p className="text-xs text-[var(--safe)] font-semibold">
-              {referenceStatus}
-            </p>
-          )}
-
+          {referenceStatus && <p className="text-xs text-[var(--safe)] font-semibold">{referenceStatus}</p>}
           <p className="text-sm">{result.acknowledgement}</p>
-
           <div className="bg-white/80 rounded-lg p-3 border border-green-200 text-xs text-green-900 space-y-1">
-            <p className="font-semibold uppercase tracking-wider text-green-800">
-              Next Steps & Evidence Preservation:
-            </p>
-            <p>
-              • Please securely preserve all digital evidence (screenshots, call recordings, transaction references). Do not delete files.
-            </p>
-            <p>
-              • Keep your Case Reference ID confidential and present it during cyber cell follow-ups or helpline (1930) inquiries.
-            </p>
-
+            <p className="font-semibold uppercase tracking-wider text-green-800">Next Steps &amp; Evidence Preservation:</p>
+            <p>• Please securely preserve all digital evidence (screenshots, call recordings, transaction references). Do not delete files.</p>
+            <p>• Keep your Case Reference ID confidential and present it during cyber cell follow-ups or helpline (1930) inquiries.</p>
           </div>
-
-          {result.incident_id && (
-            <p className="text-xs text-[var(--ink-text)]/70">
-              Logged as incident{' '}
-              <span className="font-mono">{result.incident_id}</span> for the{' '}
-              {region} cyber desk.
-            </p>
-          )}
-
-          {result.incident_error && (
-            <p className="text-xs text-[var(--alert)]">
-              Your report was saved, but it could not be sent to the cyber
-              desk queue: {result.incident_error}
-            </p>
-          )}
-
-
-          <details className="text-xs">
-            <summary className="cursor-pointer font-semibold">
-              Draft FIR statement
-            </summary>
-
-            <p className="mt-1 whitespace-pre-line font-mono text-[11px] p-2 bg-[var(--paper)] rounded border border-[var(--paper-line)]">
-
+          {result.incident_id && <p className="text-xs text-[var(--ink-text)]/70">Logged as incident <span className="font-mono">{result.incident_id}</span> for the {region} cyber desk.</p>}
+          {result.incident_error && <p className="text-xs text-[var(--alert)]">Your report was saved, but it could not be sent to the cyber desk queue: {result.incident_error}</p>}
           <details className="pt-1">
-            <summary className="cursor-pointer font-semibold text-xs text-green-800 hover:underline">
-              View Draft FIR Statement
-            </summary>
-
-            <p className="mt-1 whitespace-pre-line text-xs bg-white p-2.5 rounded border border-green-200 font-mono">
-
-              {result.draft_fir}
-            </p>
+            <summary className="cursor-pointer font-semibold text-xs text-green-800 hover:underline">View Draft FIR Statement</summary>
+            <p className="mt-1 whitespace-pre-line text-xs bg-white p-2.5 rounded border border-green-200 font-mono">{result.draft_fir}</p>
           </details>
-
-          <button
-            type="button"
-            onClick={resetForm}
-            className="mt-2 text-xs font-semibold text-[var(--saffron)] hover:underline inline-flex items-center gap-1 cursor-pointer"
-          >
-            + File another report
-          </button>
+          <button type="button" onClick={resetForm} className="mt-2 text-xs font-semibold text-[var(--saffron)] hover:underline inline-flex items-center gap-1 cursor-pointer">+ File another report</button>
         </div>
       )}
     </SectionCard>
   );
 }
-
 function ReportHistory({ reports }) {
   if (!reports.length) {
     return (
