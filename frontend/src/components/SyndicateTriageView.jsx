@@ -7,13 +7,17 @@ import {
   fetchSyndicateStatsApi,
   fetchSyndicateChatsApi,
   fetchSyndicateApksApi,
+  dispatchInboundWebhookApi,
+  DEFAULT_WEBHOOK_HMAC_SECRET,
+  SAMPLE_WEBHOOK_TELEGRAM_PAYLOAD,
+  SAMPLE_WEBHOOK_WHATSAPP_PAYLOAD,
   SAMPLE_CHAT_WHATSAPP,
   SAMPLE_CHAT_TELEGRAM,
   SAMPLE_APK_PAYLOAD,
 } from '../api';
 
 export default function SyndicateTriageView({ activeIncidentId = null, onTraceInGraph = null }) {
-  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'apk' | 'clusters'
+  const [activeTab, setActiveTab] = useState('chat'); // 'chat' | 'apk' | 'webhook' | 'clusters'
 
   // Stats
   const [stats, setStats] = useState({
@@ -48,6 +52,16 @@ export default function SyndicateTriageView({ activeIncidentId = null, onTraceIn
   const [correlations, setCorrelations] = useState(null);
   const [correlationsLoading, setCorrelationsLoading] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
+
+  // Inbound Webhook State
+  const [webhookPayloadText, setWebhookPayloadText] = useState(
+    JSON.stringify(SAMPLE_WEBHOOK_TELEGRAM_PAYLOAD, null, 2)
+  );
+  const [webhookHmacSecret, setWebhookHmacSecret] = useState(DEFAULT_WEBHOOK_HMAC_SECRET);
+  const [webhookLoading, setWebhookLoading] = useState(false);
+  const [webhookResult, setWebhookResult] = useState(null);
+  const [webhookError, setWebhookError] = useState(null);
+  const [webhookDispatches, setWebhookDispatches] = useState([]);
 
   useEffect(() => {
     loadStats();
@@ -123,6 +137,31 @@ export default function SyndicateTriageView({ activeIncidentId = null, onTraceIn
       setApkError(err.message || 'Failed to analyze APK package.');
     } finally {
       setApkLoading(false);
+    }
+  }
+
+  async function handleDispatchWebhook(e) {
+    if (e) e.preventDefault();
+    setWebhookLoading(true);
+    setWebhookError(null);
+
+    try {
+      let parsed;
+      try {
+        parsed = JSON.parse(webhookPayloadText);
+      } catch (jsonErr) {
+        throw new Error('Invalid JSON payload: ' + jsonErr.message);
+      }
+
+      const res = await dispatchInboundWebhookApi(parsed, webhookHmacSecret.trim() || null);
+      setWebhookResult(res);
+      setWebhookDispatches((prev) => [res, ...prev.slice(0, 9)]);
+      loadStats();
+      loadCorrelations();
+    } catch (err) {
+      setWebhookError(err.message || 'Webhook dispatch failed.');
+    } finally {
+      setWebhookLoading(false);
     }
   }
 
@@ -212,6 +251,17 @@ export default function SyndicateTriageView({ activeIncidentId = null, onTraceIn
             }`}
           >
             🛡️ APK Static Inspector & Quarantine
+          </button>
+          <button
+            onClick={() => setActiveTab('webhook')}
+            className={`px-4 py-2 text-sm font-semibold rounded-lg transition-colors min-h-[40px] flex items-center gap-1.5 ${
+              activeTab === 'webhook'
+                ? 'bg-[var(--saffron)] text-white shadow-sm'
+                : 'text-[var(--mist)] hover:text-white bg-[var(--navy)]/50'
+            }`}
+          >
+            <span>⚡ Inbound Webhook</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           </button>
           <button
             onClick={() => setActiveTab('clusters')}
@@ -700,7 +750,274 @@ export default function SyndicateTriageView({ activeIncidentId = null, onTraceIn
       )}
 
       {/* ------------------------------------------------------------- */}
-      {/* TAB 3: Syndicate Correlation Matrix & Cross-Report Linker */}
+      {/* TAB 3: Automated Inbound Telegram/WhatsApp Webhook Gateway */}
+      {/* ------------------------------------------------------------- */}
+      {activeTab === 'webhook' && (
+        <div className="space-y-6">
+          {/* Webhook Endpoint Info Card */}
+          <div className="bg-[var(--navy)] border border-[var(--navy-line)] rounded-2xl p-6 space-y-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">⚡</span>
+                  <h3 className="font-display text-lg font-bold text-white">
+                    Automated Inbound Messaging Gateway Webhook
+                  </h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    LIVE LISTENER
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--mist)] mt-1">
+                  Ingests live Telegram Bot updates and WhatsApp Cloud API payloads, validates HMAC-SHA256 signatures,
+                  harvests handles/wallets/IFSCs, unpacks attached APKs, and auto-creates synced incidents in the Officer Feed.
+                </p>
+              </div>
+
+              {/* Endpoint Address Box */}
+              <div className="bg-[var(--ink)] border border-[var(--navy-line)] rounded-xl px-3 py-2 flex items-center gap-2 text-xs font-mono">
+                <span className="text-emerald-400 font-bold">POST</span>
+                <span className="text-white">/api/syndicate/webhook/inbound</span>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard('wh-endpoint', '/api/syndicate/webhook/inbound')}
+                  className="text-xs text-[var(--mist)] hover:text-white"
+                >
+                  {copiedKey === 'wh-endpoint' ? '✓' : '📋'}
+                </button>
+              </div>
+            </div>
+
+            {/* Quick Sample Dispatchers */}
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--navy-line)] text-xs">
+              <span className="text-[var(--mist)] font-mono text-[11px]">Load Gateway Sample:</span>
+              <button
+                type="button"
+                onClick={() => setWebhookPayloadText(JSON.stringify(SAMPLE_WEBHOOK_TELEGRAM_PAYLOAD, null, 2))}
+                className="px-2.5 py-1 text-xs font-mono rounded bg-[var(--ink)] text-cyan-400 border border-[var(--navy-line)] hover:border-cyan-400 transition"
+              >
+                Telegram VIP Task Scam + Trojan APK
+              </button>
+              <button
+                type="button"
+                onClick={() => setWebhookPayloadText(JSON.stringify(SAMPLE_WEBHOOK_WHATSAPP_PAYLOAD, null, 2))}
+                className="px-2.5 py-1 text-xs font-mono rounded bg-[var(--ink)] text-emerald-400 border border-[var(--navy-line)] hover:border-emerald-400 transition"
+              >
+                WhatsApp Payout Freeze Scam
+              </button>
+            </div>
+          </div>
+
+          {/* Webhook Form & Response Split Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left: Webhook Dispatch Simulator (6 cols) */}
+            <div className="lg:col-span-6 bg-[var(--navy)] border border-[var(--navy-line)] rounded-2xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-sm text-white">Inbound Webhook Payload (JSON)</h4>
+                <span className="text-[10px] font-mono text-[var(--mist)]">HMAC SHA-256 Authentication</span>
+              </div>
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="block text-[11px] font-mono text-[var(--mist)] mb-1">
+                    Gateway Secret Token (X-Telegram-Bot-Api-Secret-Token / X-Hub-Signature-256):
+                  </label>
+                  <input
+                    type="text"
+                    value={webhookHmacSecret}
+                    onChange={(e) => setWebhookHmacSecret(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--ink)] border border-[var(--navy-line)] text-white font-mono text-xs focus:ring-1 focus:ring-[var(--saffron)] outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-mono text-[var(--mist)] mb-1">
+                    Inbound Gateway JSON Body:
+                  </label>
+                  <textarea
+                    rows="14"
+                    value={webhookPayloadText}
+                    onChange={(e) => setWebhookPayloadText(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--ink)] border border-[var(--navy-line)] text-white font-mono text-[11px] focus:ring-1 focus:ring-[var(--saffron)] outline-none leading-relaxed"
+                  />
+                </div>
+              </div>
+
+              {webhookError && (
+                <div className="p-3 rounded-xl bg-red-950/40 border border-red-800 text-red-300 text-xs font-mono">
+                  ⚠️ {webhookError}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={handleDispatchWebhook}
+                disabled={webhookLoading}
+                className="w-full py-3 rounded-xl bg-[var(--saffron)] text-white font-bold text-xs hover:opacity-90 transition disabled:opacity-50 cursor-pointer shadow-sm flex items-center justify-center gap-2"
+              >
+                {webhookLoading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Verifying HMAC & Auto-Creating Incident...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>⚡</span>
+                    <span>Ingest Inbound Webhook (Verify HMAC & Auto-Create Incident)</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Right: Telemetry & Live Incident Creation Results (6 cols) */}
+            <div className="lg:col-span-6 space-y-4">
+              {webhookResult ? (
+                <div className="bg-[var(--navy)] border-2 border-emerald-500 rounded-2xl p-6 space-y-4 animate-fade-in">
+                  <div className="flex items-center justify-between border-b border-[var(--navy-line)] pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">🛡️</span>
+                      <div>
+                        <h4 className="font-bold text-sm text-white">Inbound Webhook Processed</h4>
+                        <span className="font-mono text-[10px] text-emerald-400">
+                          Event: {webhookResult.webhook_event_id}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      ✓ HMAC VERIFIED
+                    </span>
+                  </div>
+
+                  {/* Auto-Created Incident Banner */}
+                  <div className="bg-[var(--ink)] border border-emerald-500/40 rounded-xl p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-emerald-400">
+                          {webhookResult.incident_id}
+                        </span>
+                        <span className="px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-red-500/20 text-red-300 border border-red-500/30 uppercase">
+                          {webhookResult.severity}
+                        </span>
+                      </div>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                        _syncStatus: '{webhookResult._syncStatus || 'synced'}'
+                      </span>
+                    </div>
+
+                    <div className="text-xs font-bold text-white">
+                      {webhookResult.incident_title}
+                    </div>
+
+                    <p className="text-[11px] text-[var(--mist)] leading-relaxed">
+                      {webhookResult.summary}
+                    </p>
+                  </div>
+
+                  {/* Harvested Entities Grid */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-mono uppercase font-bold text-[var(--mist)] block">
+                      Automated Entity Harvesting Results
+                    </span>
+                    <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                      <div className="bg-[var(--ink)] p-2.5 rounded-xl border border-[var(--navy-line)]">
+                        <span className="text-[10px] text-[var(--mist)] block">Telegram Handles:</span>
+                        <span className="font-bold text-cyan-400">
+                          {webhookResult.harvested_entities?.telegram_handles?.length
+                            ? webhookResult.harvested_entities.telegram_handles.join(', ')
+                            : 'None'}
+                        </span>
+                      </div>
+                      <div className="bg-[var(--ink)] p-2.5 rounded-xl border border-[var(--navy-line)]">
+                        <span className="text-[10px] text-[var(--mist)] block">Indian IFSC Codes:</span>
+                        <span className="font-bold text-amber-400">
+                          {webhookResult.harvested_entities?.ifsc_codes?.length
+                            ? webhookResult.harvested_entities.ifsc_codes.join(', ')
+                            : 'None'}
+                        </span>
+                      </div>
+                      <div className="bg-[var(--ink)] p-2.5 rounded-xl border border-[var(--navy-line)]">
+                        <span className="text-[10px] text-[var(--mist)] block">Crypto Wallets:</span>
+                        <span className="font-bold text-purple-400">
+                          {webhookResult.harvested_entities?.crypto_wallets?.length
+                            ? `${webhookResult.harvested_entities.crypto_wallets[0].network}: ${webhookResult.harvested_entities.crypto_wallets[0].address.slice(0, 10)}...`
+                            : 'None'}
+                        </span>
+                      </div>
+                      <div className="bg-[var(--ink)] p-2.5 rounded-xl border border-[var(--navy-line)]">
+                        <span className="text-[10px] text-[var(--mist)] block">Mule Accounts:</span>
+                        <span className="font-bold text-white">
+                          {webhookResult.harvested_entities?.bank_accounts?.length
+                            ? webhookResult.harvested_entities.bank_accounts.join(', ')
+                            : 'Inferred'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Static APK Unpacker Findings */}
+                  {webhookResult.apk_triage && (
+                    <div className="bg-red-950/20 border border-red-800/40 rounded-xl p-3.5 space-y-2">
+                      <div className="flex items-center justify-between text-xs font-mono">
+                        <span className="font-bold text-red-400">
+                          📦 Static APK Unpacker: {webhookResult.apk_triage.filename}
+                        </span>
+                        <span className="text-[10px] text-[var(--mist)]">Quarantined</span>
+                      </div>
+                      <div className="space-y-1">
+                        {webhookResult.apk_triage.dangerous_permissions?.map((p, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between text-[10px] font-mono bg-[var(--ink)] p-1.5 rounded"
+                          >
+                            <span className="text-red-300 font-bold">{p.permission}</span>
+                            <span className="px-1.5 py-0.5 rounded bg-red-900/60 text-red-200 uppercase font-bold text-[9px]">
+                              {p.risk_level}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-[var(--navy)] border border-[var(--navy-line)] rounded-2xl p-6 text-center space-y-3">
+                  <span className="text-3xl block">📡</span>
+                  <h4 className="font-bold text-sm text-white">Awaiting Gateway Webhook Event</h4>
+                  <p className="text-xs text-[var(--mist)] max-w-sm mx-auto">
+                    Click "Ingest Inbound Webhook" to simulate a real-time dispatch from Telegram Bot API or WhatsApp Cloud API.
+                  </p>
+                </div>
+              )}
+
+              {/* Webhook Dispatch History */}
+              {webhookDispatches.length > 0 && (
+                <div className="bg-[var(--navy)] border border-[var(--navy-line)] rounded-2xl p-4 space-y-2">
+                  <span className="text-[11px] font-mono font-bold text-[var(--mist)] uppercase block">
+                    Recent Inbound Webhook Log ({webhookDispatches.length})
+                  </span>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                    {webhookDispatches.map((disp, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-[var(--ink)] p-2 rounded-xl border border-[var(--navy-line)] text-xs font-mono flex items-center justify-between"
+                      >
+                        <div>
+                          <span className="font-bold text-white">{disp.incident_id}</span>
+                          <span className="text-[10px] text-[var(--mist)] ml-2">{disp.platform}</span>
+                        </div>
+                        <span className="text-[10px] text-emerald-400 font-bold">synced ✓</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------- */}
+      {/* TAB 4: Syndicate Correlation Matrix & Cross-Report Linker */}
       {/* ------------------------------------------------------------- */}
       {activeTab === 'clusters' && (
         <div className="space-y-6">

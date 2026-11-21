@@ -2142,6 +2142,53 @@ class SyndicateStatsResponse(BaseModel):
     upi_handles_indexed: int
 
 
+# ---------- Inbound Telegram/WhatsApp Webhook Models ----------
+
+class InboundWebhookPayload(BaseModel):
+    platform: Optional[str] = Field("telegram", description="Source messaging gateway: telegram, whatsapp, or generic")
+    sender_id: Optional[str] = Field(None, description="Sender handle, phone number, or bot id")
+    sender_name: Optional[str] = Field(None, description="Sender display name")
+    chat_id: Optional[str] = Field(None, description="Chat or channel identifier")
+    message_text: Optional[str] = Field(None, description="Message body or forwarded text")
+    raw_payload: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Raw gateway JSON payload")
+    apk_base64: Optional[str] = Field(None, description="Optional attached APK bytes encoded in Base64")
+    apk_filename: Optional[str] = Field(None, description="Optional APK file name")
+    officer_badge: Optional[str] = Field("GATEWAY-AUTO", description="Ingesting gateway or monitoring officer badge")
+    region: Optional[str] = Field("Central Zone", description="Jurisdiction zone or Unspecified")
+
+
+class HarvestedEntities(BaseModel):
+    telegram_handles: List[str] = Field(default_factory=list)
+    telegram_links: List[str] = Field(default_factory=list)
+    whatsapp_links: List[str] = Field(default_factory=list)
+    crypto_wallets: List[ExtractedCryptoWallet] = Field(default_factory=list)
+    ifsc_codes: List[str] = Field(default_factory=list)
+    bank_accounts: List[str] = Field(default_factory=list)
+    upi_ids: List[str] = Field(default_factory=list)
+    phone_numbers: List[ExtractedPhoneNumber] = Field(default_factory=list)
+    apk_urls: List[str] = Field(default_factory=list)
+    syndicate_keywords: List[str] = Field(default_factory=list)
+
+
+class InboundWebhookResponse(BaseModel):
+    status: str
+    webhook_event_id: str
+    platform: str
+    incident_id: str
+    incident_title: str
+    category: str = "Syndicate Recruitment Scam"
+    severity: str  # "critical", "high", "medium", "low"
+    sync_status: str = Field("synced", alias="_syncStatus")
+    risk_score: float
+    harvested_entities: HarvestedEntities
+    apk_triage: Optional[Dict[str, Any]] = None
+    cluster_id: Optional[str] = None
+    created_at: str
+    summary: str
+
+    model_config = {"populate_by_name": True}
+
+
 # ---------- Automated UPI Mule Account Freeze Dispatch via CFCFRMS / 1930 ----------
 
 class ParseFinancialEntitiesRequest(BaseModel):
