@@ -1150,6 +1150,7 @@ export {
   getTakedownNoticeApi,
   updateTakedownStatusApi,
   checkDomainDnsStatusApi,
+  dispatchTakedownApi,
   fetchTakedownStatsApi,
 } from './takedownStore.js';
 // -----------------------------------------------------------------------------

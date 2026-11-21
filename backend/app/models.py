@@ -2583,6 +2583,7 @@ class Section102NoticePreviewResponse(BaseModel):
 
 TakedownLifecycleStatus = Literal[
     "DISPATCHED",
+    "API_DISPATCHED",
     "UNDER_REVIEW",
     "DOMAIN_SUSPENDED",
     "SLA_BREACHED",
@@ -2650,6 +2651,7 @@ class TakedownNoticeRecord(BaseModel):
     vaulted_evidence_id: Optional[str] = None
     officer_badge_id: str
     officer_name: str
+    api_dispatch_results: List[Dict[str, Any]] = Field(default_factory=list, description="Automated API dispatch receipts from Cloudflare, Safe Browsing, and CERT-In")
 
 
 class TakedownNoticeStatusUpdateRequest(BaseModel):
