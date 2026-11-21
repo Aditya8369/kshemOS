@@ -58,7 +58,7 @@ export function deriveTitle(description) {
   return `${firstSentence.slice(0, TITLE_MAX_LENGTH - 1).trimEnd()}…`;
 }
 
-export function createIncident({ category, description, region, report_id, linked_account }, { id, severity, now }) {
+export function createIncident({ category, description, region, report_id, linked_account, voiceprint_match }, { id, severity, now }) {
   return {
     id,
     report_id: report_id || null,
@@ -71,6 +71,7 @@ export function createIncident({ category, description, region, report_id, linke
     status: 'new',
     assigned_to: null,
     linked_account: linked_account || null,
+    voiceprint_match: voiceprint_match || null,
     opened_at: now,
     first_response_at: null,
     resolved_at: null,

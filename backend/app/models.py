@@ -265,6 +265,10 @@ class Incident(BaseModel):
         1, description="Monotonic server version used for optimistic concurrency"
     )
     notes: List[str] = Field(default_factory=list)
+    voiceprint_match: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Acoustic syndicate voiceprint fingerprint match details and repeat caller cross-links",
+    )
 
 
 class IncidentCreateRequest(BaseModel):
@@ -2890,3 +2894,72 @@ class VoiceHotlineStatsResponse(BaseModel):
     reassurances_delivered: int
     sms_dispatched_count: int
     triage_incidents_logged: int
+
+
+# ---------- Acoustic Syndicate Voiceprint Fingerprinting ----------
+
+class VoiceprintFeatureExtractRequest(BaseModel):
+    audio_base64: Optional[str] = Field(None, description="Base64 encoded raw audio bytes (WAV/PCM)")
+    sample_rate: int = Field(16000, description="Audio sampling rate in Hz")
+    caller_phone: Optional[str] = Field(None, description="Reported incoming caller phone number")
+    incident_id: Optional[str] = Field(None, description="Associated KshemOS incident ID")
+    speaker_tag: Optional[str] = Field(None, description="Optional label for speaker segment")
+
+
+class VoiceprintFeatureExtractResponse(BaseModel):
+    embedding_dimension: int = 128
+    acoustic_embedding: List[float] = Field(..., description="128-dimensional unit-normalized acoustic vector")
+    l2_norm: float = Field(..., description="L2 norm of embedding (1.0 = normalized)")
+    duration_seconds: float
+    spectral_centroid_hz: float
+    pitch_f0_median_hz: float
+    jitter_local: float
+    shimmer_local: float
+
+
+class VoiceprintMatchCase(BaseModel):
+    case_id: str
+    title: str
+    date: str
+    region: Optional[str] = None
+    similarity_score: float
+
+
+class VoiceprintMatchRequest(BaseModel):
+    embedding: Optional[List[float]] = Field(None, description="128-dimensional acoustic embedding")
+    audio_base64: Optional[str] = Field(None, description="Optional raw audio to extract embedding on the fly")
+    caller_phone: Optional[str] = Field(None, description="Caller phone number to register or link")
+    incident_id: Optional[str] = Field(None, description="Current incident ID")
+    bank_account: Optional[str] = Field(None, description="Mule account demanded during call")
+    location: Optional[str] = Field(None, description="Caller origin/geography claim")
+    threshold: float = Field(0.85, description="Cosine similarity threshold for SAME_CALLER_SYNDICATE_OPERATOR")
+
+
+class VoiceprintMatchResponse(BaseModel):
+    is_repeat_speaker: bool
+    classification: Literal["SAME_CALLER_SYNDICATE_OPERATOR", "NEW_UNINDEXED_SPEAKER"]
+    match_confidence: float
+    cosine_similarity: float
+    threshold_applied: float
+    matched_voiceprint_id: Optional[str] = None
+    speaker_alias: Optional[str] = None
+    syndicate_cluster_id: Optional[str] = None
+    past_cases: List[VoiceprintMatchCase] = Field(default_factory=list)
+    linked_phone_numbers: List[str] = Field(default_factory=list)
+    linked_accounts: List[str] = Field(default_factory=list)
+    linked_locations: List[str] = Field(default_factory=list)
+    fraud_graph_cluster_node: Optional[str] = None
+    officer_alert_summary: str
+
+
+class VoiceClusterNodeResponse(BaseModel):
+    cluster_id: str
+    cluster_node_id: str
+    speaker_alias: str
+    classification: str
+    match_confidence: float
+    linked_phones: List[str]
+    linked_accounts: List[str]
+    linked_locations: List[str]
+    incident_ids: List[str]
+
