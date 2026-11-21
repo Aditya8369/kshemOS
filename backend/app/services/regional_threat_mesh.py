@@ -25,6 +25,7 @@ import time
 from typing import Any, Dict, List, Optional, Tuple
 
 from app.models import (
+    AdvisoryBroadcastCreateRequest,
     CitizenMeshAdvisoryQuery,
     CommanderSignoffRequest,
     MicroAdvisoryStatus,
@@ -153,6 +154,54 @@ def haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) ->
     a = math.sin(delta_phi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2.0) ** 2
     c = 2.0 * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
     return R * c
+
+
+PIN_CENTROIDS_METRO: List[Dict[str, Any]] = [
+    {"pincode": "110007", "name": "Civil Lines / Delhi University", "lat": 28.6920, "lng": 77.2150, "circle": "Civil Lines Cyber Cell Desk", "service_area_id": "SA-NORTH-01", "est_reach": 4800},
+    {"pincode": "110009", "name": "Model Town / GTB Nagar", "lat": 28.7050, "lng": 77.1950, "circle": "Civil Lines Cyber Cell Desk", "service_area_id": "SA-NORTH-01", "est_reach": 4500},
+    {"pincode": "110054", "name": "Tis Hazari / Kashmere Gate", "lat": 28.6700, "lng": 77.2200, "circle": "Civil Lines Cyber Cell Desk", "service_area_id": "SA-NORTH-01", "est_reach": 5200},
+    {"pincode": "110001", "name": "Connaught Place / Barakhamba", "lat": 28.6304, "lng": 77.2177, "circle": "Central Cyber Cell Desk, Barakhamba Road", "service_area_id": "SA-CENTRAL-01", "est_reach": 4000},
+    {"pincode": "110002", "name": "Daryaganj / Delhi Gate", "lat": 28.6420, "lng": 77.2400, "circle": "Central Cyber Cell Desk, Barakhamba Road", "service_area_id": "SA-CENTRAL-01", "est_reach": 4900},
+    {"pincode": "110005", "name": "Karol Bagh", "lat": 28.6520, "lng": 77.1900, "circle": "Central Cyber Cell Desk, Barakhamba Road", "service_area_id": "SA-CENTRAL-01", "est_reach": 5100},
+    {"pincode": "110017", "name": "Malviya Nagar / Saket", "lat": 28.5244, "lng": 77.2066, "circle": "Saket Tech Crime Unit", "service_area_id": "SA-SOUTH-01", "est_reach": 6000},
+    {"pincode": "110019", "name": "Kalkaji / Nehru Place", "lat": 28.5450, "lng": 77.2550, "circle": "Saket Tech Crime Unit", "service_area_id": "SA-SOUTH-01", "est_reach": 5500},
+    {"pincode": "110048", "name": "Greater Kailash", "lat": 28.5380, "lng": 77.2380, "circle": "Saket Tech Crime Unit", "service_area_id": "SA-SOUTH-01", "est_reach": 4800},
+    {"pincode": "110027", "name": "Rajouri Garden", "lat": 28.6500, "lng": 77.1200, "circle": "Rajouri Garden Cyber Police Desk", "service_area_id": "SA-WEST-01", "est_reach": 5000},
+    {"pincode": "110015", "name": "Ramesh Nagar / Kirti Nagar", "lat": 28.6580, "lng": 77.1420, "circle": "Rajouri Garden Cyber Police Desk", "service_area_id": "SA-WEST-01", "est_reach": 4600},
+    {"pincode": "110026", "name": "Punjabi Bagh", "lat": 28.6700, "lng": 77.1300, "circle": "Rajouri Garden Cyber Police Desk", "service_area_id": "SA-WEST-01", "est_reach": 4400},
+]
+
+
+def is_point_in_geojson_polygon(lat: float, lng: float, polygon_geojson: Dict[str, Any]) -> bool:
+    """Ray-casting point-in-polygon algorithm matching GeoJSON specifications."""
+    if not isinstance(polygon_geojson, dict):
+        return False
+    coords = polygon_geojson.get("coordinates")
+    if not coords or not isinstance(coords, list):
+        return False
+
+    ring = coords[0] if isinstance(coords[0], list) and len(coords[0]) > 0 and isinstance(coords[0][0], (list, tuple)) else coords
+    n = len(ring)
+    if n < 3:
+        return False
+
+    inside = False
+    p1 = ring[0]
+    for i in range(1, n + 1):
+        p2 = ring[i % n]
+        p1_lng, p1_lat = float(p1[0]), float(p1[1])
+        p2_lng, p2_lat = float(p2[0]), float(p2[1])
+
+        if min(p1_lng, p2_lng) < lng <= max(p1_lng, p2_lng):
+            if lat <= max(p1_lat, p2_lat):
+                if p1_lng != p2_lng:
+                    xinters = (lng - p1_lng) * (p2_lat - p1_lat) / (p2_lng - p1_lng) + p1_lat
+                else:
+                    xinters = p1_lat
+                if p1_lat == p2_lat or lat <= xinters:
+                    inside = not inside
+        p1 = p2
+    return inside
 
 
 def find_service_area_for_pincode(pincode: str) -> Optional[Dict[str, Any]]:
@@ -367,6 +416,8 @@ def query_citizen_portal_mesh_banner(
                 dist_km = haversine_distance_km(query.lat, query.lng, center["lat"], center["lng"])
                 if dist_km <= adv["geofence_radius_km"]:
                     is_matched = True
+                elif adv.get("polygon_geojson") and is_point_in_geojson_polygon(query.lat, query.lng, adv["polygon_geojson"]):
+                    is_matched = True
 
             if is_matched:
                 return {
@@ -385,6 +436,136 @@ def query_citizen_portal_mesh_banner(
 
         # If user is outside all affected geofences, strictly return None
         return None
+
+
+def create_polygon_broadcast_advisory(payload: AdvisoryBroadcastCreateRequest) -> RegionalMicroAdvisory:
+    """
+    Accepts GeoJSON polygon coordinates in AdvisoryBroadcastCreateRequest,
+    validates vertex limits (min 3, max 500), intersects with station circles and PIN centroids,
+    and drafts a multi-zone micro-advisory.
+    """
+    with _lock:
+        polygon = payload.polygon_geojson
+        coords = polygon.get("coordinates") if isinstance(polygon, dict) else None
+        if not coords or not isinstance(coords, list):
+            raise ValueError("Invalid GeoJSON: 'coordinates' array required.")
+
+        ring = coords[0] if isinstance(coords[0], list) and len(coords[0]) > 0 and isinstance(coords[0][0], (list, tuple)) else coords
+
+        # Vertex limit check: 3 to 500 vertices
+        vertex_count = len(ring)
+        if vertex_count >= 4 and ring[0] == ring[-1]:
+            distinct_count = vertex_count - 1
+        else:
+            distinct_count = vertex_count
+
+        if distinct_count < 3:
+            raise ValueError("Polygon must contain at least 3 distinct vertices.")
+        if distinct_count > 500:
+            raise ValueError(f"Polygon exceeds maximum vertex limit of 500 (has {distinct_count} vertices).")
+
+        for pt in ring:
+            if not isinstance(pt, (list, tuple)) or len(pt) < 2:
+                raise ValueError("Invalid coordinate element format in polygon. Expected [lng, lat].")
+            lng, lat = float(pt[0]), float(pt[1])
+            if not (-180.0 <= lng <= 180.0 and -90.0 <= lat <= 90.0):
+                raise ValueError(f"Coordinate [{lng}, {lat}] is out of geographic bounds.")
+
+        # Intersect with PIN centroids
+        matched_pins = []
+        for pin in PIN_CENTROIDS_METRO:
+            if is_point_in_geojson_polygon(pin["lat"], pin["lng"], polygon):
+                matched_pins.append(pin)
+
+        # Intersect with station circles
+        matched_circles = set()
+        matched_service_areas = set()
+        for sa in SERVICE_AREAS_REGISTRY.values():
+            if is_point_in_geojson_polygon(sa["geofence_center"]["lat"], sa["geofence_center"]["lng"], polygon):
+                matched_circles.add(sa["police_station_circle"])
+                matched_service_areas.add(sa["service_area_id"])
+            elif any(p["circle"] == sa["police_station_circle"] for p in matched_pins):
+                matched_circles.add(sa["police_station_circle"])
+                matched_service_areas.add(sa["service_area_id"])
+
+        for p in matched_pins:
+            if p.get("circle"):
+                matched_circles.add(p["circle"])
+            if p.get("service_area_id"):
+                matched_service_areas.add(p["service_area_id"])
+
+        pincodes_list = [p["pincode"] for p in matched_pins]
+        circles_list = list(matched_circles)
+        service_areas_list = list(matched_service_areas)
+
+        if not pincodes_list:
+            pincodes_list = payload.target_pincodes or ["110007", "110001"]
+        if not circles_list:
+            circles_list = [payload.police_station_circle] if payload.police_station_circle else ["Delhi Cyber Command"]
+        if not service_areas_list:
+            service_areas_list = [payload.service_area_id or "SA-NORTH-01"]
+
+        # Citizen reach calculation
+        est_reach = payload.estimated_citizen_reach or sum(p.get("est_reach", 4500) for p in matched_pins)
+        if est_reach <= 0:
+            est_reach = len(pincodes_list) * 4500
+
+        formatted_reach = f"{est_reach:,}"
+        sector_count = len(pincodes_list)
+        circle_count = len(circles_list)
+
+        multi_zone_summary = (
+            f"Targets {sector_count} postal {'sector' if sector_count == 1 else 'sectors'} "
+            f"across {circle_count} police {'circle' if circle_count == 1 else 'circles'} "
+            f"(Est. reach: {formatted_reach} citizens)"
+        )
+
+        now = _now_ms()
+        adv_num = next(_advisory_counter)
+        advisory_id = f"ADV-MESH-POLY-{adv_num}"
+        primary_sa_id = service_areas_list[0]
+        sa_meta = SERVICE_AREAS_REGISTRY.get(primary_sa_id, {
+            "service_area_name": "Multi-Zone Metropolitan Corridor",
+            "police_station_circle": circles_list[0],
+            "geofence_center": {"lat": 28.6500, "lng": 77.2000},
+            "geofence_radius_km": 8.0,
+        })
+
+        banner_text = f"{payload.title} | {multi_zone_summary}. Verify via 1930 / official portals."
+
+        advisory = RegionalMicroAdvisory(
+            advisory_id=advisory_id,
+            cluster_id=f"CLUST-POLY-{adv_num}",
+            title=payload.title,
+            summary_guidance=payload.summary_guidance,
+            scam_category=payload.scam_category,
+            service_area_id=primary_sa_id,
+            service_area_name=sa_meta["service_area_name"],
+            police_station_circle=circles_list[0],
+            target_pincodes=pincodes_list,
+            geofence_center=sa_meta["geofence_center"],
+            geofence_radius_km=sa_meta["geofence_radius_km"],
+            polygon_geojson=polygon,
+            estimated_citizen_reach=est_reach,
+            multi_zone_summary=multi_zone_summary,
+            affected_police_circles=circles_list,
+            complaints_aggregated=len(pincodes_list) * 2,
+            window_hours=12.0,
+            status="DRAFTED_PENDING_APPROVAL",
+            urgency=payload.urgency,
+            action_checklist=payload.action_checklist or [
+                "Verify suspect calls or notices against official DISCOM and police desks.",
+                "Report fraudulent numbers immediately to Cyber Crime Helpline 1930.",
+            ],
+            drafted_at=now,
+            published_at=None,
+            approved_by_commander_badge=None,
+            approved_by_commander_name=None,
+            active_portal_banner_text=banner_text,
+        )
+
+        _advisories[advisory_id] = advisory.model_dump()
+        return advisory
 
 
 def list_clusters() -> List[RegionalThreatCluster]:

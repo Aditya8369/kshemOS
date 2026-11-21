@@ -2847,6 +2847,10 @@ class RegionalMicroAdvisory(BaseModel):
     target_pincodes: List[str]
     geofence_center: Dict[str, float] = Field(default_factory=lambda: {"lat": 28.6920, "lng": 77.2150})
     geofence_radius_km: float = Field(default=5.5)
+    polygon_geojson: Optional[Dict[str, Any]] = None
+    estimated_citizen_reach: Optional[int] = None
+    multi_zone_summary: Optional[str] = None
+    affected_police_circles: List[str] = Field(default_factory=list)
     complaints_aggregated: int
     window_hours: float
     status: MicroAdvisoryStatus = Field(default="DRAFTED_PENDING_APPROVAL")
@@ -2857,6 +2861,24 @@ class RegionalMicroAdvisory(BaseModel):
     approved_by_commander_badge: Optional[str] = None
     approved_by_commander_name: Optional[str] = None
     active_portal_banner_text: str
+
+
+class AdvisoryBroadcastCreateRequest(BaseModel):
+    title: str = Field(..., description="Advisory bulletin headline title")
+    summary_guidance: str = Field(..., description="Actionable plain-language citizen guidance")
+    scam_category: str = Field(default="electricity_bill_scam", description="Category of scam threat")
+    urgency: Literal["low", "medium", "high", "critical"] = "high"
+    polygon_geojson: Dict[str, Any] = Field(
+        ...,
+        description="GeoJSON Polygon geometry object with vertex coordinates [[[lng, lat], ...]]",
+    )
+    target_pincodes: Optional[List[str]] = Field(default=None, description="Affected postal pin codes")
+    police_station_circle: Optional[str] = Field(default=None, description="Primary police station circle")
+    service_area_id: Optional[str] = Field(default=None, description="Primary service area ID")
+    estimated_citizen_reach: Optional[int] = Field(default=None, description="Estimated citizen population reach")
+    action_checklist: List[str] = Field(default_factory=list)
+    commander_badge_id: Optional[str] = Field(default="CMD-DELHI-NORTH")
+    commander_name: Optional[str] = Field(default="DCP Vikram Malhotra")
 
 
 class CommanderSignoffRequest(BaseModel):
