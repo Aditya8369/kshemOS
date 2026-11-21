@@ -6,13 +6,16 @@ Prefix: /api/syndicate-triage
 from __future__ import annotations
 
 import base64
+import json
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 
 from app.models import (
     ApkAnalyzeRequest,
     ApkAnalyzeResponse,
+    InboundWebhookPayload,
+    InboundWebhookResponse,
     SyndicateChatParseRequest,
     SyndicateChatParseResponse,
     SyndicateCorrelationResponse,
@@ -21,6 +24,56 @@ from app.models import (
 from app.services import syndicate_triage
 
 router = APIRouter(prefix="/api/syndicate-triage", tags=["Syndicate & APK Triage"])
+webhook_router = APIRouter(prefix="/api/syndicate", tags=["Syndicate Inbound Webhook"])
+
+
+async def _handle_inbound_webhook(request: Request, payload: Optional[InboundWebhookPayload] = None):
+    try:
+        raw_body = await request.body()
+        headers = dict(request.headers)
+
+        if payload is not None:
+            payload_dict = payload.model_dump()
+        elif raw_body:
+            try:
+                payload_dict = json.loads(raw_body.decode("utf-8"))
+            except Exception:
+                payload_dict = {"message_text": raw_body.decode("utf-8", errors="ignore")}
+        else:
+            payload_dict = {}
+
+        result = syndicate_triage.process_inbound_webhook(
+            payload_data=payload_dict,
+            raw_body=raw_body,
+            headers=headers,
+        )
+        return result
+    except ValueError as exc:
+        if "HMAC" in str(exc) or "signature" in str(exc).lower():
+            raise HTTPException(status_code=401, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Webhook processing error: {exc}")
+
+
+@router.post("/webhook/inbound", response_model=InboundWebhookResponse)
+async def inbound_webhook_endpoint(request: Request, payload: Optional[InboundWebhookPayload] = None):
+    """
+    Ingest automated inbound Telegram/WhatsApp webhooks at /api/syndicate-triage/webhook/inbound.
+    Verifies gateway HMAC signatures, harvests entities, runs static APK unpacker,
+    and auto-creates a synced incident in the Officer Feed.
+    """
+    return await _handle_inbound_webhook(request, payload)
+
+
+@webhook_router.post("/webhook/inbound", response_model=InboundWebhookResponse)
+async def inbound_webhook_syndicate_endpoint(request: Request, payload: Optional[InboundWebhookPayload] = None):
+    """
+    Ingest automated inbound Telegram/WhatsApp webhooks at /api/syndicate/webhook/inbound.
+    Verifies gateway HMAC signatures, harvests entities, runs static APK unpacker,
+    and auto-creates a synced incident in the Officer Feed.
+    """
+    return await _handle_inbound_webhook(request, payload)
 
 
 @router.post("/parse-chat", response_model=SyndicateChatParseResponse)

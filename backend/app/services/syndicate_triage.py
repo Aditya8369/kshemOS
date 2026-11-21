@@ -15,8 +15,10 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
 import io
 import ipaddress
+import json
 import os
 import re
 import tempfile
@@ -27,6 +29,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from app.services import fraud_graph
+from app.services.incidents import create_incident, derive_title
 
 _lock = threading.RLock()
 
@@ -59,6 +62,45 @@ TELEGRAM_INVITE_RE = re.compile(
     r"https?://(?:t\.me|telegram\.me)/(?:joinchat/([A-Za-z0-9_-]+)|([A-Za-z0-9_]{5,32}))",
     re.IGNORECASE,
 )
+
+# Telegram Handles: @username (excluding emails)
+TELEGRAM_HANDLE_RE = re.compile(
+    r"(?<![a-zA-Z0-9._])@([a-zA-Z0-9_]{4,32})\b",
+    re.IGNORECASE,
+)
+
+# WhatsApp Direct Contact Links: wa.me/<phone> or api.whatsapp.com/send?phone=<phone>
+WHATSAPP_CONTACT_RE = re.compile(
+    r"https?://(?:wa\.me|api\.whatsapp\.com/send\?phone=)(\+?[0-9]{10,15})",
+    re.IGNORECASE,
+)
+
+# Indian IFSC Code: 4 alphabetic chars, '0', 6 alphanumeric chars
+IFSC_RE = re.compile(
+    r"\b([A-Z]{4}0[A-Z0-9]{6})\b"
+)
+
+# Bank Account Numbers: 9 to 18 digits with contextual keywords
+BANK_ACCOUNT_RE = re.compile(
+    r"(?i)(?:a/c|account(?:\s*no)?|ac|acc)\s*[:#-]?\s*([0-9]{9,18})"
+)
+
+IFSC_BANK_NAMES = {
+    "SBIN": "State Bank of India",
+    "HDFC": "HDFC Bank",
+    "ICIC": "ICICI Bank",
+    "UTIB": "Axis Bank",
+    "PUNB": "Punjab National Bank",
+    "BARB": "Bank of Baroda",
+    "CNRB": "Canara Bank",
+    "UBIN": "Union Bank of India",
+    "IDIB": "Indian Bank",
+    "KKBK": "Kotak Mahindra Bank",
+    "YESB": "Yes Bank",
+    "INDB": "IndusInd Bank",
+    "BKID": "Bank of India",
+    "CBIN": "Central Bank of India",
+}
 
 # APK URLs
 APK_URL_RE = re.compile(
@@ -342,6 +384,7 @@ def _extract_printable_strings(data: bytes, min_length: int = 4) -> List[str]:
 def _parse_apk_manifest_and_strings(raw_bytes: bytes) -> Tuple[List[str], List[str], Dict[str, str]]:
     """
     Safely inspect APK payload as a ZIP archive without running bytecode.
+    Supports androguard if available, falling back to native zipfile manifest extraction.
     Returns: (permissions_found, strings_found, metadata_dict)
     """
     permissions: List[str] = []
@@ -353,6 +396,22 @@ def _parse_apk_manifest_and_strings(raw_bytes: bytes) -> Tuple[List[str], List[s
         "app_label": "e-Challan / Utility Loader",
     }
 
+    # 1. Attempt Androguard static parsing if installed
+    try:
+        from androguard.core.bytecodes.apk import APK  # type: ignore
+        apk_obj = APK(raw_bytes, raw=True)
+        perms = apk_obj.get_permissions() or []
+        for p in perms:
+            if p in DANGEROUS_PERMISSIONS_MAP and p not in permissions:
+                permissions.append(p)
+        if apk_obj.get_package():
+            metadata["package_name"] = apk_obj.get_package()
+        if apk_obj.get_app_name():
+            metadata["app_label"] = apk_obj.get_app_name()
+    except Exception:
+        pass
+
+    # 2. Native zipfile extraction of AndroidManifest.xml and binary AXML parsing
     try:
         with zipfile.ZipFile(io.BytesIO(raw_bytes), "r") as zf:
             file_list = zf.namelist()
@@ -360,14 +419,27 @@ def _parse_apk_manifest_and_strings(raw_bytes: bytes) -> Tuple[List[str], List[s
             # Read AndroidManifest.xml strings
             if "AndroidManifest.xml" in file_list:
                 manifest_data = zf.read("AndroidManifest.xml")
-                # AndroidManifest binary AXML contains plaintext strings table
+                # AndroidManifest binary AXML contains plaintext strings table (ASCII & UTF-16LE)
                 manifest_strings = _extract_printable_strings(manifest_data)
+                try:
+                    utf16_str = manifest_data.decode("utf-16le", errors="ignore")
+                    manifest_strings.extend(re.findall(r"[A-Za-z0-9_.\$]{4,}", utf16_str))
+                except Exception:
+                    pass
+
                 extracted_strings.extend(manifest_strings)
 
                 for s in manifest_strings:
                     if s.startswith("android.permission.") or "permission" in s.lower():
                         if s in DANGEROUS_PERMISSIONS_MAP and s not in permissions:
                             permissions.append(s)
+
+                    # Direct check for key permissions like BIND_ACCESSIBILITY_SERVICE & RECEIVE_SMS
+                    for perm_key in DANGEROUS_PERMISSIONS_MAP:
+                        short_perm = perm_key.split(".")[-1]
+                        if (short_perm in s or perm_key in s) and perm_key not in permissions:
+                            permissions.append(perm_key)
+
                     if re.match(r"^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$", s):
                         if any(term in s for term in ["challan", "police", "loan", "task", "service", "app"]):
                             metadata["package_name"] = s
@@ -384,7 +456,8 @@ def _parse_apk_manifest_and_strings(raw_bytes: bytes) -> Tuple[List[str], List[s
         extracted_strings.extend(direct_strings)
         for s in direct_strings:
             for perm in DANGEROUS_PERMISSIONS_MAP:
-                if perm in s and perm not in permissions:
+                short_perm = perm.split(".")[-1]
+                if (perm in s or short_perm in s) and perm not in permissions:
                     permissions.append(perm)
 
     return permissions, extracted_strings, metadata
@@ -949,6 +1022,343 @@ def get_artifact(artifact_id: str) -> Optional[Dict[str, Any]]:
         if artifact_id in _apk_artifacts:
             return _apk_artifacts[artifact_id]
         return None
+
+
+DEFAULT_WEBHOOK_SECRET = "kshemos_syndicate_webhook_secret_2026"
+
+
+def extract_syndicate_entities(text: str) -> Dict[str, Any]:
+    """
+    Automated Entity Harvesting:
+    Extracts Telegram handles (@handle), Telegram invite links, WhatsApp links,
+    cryptocurrency wallet addresses (TRON TRC-20, Ethereum EVM, Bitcoin),
+    Indian IFSC codes (with bank name resolution), bank account numbers,
+    UPI VPAs, recruiter phone numbers, APK URLs, and syndicate keywords.
+    """
+    if not text:
+        return {
+            "telegram_handles": [],
+            "telegram_links": [],
+            "whatsapp_links": [],
+            "crypto_wallets": [],
+            "ifsc_codes": [],
+            "bank_accounts": [],
+            "upi_ids": [],
+            "phone_numbers": [],
+            "apk_urls": [],
+            "syndicate_keywords": [],
+        }
+
+    # 1. Telegram Handles: @username
+    handles: List[str] = []
+    seen_handles: Set[str] = set()
+    for match in TELEGRAM_HANDLE_RE.finditer(text):
+        raw_handle = match.group(1)
+        if raw_handle.lower() in ("gmail", "yahoo", "hotmail", "outlook", "ybl", "okhdfcbank", "okaxis"):
+            continue
+        h = f"@{raw_handle}"
+        if h.lower() not in seen_handles:
+            seen_handles.add(h.lower())
+            handles.append(h)
+
+    # 2. Telegram Invite Links
+    tg_links: List[str] = []
+    seen_tg: Set[str] = set()
+    for match in TELEGRAM_INVITE_RE.finditer(text):
+        url = match.group(0)
+        if url not in seen_tg:
+            seen_tg.add(url)
+            tg_links.append(url)
+
+    # 3. WhatsApp Links (Group invites and direct contact links)
+    wa_links: List[str] = []
+    seen_wa: Set[str] = set()
+    for match in WHATSAPP_INVITE_RE.finditer(text):
+        url = match.group(0)
+        if url not in seen_wa:
+            seen_wa.add(url)
+            wa_links.append(url)
+    for match in WHATSAPP_CONTACT_RE.finditer(text):
+        url = match.group(0)
+        if url not in seen_wa:
+            seen_wa.add(url)
+            wa_links.append(url)
+
+    # 4. Crypto Wallets
+    crypto_wallets = _extract_crypto_wallets(text)
+
+    # 5. Indian IFSC Codes
+    ifsc_codes: List[str] = []
+    seen_ifsc: Set[str] = set()
+    for match in IFSC_RE.finditer(text):
+        code = match.group(1).upper()
+        if code not in seen_ifsc:
+            seen_ifsc.add(code)
+            ifsc_codes.append(code)
+
+    # 6. Bank Account Numbers
+    bank_accounts: List[str] = []
+    seen_acc: Set[str] = set()
+    for match in BANK_ACCOUNT_RE.finditer(text):
+        acc = match.group(1).strip()
+        if acc not in seen_acc:
+            seen_acc.add(acc)
+            bank_accounts.append(acc)
+
+    # 7. UPI VPAs
+    upi_ids = _extract_upi_ids(text)
+
+    # 8. Recruiter / Admin Phone Numbers
+    phone_numbers = _extract_phone_numbers(text)
+
+    # 9. APK URLs
+    apk_urls = _extract_apk_urls(text)
+
+    # 10. Syndicate Scheme Keywords
+    keywords = _extract_keywords(text)
+
+    return {
+        "telegram_handles": handles,
+        "telegram_links": tg_links,
+        "whatsapp_links": wa_links,
+        "crypto_wallets": crypto_wallets,
+        "ifsc_codes": ifsc_codes,
+        "bank_accounts": bank_accounts,
+        "upi_ids": upi_ids,
+        "phone_numbers": phone_numbers,
+        "apk_urls": apk_urls,
+        "syndicate_keywords": keywords,
+    }
+
+
+def generate_webhook_hmac(body: bytes, secret: Optional[str] = None) -> str:
+    """Generate SHA-256 HMAC digest hex string for webhook payload validation & tests."""
+    sec = secret or os.getenv("WEBHOOK_HMAC_SECRET", DEFAULT_WEBHOOK_SECRET)
+    return hmac.new(sec.encode("utf-8"), body, hashlib.sha256).hexdigest()
+
+
+def verify_webhook_hmac(raw_body: bytes, headers: Dict[str, str], secret: Optional[str] = None) -> bool:
+    """
+    Verify webhook HMAC authentication token from messaging gateways.
+    Inspects standard gateway headers:
+    - X-Hub-Signature-256 (Meta WhatsApp: sha256=<hex>)
+    - X-Telegram-Bot-Api-Secret-Token (Telegram: secret token)
+    - X-Signature-SHA256 / X-Webhook-Signature (Generic / Twilio: <hex>)
+    - X-Gateway-HMAC (Custom gateway token)
+    - Authorization: Bearer <token>
+    """
+    sec = secret or os.getenv("WEBHOOK_HMAC_SECRET", DEFAULT_WEBHOOK_SECRET)
+    normalized_headers = {k.lower(): v for k, v in headers.items()}
+
+    # Check X-Telegram-Bot-Api-Secret-Token
+    tg_token = normalized_headers.get("x-telegram-bot-api-secret-token")
+    if tg_token:
+        return hmac.compare_digest(tg_token.strip(), sec)
+
+    # Check X-Hub-Signature-256 (Meta WhatsApp)
+    meta_sig = normalized_headers.get("x-hub-signature-256")
+    if meta_sig:
+        expected = hmac.new(sec.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+        provided = meta_sig.replace("sha256=", "").strip()
+        return hmac.compare_digest(provided.lower(), expected.lower())
+
+    # Check generic HMAC signature headers
+    sig = (
+        normalized_headers.get("x-signature-sha256")
+        or normalized_headers.get("x-webhook-signature")
+        or normalized_headers.get("x-gateway-hmac")
+    )
+    if sig:
+        expected = hmac.new(sec.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+        provided = sig.replace("sha256=", "").strip()
+        return hmac.compare_digest(provided.lower(), expected.lower())
+
+    # Check Authorization header (Bearer <secret> or Bearer <hmac>)
+    auth = normalized_headers.get("authorization")
+    if auth and auth.startswith("Bearer "):
+        token = auth[7:].strip()
+        expected = hmac.new(sec.encode("utf-8"), raw_body, hashlib.sha256).hexdigest()
+        return hmac.compare_digest(token, sec) or hmac.compare_digest(token.lower(), expected.lower())
+
+    # In dev/test when enforcement is not explicitly set to true
+    if os.getenv("ENFORCE_WEBHOOK_HMAC", "false").lower() != "true":
+        return True
+
+    return False
+
+
+def process_inbound_webhook(
+    payload_data: Dict[str, Any],
+    raw_body: bytes = b"",
+    headers: Optional[Dict[str, str]] = None,
+) -> Dict[str, Any]:
+    """
+    Automated Inbound Telegram/WhatsApp Webhook Ingestion Engine:
+    1. Verifies HMAC authentication tokens from messaging gateways.
+    2. Runs extract_syndicate_entities() on message text.
+    3. Executes automated static APK unpacker (native zipfile/androguard) on attached binaries.
+    4. Automatically calculates risk severity.
+    5. Automatically generates a synced incident into the Officer Feed with _syncStatus: 'synced'.
+    6. Injects harvested indicators into Fraud Graph and correlation cluster.
+    """
+    with _lock:
+        headers = headers or {}
+        if not verify_webhook_hmac(raw_body, headers):
+            raise ValueError("Invalid or missing webhook HMAC authentication signature.")
+
+        # Detect Platform
+        platform = payload_data.get("platform")
+        if not platform or platform == "auto":
+            if "message" in payload_data or "callback_query" in payload_data or "update_id" in payload_data:
+                platform = "telegram"
+            elif "entry" in payload_data or "object" in payload_data:
+                platform = "whatsapp"
+            else:
+                platform = "messaging_gateway"
+
+        # Extract message body and metadata
+        message_text = payload_data.get("message_text") or payload_data.get("text") or ""
+        sender_id = payload_data.get("sender_id") or ""
+        sender_name = payload_data.get("sender_name") or ""
+        apk_base64 = payload_data.get("apk_base64")
+        apk_filename = payload_data.get("apk_filename") or "inbound_syndicate.apk"
+
+        # Telegram webhook format parsing
+        if not message_text and "message" in payload_data:
+            msg = payload_data["message"]
+            message_text = msg.get("text") or msg.get("caption") or ""
+            sender_id = str(msg.get("from", {}).get("username") or msg.get("from", {}).get("id") or sender_id)
+            sender_name = msg.get("from", {}).get("first_name") or sender_name
+
+        # WhatsApp Cloud API webhook format parsing
+        if not message_text and "entry" in payload_data:
+            try:
+                entry = payload_data["entry"][0]
+                val = entry.get("changes", [{}])[0].get("value", {})
+                msgs = val.get("messages", [])
+                if msgs:
+                    m0 = msgs[0]
+                    message_text = m0.get("text", {}).get("body") or ""
+                    sender_id = m0.get("from") or sender_id
+            except Exception:
+                pass
+
+        if not message_text and not apk_base64:
+            raise ValueError("Inbound webhook contains no message text or APK payload.")
+
+        # 1. Automated Entity Harvesting
+        entities = extract_syndicate_entities(message_text)
+
+        # 2. Automated Static APK Unpacker
+        apk_triage = None
+        dangerous_permissions = []
+        if apk_base64 or entities["apk_urls"]:
+            apk_payload = apk_base64
+            apk_triage = analyze_and_quarantine_apk(
+                filename=apk_filename,
+                file_bytes_base64=apk_payload,
+                officer_badge="GATEWAY-AUTO",
+            )
+            dangerous_permissions = apk_triage.get("dangerous_permissions", [])
+
+        # 3. Automatic Risk Severity Calculation
+        risk_score = 0.25
+        has_critical_apk = any(
+            p.get("permission") in ("android.permission.BIND_ACCESSIBILITY_SERVICE", "android.permission.RECEIVE_SMS")
+            or p.get("risk_level") == "CRITICAL"
+            for p in dangerous_permissions
+        )
+        if has_critical_apk:
+            risk_score += 0.45
+        elif dangerous_permissions:
+            risk_score += 0.25
+
+        if entities["crypto_wallets"]:
+            risk_score += 0.25
+        if any(p.get("is_syndicate_intl") for p in entities["phone_numbers"]):
+            risk_score += 0.30
+        if entities["ifsc_codes"]:
+            risk_score += 0.20
+        if entities["telegram_handles"] or entities["whatsapp_links"]:
+            risk_score += 0.15
+        if len(entities["syndicate_keywords"]) >= 2:
+            risk_score += 0.15
+
+        risk_score = round(min(1.0, risk_score), 2)
+        severity = (
+            "critical" if risk_score >= 0.80 or has_critical_apk else
+            "high" if risk_score >= 0.60 else
+            "medium" if risk_score >= 0.40 else "low"
+        )
+
+        # 4. Live Incident Feed Auto-Creation
+        now_ms = int(time.time() * 1000)
+        primary_bank = ""
+        primary_acc = entities["bank_accounts"][0] if entities["bank_accounts"] else None
+        if entities["ifsc_codes"]:
+            ifsc = entities["ifsc_codes"][0]
+            bank_name = IFSC_BANK_NAMES.get(ifsc[:4], "Indian Commercial Bank")
+            primary_bank = f" ({bank_name} - {ifsc})"
+            if not primary_acc:
+                primary_acc = f"{ifsc}-MULE"
+
+        apk_desc = ""
+        if apk_triage:
+            apk_desc = f" Malicious APK '{apk_triage.get('filename')}' quarantined ({len(dangerous_permissions)} dangerous permissions flagged, SHA-256: {apk_triage.get('sha256', '')[:12]}...)."
+
+        summary_desc = (
+            f"Automated Inbound {platform.title()} Syndicate Telemetry ({sender_id or 'Inbound'}): "
+            f"Harvested {len(entities['telegram_handles'])} Telegram handle(s), "
+            f"{len(entities['whatsapp_links'])} WhatsApp link(s), "
+            f"{len(entities['crypto_wallets'])} crypto wallet(s), "
+            f"{len(entities['ifsc_codes'])} IFSC code(s){primary_bank}.{apk_desc} "
+            f"Evaluated threat score {int(risk_score * 100)}% ({severity.upper()})."
+        )
+
+        incident = create_incident(
+            category="Syndicate Recruitment Scam",
+            description=summary_desc,
+            region=payload_data.get("region") or "Central Zone",
+            report_id=f"WEBHOOK-{platform[:3].upper()}-{int(time.time())}",
+            linked_account=primary_acc,
+            now=now_ms,
+        )
+        incident["_syncStatus"] = "synced"
+
+        # 5. Graph Indicator Injection & Correlation
+        indicators_for_graph = {
+            "phone_numbers": entities["phone_numbers"],
+            "crypto_wallets": entities["crypto_wallets"],
+            "upi_ids": entities["upi_ids"],
+            "invite_links": [{"platform": "Telegram", "code": h} for h in entities["telegram_handles"]] + [{"platform": "WhatsApp", "code": l} for l in entities["whatsapp_links"]],
+        }
+        if apk_triage:
+            indicators_for_graph["apk_hash"] = apk_triage.get("sha256")
+
+        nodes_injected, cluster_id = _inject_indicators_into_graph(
+            incident_id=incident["id"],
+            indicators=indicators_for_graph,
+            artifact_id=f"ART-WEBHOOK-{int(time.time())}",
+        )
+
+        webhook_event_id = f"EVT-WH-{hashlib.sha256((raw_body or message_text.encode('utf-8'))).hexdigest()[:10].upper()}"
+
+        return {
+            "status": "processed",
+            "webhook_event_id": webhook_event_id,
+            "platform": platform,
+            "incident_id": incident["id"],
+            "incident_title": incident.get("title") or derive_title(summary_desc),
+            "category": "Syndicate Recruitment Scam",
+            "severity": severity,
+            "_syncStatus": "synced",
+            "risk_score": risk_score,
+            "harvested_entities": entities,
+            "apk_triage": apk_triage,
+            "cluster_id": cluster_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "summary": summary_desc,
+        }
 
 
 def reset_syndicate_registry():
