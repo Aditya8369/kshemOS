@@ -373,6 +373,13 @@ def generate_mitigation_receipt(req: EmergencyMitigationReceiptRequest) -> Emerg
         actions.append("Drafted submission for cybercrime.gov.in portal")
     if req.aadhaar_biometrics_locked:
         actions.append("Followed UIDAI official flow to lock Aadhaar biometrics against AePS fraud")
+    if req.aadhaar_qr_scanned:
+        actions.append(
+            f"Verified UIDAI Secure QR Code at {req.aadhaar_qr_scan_timestamp or now_ist.strftime('%d-%b-%Y %I:%M:%S %p IST')} (Offline Root Verification)"
+        )
+        actions.append(
+            f"Initiated 1-Tap USSD *99*99*1# & SMS Biometric Lock LOCKUID {req.aadhaar_last_4 or 'XXXX'} to 1947"
+        )
 
     # Canonical string for SHA-256 sealing
     canonical_parts = [
@@ -387,6 +394,8 @@ def generate_mitigation_receipt(req: EmergencyMitigationReceiptRequest) -> Emerg
         "1930_YES" if req.reported_to_1930 else "1930_NO",
         "PORTAL_YES" if req.reported_to_portal else "PORTAL_NO",
         "AADHAAR_LOCKED" if req.aadhaar_biometrics_locked else "AADHAAR_NOT_LOCKED",
+        req.aadhaar_qr_scan_timestamp or "NO_QR",
+        req.aadhaar_last_4 or "NO_LAST4",
     ]
     canonical_payload = "|".join(canonical_parts)
     sha256_hash = compute_receipt_hash(canonical_payload)
@@ -406,6 +415,10 @@ def generate_mitigation_receipt(req: EmergencyMitigationReceiptRequest) -> Emerg
         reported_to_1930=req.reported_to_1930,
         reported_to_portal=req.reported_to_portal,
         aadhaar_biometrics_locked=req.aadhaar_biometrics_locked,
+        aadhaar_qr_scanned=req.aadhaar_qr_scanned,
+        aadhaar_qr_scan_timestamp=req.aadhaar_qr_scan_timestamp,
+        aadhaar_last_4=req.aadhaar_last_4,
+        aadhaar_signature_verified=req.aadhaar_signature_verified,
         rbi_circular_reference=(
             "Reserve Bank of India Circular DBR.No.Leg.BC.78/09.07.005/2017-18 "
             "(Customer Protection – Limiting Liability of Customers in Unauthorised Electronic Banking Transactions). "
