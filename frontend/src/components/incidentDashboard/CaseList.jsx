@@ -5,6 +5,7 @@ import {
   Filter,
   FilterX,
   MapPin,
+  Radio,
   RotateCcw,
   Search,
   UserX,
@@ -426,6 +427,26 @@ export function IncidentList({
               <span className="text-[11px] font-mono text-[var(--mist)]">{incident.id}</span>
             </div>
             <div className="text-sm text-white mt-0.5">{incident.title}</div>
+            {incident.voiceprint_match?.is_repeat_speaker && (
+              <div
+                className="mt-1 flex flex-wrap items-center gap-1.5 px-2 py-0.5 rounded-md bg-purple-950/60 border border-purple-500/60 text-[10px] text-purple-200 font-mono"
+                title={incident.voiceprint_match.alert_summary || 'Repeat syndicate speaker detected matching past cases'}
+                aria-label="Repeat syndicate speaker detected"
+              >
+                <Radio size={11} className="text-purple-400 shrink-0 animate-pulse" aria-hidden="true" />
+                <span className="font-bold text-purple-300">Repeat Syndicate Speaker Detected</span>
+                {incident.voiceprint_match.speaker_alias && (
+                  <span className="text-purple-200/90 truncate max-w-[150px]">
+                    · {incident.voiceprint_match.speaker_alias.split(' (')[0]}
+                  </span>
+                )}
+                {incident.voiceprint_match.linked_cases && incident.voiceprint_match.linked_cases.length > 0 && (
+                  <span className="ml-auto text-purple-300 font-mono text-[9px] bg-purple-900/60 px-1.5 py-0.5 rounded border border-purple-400/40 shrink-0">
+                    Past: {incident.voiceprint_match.linked_cases.join(', ')}
+                  </span>
+                )}
+              </div>
+            )}
             <div className="text-[11px] text-[var(--mist)] mt-0.5">
               {incident.region} · {STATUS_LABEL[incident.status]} · {incident.assigned_to || 'Unassigned'} ·{' '}
               {formatDuration(minutesSince(incident.opened_at, now))} open
