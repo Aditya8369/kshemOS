@@ -667,6 +667,8 @@ export {
   logCustodialActionApi,
   toggleLegalHoldApi,
   verifyEvidenceIntegrityApi,
+  verifyTsaCertificateChainApi,
+  bindTsaTimestampApi,
   generateForensicBundleApi,
   fetchRetentionPoliciesApi,
   fetchUploadLinksApi,

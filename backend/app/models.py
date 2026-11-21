@@ -721,6 +721,17 @@ class RFC3161Token(BaseModel):
     timestamp_iso: Optional[str] = None
     digest_algorithm: Optional[str] = None
     digest_value: Optional[str] = None
+    der_token_b64: Optional[str] = None
+    certificate_serial: Optional[str] = None
+    certificate_thumbprint_sha256: Optional[str] = None
+    certificate_chain: Optional[list[str]] = None
+    is_hardware_tsa: Optional[bool] = True
+    is_offline_fallback: Optional[bool] = False
+    fallback_ed25519_signature: Optional[str] = None
+    fallback_officer_station_key: Optional[str] = None
+    queued_for_tsa_uplink: Optional[bool] = False
+    verification_status: Optional[str] = "VERIFIED_VALID"
+    clock_drift_ms: Optional[float] = None
 
     @model_validator(mode="before")
     @classmethod
