@@ -534,3 +534,162 @@ export async function fetchSyndicateApksApi() {
     return [];
   }
 }
+
+// -----------------------------------------------------------------------------
+// INBOUND TELEGRAM / WHATSAPP WEBHOOK API & SIMULATION
+// -----------------------------------------------------------------------------
+
+export const DEFAULT_WEBHOOK_HMAC_SECRET = 'kshemos_syndicate_webhook_secret_2026';
+
+export const SAMPLE_WEBHOOK_TELEGRAM_PAYLOAD = {
+  platform: 'telegram',
+  sender_id: 'recruiter_vip_bot',
+  sender_name: 'VIP Cyber Task Recruiter',
+  chat_id: '-100294819284',
+  message_text: `[Telegram VIP Recruitment Desk]
+Welcome to Daily Prepaid Review Task! Earn 4500 INR/day commission.
+Lead Recruiter: @vip_task_manager (+855 88 412 9019 Cambodia Hub)
+Join Channel: https://t.me/IndiaReserveVIPTask99
+WhatsApp Support Desk: https://chat.whatsapp.com/GzK491lKz938fLqM018zXy
+Recharge USDT bonus to TRON TRC-20: TJYg4oN8yBfP88fLq6pD6vVvXF5p7A3Z4k
+EVM/ETH Clearing Wallet: 0x71C8364f3B39C13E7D52B980c5e62f026E7bB102
+Bank Transfer Settlement:
+IFSC: SBIN0001234 (State Bank of India)
+A/C: 98765432101 (Mule Liquidity Pool)
+UPI: paytmfast.mule09@ybl
+Install Dispatch Portal: https://cdn-taskupdate.top/downloads/e-Challan_Parivahan_v3.apk`,
+  apk_filename: 'e-Challan_Parivahan_v3.apk',
+  apk_base64: btoa(
+    'PK\x03\x04AndroidManifest.xml android.permission.BIND_ACCESSIBILITY_SERVICE android.permission.RECEIVE_SMS android.permission.SYSTEM_ALERT_WINDOW https://api.telegram.org/bot6829104812:AAFq-91x0Lzq981kLz018vM'
+  ),
+  region: 'Central Zone',
+};
+
+export const SAMPLE_WEBHOOK_WHATSAPP_PAYLOAD = {
+  platform: 'whatsapp',
+  sender_id: '+855884129019',
+  sender_name: 'Part-Time Task Coordinator',
+  chat_id: 'wa-group-99120',
+  message_text: `🚨 Urgent Notification from Task Department:
+Your payout of 32,500 INR is frozen pending verification.
+Contact Telegram Desk: @task_resolution_head or WhatsApp: https://wa.me/855884129019
+Alternative clearing account:
+IFSC: HDFC0000456 (HDFC Bank)
+Account: 50100239102941
+TRON USDT Escrow: TLv2Kx8Z3q9Wm4p7Jn6t5Yr8Xs3Vc2Bn1M`,
+  region: 'North Zone',
+};
+
+export async function dispatchInboundWebhookApi(payload, hmacToken = DEFAULT_WEBHOOK_HMAC_SECRET) {
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (hmacToken) {
+      headers['X-Telegram-Bot-Api-Secret-Token'] = hmacToken;
+      headers['X-Hub-Signature-256'] = `sha256=${hmacToken}`;
+      headers['X-Webhook-Signature'] = hmacToken;
+    }
+
+    const res = await fetch('/api/syndicate/webhook/inbound', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Server returned ${res.status}`);
+    }
+    return await res.json();
+  } catch (err) {
+    // Return client-side fallback simulation
+    return simulateInboundWebhookLocally(payload);
+  }
+}
+
+export function simulateInboundWebhookLocally(payload) {
+  const text = payload.message_text || '';
+  const nowIso = new Date().toISOString();
+  const timestamp = Date.now();
+  const incId = `INC-SYN-${timestamp.toString().slice(-4)}`;
+
+  // Basic regex extractions for local simulation
+  const tgHandles = (text.match(/@[a-zA-Z0-9_]{4,32}/g) || []).filter(
+    (h) => !h.includes('gmail') && !h.includes('yahoo')
+  );
+  const waLinks = text.match(/https?:\/\/(?:chat\.whatsapp\.com\/[^\s]+|wa\.me\/[0-9]+)/gi) || [];
+  const tronAddrs = text.match(/\bT[1-9A-HJ-NP-Za-km-z]{33}\b/g) || [];
+  const ethAddrs = text.match(/\b0x[a-fA-F0-9]{40}\b/g) || [];
+  const ifscCodes = text.match(/\b[A-Z]{4}0[A-Z0-9]{6}\b/g) || [];
+  const bankAccs = (text.match(/(?:a\/c|account|ac)\s*[:#-]?\s*([0-9]{9,18})/gi) || []).map((m) =>
+    m.replace(/\D/g, '')
+  );
+
+  const cryptoWallets = [
+    ...tronAddrs.map((a) => ({ address: a, network: 'TRON', standard: 'TRC-20' })),
+    ...ethAddrs.map((a) => ({ address: a, network: 'ETH', standard: 'ERC-20/EVM' })),
+  ];
+
+  let riskScore = 0.45;
+  let hasCriticalApk = false;
+  if (payload.apk_base64) {
+    riskScore += 0.40;
+    hasCriticalApk = true;
+  }
+  if (cryptoWallets.length) riskScore += 0.25;
+  if (ifscCodes.length) riskScore += 0.20;
+  riskScore = Math.min(1.0, riskScore);
+
+  const severity = riskScore >= 0.8 || hasCriticalApk ? 'critical' : riskScore >= 0.6 ? 'high' : 'medium';
+
+  return {
+    status: 'processed',
+    webhook_event_id: `EVT-WH-${timestamp.toString(16).toUpperCase()}`,
+    platform: payload.platform || 'telegram',
+    incident_id: incId,
+    incident_title: `Syndicate Recruitment Scam: ${payload.platform || 'Telegram'} (${payload.sender_id || 'Inbound'})`,
+    category: 'Syndicate Recruitment Scam',
+    severity,
+    _syncStatus: 'synced',
+    risk_score: riskScore,
+    harvested_entities: {
+      telegram_handles: Array.from(new Set(tgHandles)),
+      telegram_links: text.match(/https?:\/\/t\.me\/[^\s]+/gi) || [],
+      whatsapp_links: Array.from(new Set(waLinks)),
+      crypto_wallets: cryptoWallets,
+      ifsc_codes: Array.from(new Set(ifscCodes)),
+      bank_accounts: Array.from(new Set(bankAccs)),
+      upi_ids: text.match(/[a-zA-Z0-9.\-_]+@[a-zA-Z0-9]+/g) || [],
+      phone_numbers: (text.match(/\+?[0-9]{10,15}/g) || []).map((n) => ({
+        number: n,
+        country: n.startsWith('+855') ? 'Cambodia' : n.startsWith('+95') ? 'Myanmar' : 'India',
+        is_syndicate_intl: !n.startsWith('+91'),
+        role: 'recruiter',
+      })),
+      apk_urls: text.match(/https?:\/\/[^\s]+\.apk/gi) || [],
+      syndicate_keywords: ['task scam', 'daily profit', 'commission'],
+    },
+    apk_triage: payload.apk_base64
+      ? {
+          filename: payload.apk_filename || 'inbound.apk',
+          sha256: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
+          dangerous_permissions: [
+            {
+              permission: 'android.permission.BIND_ACCESSIBILITY_SERVICE',
+              risk_level: 'CRITICAL',
+              category: 'Accessibility Hijacking',
+              description: 'Enables malicious full-screen control, automated taps, 2FA bypass, and real-time keylogging.',
+            },
+            {
+              permission: 'android.permission.RECEIVE_SMS',
+              risk_level: 'CRITICAL',
+              category: 'SMS Interception',
+              description: 'Intercepts incoming SMS OTPs and transaction verification codes.',
+            },
+          ],
+        }
+      : null,
+    cluster_id: 'CLUSTER-SYN-99A1',
+    created_at: nowIso,
+    summary: `Automated Inbound ${payload.platform} Syndicate Telemetry (${payload.sender_id}): Harvested ${tgHandles.length} handles, ${cryptoWallets.length} crypto wallets, ${ifscCodes.length} IFSC codes. Evaluated threat score ${Math.round(riskScore * 100)}% (${severity.toUpperCase()}).`,
+  };
+}

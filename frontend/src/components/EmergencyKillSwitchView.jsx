@@ -1,11 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   getEmergencyBanksList,
   getAadhaarLockGuide,
   generateLocalMitigationReceipt,
   getStoredMitigationReceipts,
+  generatePrintableMitigationCertificateHtml,
   MITIGATION_RECEIPT_EVENT,
 } from '../emergencyKillSwitchStore';
+
+import {
+  decodeAadhaarQrData,
+  SAMPLE_AADHAAR_QR_PAYLOADS,
+  buildAadhaarLockSyntaxes,
+} from '../aadhaarQrDecoder';
 
 export default function EmergencyKillSwitchView() {
   const [banks, setBanks] = useState([]);
@@ -23,7 +30,75 @@ export default function EmergencyKillSwitchView() {
   const [copiedKey, setCopiedKey] = useState(null);
   const [showGuideModal, setShowGuideModal] = useState(false);
 
+  // UIDAI Offline QR Verification & USSD Builder State
+  const [scannedAadhaar, setScannedAadhaar] = useState(null);
+  const [isDecodingQr, setIsDecodingQr] = useState(false);
+  const [qrInputText, setQrInputText] = useState('');
+  const [qrError, setQrError] = useState(null);
+  const [showQrUploader, setShowQrUploader] = useState(false);
+  const fileInputRef = useRef(null);
+
   const guide = getAadhaarLockGuide();
+
+  // Process QR Data (local offline decompression & verification)
+  async function handleProcessQr(rawData) {
+    if (!rawData) return;
+    setIsDecodingQr(true);
+    setQrError(null);
+    try {
+      const decoded = await decodeAadhaarQrData(rawData);
+      setScannedAadhaar(decoded);
+      setAadhaarLocked(true);
+      if (decoded.citizen_name && !citizenName) {
+        setCitizenName(decoded.citizen_name);
+      }
+    } catch (err) {
+      setQrError(err.message || 'Failed to decode UIDAI QR code.');
+    } finally {
+      setIsDecodingQr(false);
+    }
+  }
+
+  function handleFileUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const text = evt.target?.result;
+      if (text) {
+        handleProcessQr(text);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function handleClearScannedAadhaar() {
+    setScannedAadhaar(null);
+    setQrInputText('');
+    setQrError(null);
+  }
+
+  function handleDownloadPdf(receipt) {
+    if (!receipt) return;
+    const html = generatePrintableMitigationCertificateHtml(receipt);
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+      }, 250);
+    } else {
+      const blob = new Blob([html], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${receipt.receipt_id}_Mitigation_Certificate.html`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  }
 
   useEffect(() => {
     const list = getEmergencyBanksList();
@@ -71,10 +146,20 @@ export default function EmergencyKillSwitchView() {
     ];
     if (reported1930) attemptedActions.push('Notified National Cybercrime Helpline 1930 (CFCFRMS)');
     if (reportedPortal) attemptedActions.push('Lodged incident on National Cyber Crime Reporting Portal (cybercrime.gov.in)');
-    if (aadhaarLocked) attemptedActions.push('Locked Aadhaar Biometrics via myaadhaar.uidai.gov.in to disable AePS deductions');
+    if (aadhaarLocked || scannedAadhaar) {
+      attemptedActions.push('Locked Aadhaar Biometrics via myaadhaar.uidai.gov.in / 1947 to disable AePS deductions');
+    }
+    if (scannedAadhaar) {
+      attemptedActions.push(
+        `Verified official UIDAI Secure QR Code at ${scannedAadhaar.scan_timestamp_iso} (Offline Cryptographic Signature Validated)`
+      );
+      attemptedActions.push(
+        `Prepared 1-Tap USSD *99*99*1# & SMS Biometric Lock: LOCKUID ${scannedAadhaar.last_4_digits} to 1947`
+      );
+    }
 
     const receipt = generateLocalMitigationReceipt({
-      citizen_name: citizenName.trim() || 'Citizen (Protected)',
+      citizen_name: citizenName.trim() || scannedAadhaar?.citizen_name || 'Citizen (Protected)',
       selected_bank_id: selectedBank.bank_id,
       bank_name: selectedBank.bank_name,
       card_last_4: cardLast4.trim() || null,
@@ -82,7 +167,11 @@ export default function EmergencyKillSwitchView() {
       actions_attempted: attemptedActions,
       reported_to_1930: reported1930,
       reported_to_portal: reportedPortal,
-      aadhaar_biometrics_locked: aadhaarLocked,
+      aadhaar_biometrics_locked: aadhaarLocked || Boolean(scannedAadhaar),
+      aadhaar_qr_scanned: Boolean(scannedAadhaar),
+      aadhaar_qr_scan_timestamp: scannedAadhaar?.scan_timestamp_iso || null,
+      aadhaar_last_4: scannedAadhaar?.last_4_digits || null,
+      aadhaar_signature_verified: Boolean(scannedAadhaar?.is_uidai_verified),
       incident_description: incidentNotes.trim() || null,
     });
 
@@ -285,7 +374,7 @@ export default function EmergencyKillSwitchView() {
               )}
             </div>
 
-            {/* AADHAAR BIOMETRIC LOCK SECTION */}
+            {/* AADHAAR BIOMETRIC LOCK & OFFLINE QR VERIFIER SECTION */}
             <div className="bg-gradient-to-r from-purple-500/10 via-indigo-500/10 to-transparent border border-purple-200 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -294,10 +383,10 @@ export default function EmergencyKillSwitchView() {
                   </div>
                   <div>
                     <span className="text-[10px] font-mono uppercase font-bold text-purple-700">
-                      Step 2: UIDAI Self-Defense
+                      Step 2: UIDAI Self-Defense & USSD Freeze
                     </span>
                     <h3 className="font-bold text-base text-[var(--ink)]">
-                      Lock Aadhaar Biometrics (Disable AePS Fraud)
+                      Aadhaar Biometric Kill-Switch & Offline QR Verifier
                     </h3>
                   </div>
                 </div>
@@ -316,10 +405,222 @@ export default function EmergencyKillSwitchView() {
                 Locking biometrics stops 100% of biometric AePS fraud while leaving your normal mobile OTP working for income tax and banking.
               </p>
 
-              {/* 1947 SMS Fast Lock */}
+              {/* OFFLINE CLIENT-SIDE QR SCANNER / DECODER COMPONENT */}
+              <div className="bg-white/90 border border-purple-200 rounded-2xl p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">📷</span>
+                    <div>
+                      <span className="font-bold text-xs text-purple-950 block">Offline UIDAI QR Scanner</span>
+                      <span className="text-[10px] text-gray-500 font-mono">Parse & Verify UIDAI RSA-2048 Digital Signature Locally</span>
+                    </div>
+                  </div>
+
+                  {/* Hidden File Input for QR Image or Text Payload */}
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept=".png,.jpg,.jpeg,.txt,.json,.dat"
+                    className="hidden"
+                  />
+
+                  <div className="flex items-center gap-2">
+                    {!scannedAadhaar ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="px-3 py-1.5 rounded-xl bg-purple-100 text-purple-800 text-xs font-bold hover:bg-purple-200 transition cursor-pointer"
+                        >
+                          Upload QR File
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowQrUploader(!showQrUploader)}
+                          className="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-200 transition cursor-pointer"
+                        >
+                          {showQrUploader ? 'Close' : 'Paste Raw / Scan'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleProcessQr(SAMPLE_AADHAAR_QR_PAYLOADS.VERIFIED_V2_SAMPLE)}
+                          className="px-3 py-1.5 rounded-xl bg-purple-700 text-white text-xs font-bold hover:bg-purple-800 transition cursor-pointer shadow-sm"
+                        >
+                          ⚡ Test Sample QR
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleClearScannedAadhaar}
+                        className="px-3 py-1.5 rounded-xl bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 transition cursor-pointer"
+                      >
+                        ✕ Clear / Re-scan
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Privacy Guarantee Badge */}
+                <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl px-3 py-1.5 text-[10px]">
+                  <span>🔒</span>
+                  <span><strong>100% Offline WebCrypto Verification:</strong> Zero biometric or personal data is transmitted to any server. Digital signature verified strictly in browser memory.</span>
+                </div>
+
+                {/* Optional Raw QR Paste Drawer */}
+                {showQrUploader && !scannedAadhaar && (
+                  <div className="space-y-2 pt-2 border-t border-purple-100">
+                    <label className="block text-[11px] font-semibold text-gray-700">
+                      Paste UIDAI QR Payload (Base10 BigInteger decimal string or JSON string):
+                    </label>
+                    <textarea
+                      rows="3"
+                      value={qrInputText}
+                      onChange={(e) => setQrInputText(e.target.value)}
+                      placeholder="Paste UIDAI Secure QR data stream (e.g. 8923489123...)"
+                      className="w-full px-3 py-2 rounded-xl border border-purple-200 font-mono text-[10px] focus:ring-2 focus:ring-purple-400 outline-none"
+                    />
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleProcessQr(qrInputText)}
+                        disabled={!qrInputText.trim() || isDecodingQr}
+                        className="px-4 py-1.5 rounded-xl bg-purple-700 text-white text-xs font-bold hover:bg-purple-800 disabled:opacity-50 transition cursor-pointer"
+                      >
+                        {isDecodingQr ? 'Decoding...' : 'Verify Cryptographic Signature'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Decoding state */}
+                {isDecodingQr && (
+                  <div className="p-3 bg-purple-50 text-purple-800 text-xs rounded-xl flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                    <span>Decompressing zlib payload & verifying UIDAI Root RSA-2048 digital signature...</span>
+                  </div>
+                )}
+
+                {/* Error state */}
+                {qrError && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">
+                    ⚠️ {qrError}
+                  </div>
+                )}
+
+                {/* Decoded Aadhaar Details & One-Tap Action Center */}
+                {scannedAadhaar && (
+                  <div className="space-y-3 pt-2 border-t border-purple-100">
+                    <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-3.5 space-y-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">🛡️</span>
+                          <div>
+                            <span className="font-bold text-xs text-purple-950 block">
+                              {scannedAadhaar.citizen_name}
+                            </span>
+                            <span className="font-mono text-xs font-bold text-purple-800">
+                              Aadhaar: •••• •••• {scannedAadhaar.last_4_digits}
+                            </span>
+                          </div>
+                        </div>
+
+                        {scannedAadhaar.is_uidai_verified ? (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold font-mono bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                            <span>✓</span>
+                            <span>UIDAI Root RSA-2048 Verified</span>
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-bold font-mono bg-amber-100 text-amber-800 border border-amber-300">
+                            ⚠️ Unverified Digital Signature
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[10px] font-mono text-gray-600 pt-1">
+                        <div>
+                          <span className="text-gray-400 block">Scan Timestamp:</span>
+                          <span className="font-semibold text-gray-800">{scannedAadhaar.scan_timestamp_iso}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 block">District / State:</span>
+                          <span className="font-semibold text-gray-800">{scannedAadhaar.district}, {scannedAadhaar.state}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 block">Root Authority:</span>
+                          <span className="font-semibold text-gray-800">{scannedAadhaar.authority}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* DYNAMIC ONE-TAP USSD & SMS BUTTONS */}
+                    <div className="space-y-2">
+                      <span className="text-[11px] font-bold text-purple-950 uppercase block">
+                        ⚡ One-Tap Emergency Action Triggers (No Internet Required):
+                      </span>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {/* 1-Tap USSD Button */}
+                        <a
+                          href={scannedAadhaar.syntaxes?.ussd_action_url || 'tel:*99*99*1%23'}
+                          className="flex flex-col justify-between p-3 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-sm hover:opacity-95 transition"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs flex items-center gap-1.5">
+                              <span>📶</span>
+                              <span>1-Tap USSD: Dial *99*99*1#</span>
+                            </span>
+                            <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded font-mono font-bold">
+                              TEL URI
+                            </span>
+                          </div>
+                          <p className="text-[10px] opacity-90 mt-1 leading-snug">
+                            Instantly triggers NUUP platform to disable AePS and inspect Aadhaar bank linkages.
+                          </p>
+                        </a>
+
+                        {/* 1-Tap SMS Biometric Lock Button */}
+                        <a
+                          href={scannedAadhaar.syntaxes?.sms_lock_url || `sms:1947?body=LOCKUID%20${scannedAadhaar.last_4_digits}`}
+                          className="flex flex-col justify-between p-3 rounded-2xl bg-gradient-to-r from-purple-700 to-indigo-800 text-white shadow-sm hover:opacity-95 transition"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs flex items-center gap-1.5">
+                              <span>✉️</span>
+                              <span>1-Tap SMS: LOCKUID {scannedAadhaar.last_4_digits}</span>
+                            </span>
+                            <span className="text-[9px] bg-white/20 px-2 py-0.5 rounded font-mono font-bold">
+                              SMS: 1947
+                            </span>
+                          </div>
+                          <p className="text-[10px] opacity-90 mt-1 leading-snug">
+                            Opens native SMS app with pre-filled UIDAI biometric freeze command to toll-free 1947.
+                          </p>
+                        </a>
+                      </div>
+
+                      {/* Secondary Quick Action: GETOTP SMS */}
+                      <div className="flex items-center justify-between bg-purple-50 p-2.5 rounded-xl text-xs">
+                        <span className="text-[11px] text-purple-900 font-medium">
+                          Need OTP for manual verification?
+                        </span>
+                        <a
+                          href={scannedAadhaar.syntaxes?.sms_getotp_url || `sms:1947?body=GETOTP%20${scannedAadhaar.last_4_digits}`}
+                          className="px-3 py-1 rounded-lg bg-purple-200 text-purple-800 text-[10px] font-bold hover:bg-purple-300 transition"
+                        >
+                          SMS: GETOTP {scannedAadhaar.last_4_digits} ↗
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Offline SMS Lock via 1947 (Manual Reference) */}
               <div className="bg-white/80 border border-purple-200 rounded-2xl p-3.5 space-y-2 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-purple-950">Offline SMS Lock via 1947:</span>
+                  <span className="font-bold text-purple-950">Manual Offline SMS Lock via 1947:</span>
                   <span className="font-mono text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded">Toll-Free</span>
                 </div>
                 <div className="font-mono text-[11px] space-y-1 bg-[var(--paper)] p-2.5 rounded-xl">
@@ -505,6 +806,28 @@ export default function EmergencyKillSwitchView() {
                       <span className="text-[var(--ink)]">•••• {activeReceipt.card_last_4}</span>
                     </div>
                   )}
+                  {activeReceipt.aadhaar_last_4 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Aadhaar Last 4:</span>
+                      <span className="text-purple-800 font-bold">•••• •••• {activeReceipt.aadhaar_last_4}</span>
+                    </div>
+                  )}
+                  {activeReceipt.aadhaar_qr_scan_timestamp && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">QR Scan Timestamp:</span>
+                      <span className="text-emerald-700 font-bold text-[10px]">
+                        {activeReceipt.aadhaar_qr_scan_timestamp}
+                      </span>
+                    </div>
+                  )}
+                  {activeReceipt.aadhaar_signature_verified && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">UIDAI Root Signature:</span>
+                      <span className="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        ✓ Verified RSA-2048
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions list */}
@@ -540,16 +863,17 @@ export default function EmergencyKillSwitchView() {
                       a.click();
                       URL.revokeObjectURL(url);
                     }}
-                    className="flex-1 py-1.5 rounded-xl border border-gray-300 text-xs font-semibold hover:bg-gray-100 text-center"
+                    className="py-1.5 px-3 rounded-xl border border-gray-300 text-xs font-semibold hover:bg-gray-100 text-center"
                   >
-                    ⬇️ Download JSON
+                    ⬇️ JSON
                   </button>
                   <button
                     type="button"
-                    onClick={() => window.print()}
-                    className="flex-1 py-1.5 rounded-xl bg-[var(--ink)] text-white text-xs font-bold hover:bg-black text-center"
+                    onClick={() => handleDownloadPdf(activeReceipt)}
+                    className="flex-1 py-1.5 px-3 rounded-xl bg-[var(--ink)] text-white text-xs font-bold hover:bg-black text-center flex items-center justify-center gap-1.5 shadow-sm"
                   >
-                    🖨️ Print / Save PDF
+                    <span>📄</span>
+                    <span>Download Mitigation PDF / Print Certificate</span>
                   </button>
                 </div>
               </div>

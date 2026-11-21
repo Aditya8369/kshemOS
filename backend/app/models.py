@@ -265,6 +265,10 @@ class Incident(BaseModel):
         1, description="Monotonic server version used for optimistic concurrency"
     )
     notes: List[str] = Field(default_factory=list)
+    voiceprint_match: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Acoustic syndicate voiceprint fingerprint match details and repeat caller cross-links",
+    )
 
 
 class IncidentCreateRequest(BaseModel):
@@ -721,6 +725,17 @@ class RFC3161Token(BaseModel):
     timestamp_iso: Optional[str] = None
     digest_algorithm: Optional[str] = None
     digest_value: Optional[str] = None
+    der_token_b64: Optional[str] = None
+    certificate_serial: Optional[str] = None
+    certificate_thumbprint_sha256: Optional[str] = None
+    certificate_chain: Optional[list[str]] = None
+    is_hardware_tsa: Optional[bool] = True
+    is_offline_fallback: Optional[bool] = False
+    fallback_ed25519_signature: Optional[str] = None
+    fallback_officer_station_key: Optional[str] = None
+    queued_for_tsa_uplink: Optional[bool] = False
+    verification_status: Optional[str] = "VERIFIED_VALID"
+    clock_drift_ms: Optional[float] = None
 
     @model_validator(mode="before")
     @classmethod
@@ -2142,6 +2157,53 @@ class SyndicateStatsResponse(BaseModel):
     upi_handles_indexed: int
 
 
+# ---------- Inbound Telegram/WhatsApp Webhook Models ----------
+
+class InboundWebhookPayload(BaseModel):
+    platform: Optional[str] = Field("telegram", description="Source messaging gateway: telegram, whatsapp, or generic")
+    sender_id: Optional[str] = Field(None, description="Sender handle, phone number, or bot id")
+    sender_name: Optional[str] = Field(None, description="Sender display name")
+    chat_id: Optional[str] = Field(None, description="Chat or channel identifier")
+    message_text: Optional[str] = Field(None, description="Message body or forwarded text")
+    raw_payload: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Raw gateway JSON payload")
+    apk_base64: Optional[str] = Field(None, description="Optional attached APK bytes encoded in Base64")
+    apk_filename: Optional[str] = Field(None, description="Optional APK file name")
+    officer_badge: Optional[str] = Field("GATEWAY-AUTO", description="Ingesting gateway or monitoring officer badge")
+    region: Optional[str] = Field("Central Zone", description="Jurisdiction zone or Unspecified")
+
+
+class HarvestedEntities(BaseModel):
+    telegram_handles: List[str] = Field(default_factory=list)
+    telegram_links: List[str] = Field(default_factory=list)
+    whatsapp_links: List[str] = Field(default_factory=list)
+    crypto_wallets: List[ExtractedCryptoWallet] = Field(default_factory=list)
+    ifsc_codes: List[str] = Field(default_factory=list)
+    bank_accounts: List[str] = Field(default_factory=list)
+    upi_ids: List[str] = Field(default_factory=list)
+    phone_numbers: List[ExtractedPhoneNumber] = Field(default_factory=list)
+    apk_urls: List[str] = Field(default_factory=list)
+    syndicate_keywords: List[str] = Field(default_factory=list)
+
+
+class InboundWebhookResponse(BaseModel):
+    status: str
+    webhook_event_id: str
+    platform: str
+    incident_id: str
+    incident_title: str
+    category: str = "Syndicate Recruitment Scam"
+    severity: str  # "critical", "high", "medium", "low"
+    sync_status: str = Field("synced", alias="_syncStatus")
+    risk_score: float
+    harvested_entities: HarvestedEntities
+    apk_triage: Optional[Dict[str, Any]] = None
+    cluster_id: Optional[str] = None
+    created_at: str
+    summary: str
+
+    model_config = {"populate_by_name": True}
+
+
 # ---------- Automated UPI Mule Account Freeze Dispatch via CFCFRMS / 1930 ----------
 
 class ParseFinancialEntitiesRequest(BaseModel):
@@ -2402,6 +2464,10 @@ class EmergencyMitigationReceiptRequest(BaseModel):
     reported_to_1930: bool = False
     reported_to_portal: bool = False
     aadhaar_biometrics_locked: bool = False
+    aadhaar_qr_scanned: bool = False
+    aadhaar_qr_scan_timestamp: Optional[str] = None
+    aadhaar_last_4: Optional[str] = None
+    aadhaar_signature_verified: bool = False
     incident_description: Optional[str] = None
 
 
@@ -2419,6 +2485,10 @@ class EmergencyMitigationReceipt(BaseModel):
     reported_to_1930: bool
     reported_to_portal: bool
     aadhaar_biometrics_locked: bool
+    aadhaar_qr_scanned: bool = False
+    aadhaar_qr_scan_timestamp: Optional[str] = None
+    aadhaar_last_4: Optional[str] = None
+    aadhaar_signature_verified: bool = False
     rbi_circular_reference: str
     legal_disclaimer: str
     sha256_hash: str
@@ -2541,10 +2611,38 @@ class MoneyTrailAnalysisResponse(BaseModel):
     section_102_schedule: Section102CrPCScheduleResponse
 
 
+class Section102PdfGenerationRequest(BaseModel):
+    case_id: str = "CASE-2026-DELHI-01"
+    officer_name: str = "Inspector R. K. Sharma"
+    officer_badge_id: str = "CYBER-INV-7749"
+    police_station: str = "Special Cyber Crime Police Station, Central District, Delhi"
+    fir_number: Optional[str] = None
+    court_jurisdiction: Optional[str] = None
+    complaint_ref: Optional[str] = None
+    account_ids: Optional[List[str]] = None
+    accounts: Optional[List[Dict[str, Any]]] = None
+    resting_balance_threshold_inr: Optional[float] = None
+
+
+class Section102NoticePreviewResponse(BaseModel):
+    requisition_id: str
+    case_id: str
+    fir_number: str
+    court_jurisdiction: str
+    complaint_ref: str
+    statutory_authority: str
+    issuing_authority: Dict[str, str]
+    issued_at_iso: str
+    accounts: List[Dict[str, Any]]
+    total_freeze_amount_inr: float
+    sha256_digest: str
+
+
 # ---------- Automated Registrar & Hosting Abuse Takedown Notice Generator ----------
 
 TakedownLifecycleStatus = Literal[
     "DISPATCHED",
+    "API_DISPATCHED",
     "UNDER_REVIEW",
     "DOMAIN_SUSPENDED",
     "SLA_BREACHED",
@@ -2612,6 +2710,7 @@ class TakedownNoticeRecord(BaseModel):
     vaulted_evidence_id: Optional[str] = None
     officer_badge_id: str
     officer_name: str
+    api_dispatch_results: List[Dict[str, Any]] = Field(default_factory=list, description="Automated API dispatch receipts from Cloudflare, Safe Browsing, and CERT-In")
 
 
 class TakedownNoticeStatusUpdateRequest(BaseModel):
@@ -2745,6 +2844,26 @@ class VoiceDeepfakeStatsResponse(BaseModel):
     natural_confirmed: int
     vault_evidence_preserved: int
 
+
+class VoiceDeepfakeStreamTelemetry(BaseModel):
+    type: str = "telemetry"
+    timestamp_ms: int
+    buffer_duration_sec: float
+    synthetic_prob: float = Field(..., ge=0.0, le=1.0)
+    jitter_pct: float
+    shimmer_pct: float
+    hnr_db: float
+    spectral_flux: float
+    jitter_anomaly: bool
+    shimmer_anomaly: bool
+    hnr_anomaly: bool
+    vocoder_footprint_score: float
+    risk_band: Literal["LOW_PROBABILITY_NATURAL", "SUSPICIOUS", "HIGH_PROBABILITY_SYNTHETIC"]
+    tactical_guidance: str
+    tactical_checklist: List[str] = Field(default_factory=list)
+    amplitudes: List[float] = Field(default_factory=list)
+    is_silent_frame: bool = False
+
 # ---------- Privacy-Preserving Regional Threat Broadcast & Micro-Advisory Mesh ----------
 
 MicroAdvisoryStatus = Literal[
@@ -2783,6 +2902,10 @@ class RegionalMicroAdvisory(BaseModel):
     target_pincodes: List[str]
     geofence_center: Dict[str, float] = Field(default_factory=lambda: {"lat": 28.6920, "lng": 77.2150})
     geofence_radius_km: float = Field(default=5.5)
+    polygon_geojson: Optional[Dict[str, Any]] = None
+    estimated_citizen_reach: Optional[int] = None
+    multi_zone_summary: Optional[str] = None
+    affected_police_circles: List[str] = Field(default_factory=list)
     complaints_aggregated: int
     window_hours: float
     status: MicroAdvisoryStatus = Field(default="DRAFTED_PENDING_APPROVAL")
@@ -2793,6 +2916,24 @@ class RegionalMicroAdvisory(BaseModel):
     approved_by_commander_badge: Optional[str] = None
     approved_by_commander_name: Optional[str] = None
     active_portal_banner_text: str
+
+
+class AdvisoryBroadcastCreateRequest(BaseModel):
+    title: str = Field(..., description="Advisory bulletin headline title")
+    summary_guidance: str = Field(..., description="Actionable plain-language citizen guidance")
+    scam_category: str = Field(default="electricity_bill_scam", description="Category of scam threat")
+    urgency: Literal["low", "medium", "high", "critical"] = "high"
+    polygon_geojson: Dict[str, Any] = Field(
+        ...,
+        description="GeoJSON Polygon geometry object with vertex coordinates [[[lng, lat], ...]]",
+    )
+    target_pincodes: Optional[List[str]] = Field(default=None, description="Affected postal pin codes")
+    police_station_circle: Optional[str] = Field(default=None, description="Primary police station circle")
+    service_area_id: Optional[str] = Field(default=None, description="Primary service area ID")
+    estimated_citizen_reach: Optional[int] = Field(default=None, description="Estimated citizen population reach")
+    action_checklist: List[str] = Field(default_factory=list)
+    commander_badge_id: Optional[str] = Field(default="CMD-DELHI-NORTH")
+    commander_name: Optional[str] = Field(default="DCP Vikram Malhotra")
 
 
 class CommanderSignoffRequest(BaseModel):
@@ -2828,6 +2969,28 @@ class StageUniformInspectionRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class MoireClusterBox(BaseModel):
+    x: float
+    y: float
+    width: float
+    height: float
+    intensity: float = 0.0
+    pattern_type: str = "lcd_lattice"
+
+
+class ScreenRecaptureAnalysis(BaseModel):
+    screen_recapture_detected: bool = False
+    moire_frequency_index: float = Field(default=0.0, ge=0.0, le=1.0)
+    edge_glint_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    confidence_rating: str = Field(default="AUTHENTIC_DIRECT_CAPTURE", description="HIGH_PROBABILITY_RECAPTURE, SUSPICIOUS_RECAPTURE, AUTHENTIC_DIRECT_CAPTURE")
+    bezel_detected: bool = False
+    specular_glare_detected: bool = False
+    color_temp_discrepancy: float = 0.0
+    recapture_explanation: str = "Lattice pattern detected: This image appears to be a photograph of an LCD monitor."
+    moire_clusters: List[MoireClusterBox] = Field(default_factory=list)
+    heatmap_grid: List[List[float]] = Field(default_factory=list)
+
+
 class StageUniformInspectionResponse(BaseModel):
     inspection_id: str
     image_sha256: str
@@ -2840,6 +3003,11 @@ class StageUniformInspectionResponse(BaseModel):
     statutory_bnss_notice: str
     vaulted_evidence_id: Optional[str] = None
     inspection_timestamp: int
+    screen_recapture_detected: bool = False
+    moire_frequency_index: float = Field(default=0.0, ge=0.0, le=1.0)
+    edge_glint_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    confidence_rating: str = Field(default="AUTHENTIC_DIRECT_CAPTURE", description="HIGH_PROBABILITY_RECAPTURE, SUSPICIOUS_RECAPTURE, AUTHENTIC_DIRECT_CAPTURE")
+    screen_recapture_analysis: Optional[ScreenRecaptureAnalysis] = None
 
 
 class UniformRegulationRecord(BaseModel):
@@ -2890,3 +3058,72 @@ class VoiceHotlineStatsResponse(BaseModel):
     reassurances_delivered: int
     sms_dispatched_count: int
     triage_incidents_logged: int
+
+
+# ---------- Acoustic Syndicate Voiceprint Fingerprinting ----------
+
+class VoiceprintFeatureExtractRequest(BaseModel):
+    audio_base64: Optional[str] = Field(None, description="Base64 encoded raw audio bytes (WAV/PCM)")
+    sample_rate: int = Field(16000, description="Audio sampling rate in Hz")
+    caller_phone: Optional[str] = Field(None, description="Reported incoming caller phone number")
+    incident_id: Optional[str] = Field(None, description="Associated KshemOS incident ID")
+    speaker_tag: Optional[str] = Field(None, description="Optional label for speaker segment")
+
+
+class VoiceprintFeatureExtractResponse(BaseModel):
+    embedding_dimension: int = 128
+    acoustic_embedding: List[float] = Field(..., description="128-dimensional unit-normalized acoustic vector")
+    l2_norm: float = Field(..., description="L2 norm of embedding (1.0 = normalized)")
+    duration_seconds: float
+    spectral_centroid_hz: float
+    pitch_f0_median_hz: float
+    jitter_local: float
+    shimmer_local: float
+
+
+class VoiceprintMatchCase(BaseModel):
+    case_id: str
+    title: str
+    date: str
+    region: Optional[str] = None
+    similarity_score: float
+
+
+class VoiceprintMatchRequest(BaseModel):
+    embedding: Optional[List[float]] = Field(None, description="128-dimensional acoustic embedding")
+    audio_base64: Optional[str] = Field(None, description="Optional raw audio to extract embedding on the fly")
+    caller_phone: Optional[str] = Field(None, description="Caller phone number to register or link")
+    incident_id: Optional[str] = Field(None, description="Current incident ID")
+    bank_account: Optional[str] = Field(None, description="Mule account demanded during call")
+    location: Optional[str] = Field(None, description="Caller origin/geography claim")
+    threshold: float = Field(0.85, description="Cosine similarity threshold for SAME_CALLER_SYNDICATE_OPERATOR")
+
+
+class VoiceprintMatchResponse(BaseModel):
+    is_repeat_speaker: bool
+    classification: Literal["SAME_CALLER_SYNDICATE_OPERATOR", "NEW_UNINDEXED_SPEAKER"]
+    match_confidence: float
+    cosine_similarity: float
+    threshold_applied: float
+    matched_voiceprint_id: Optional[str] = None
+    speaker_alias: Optional[str] = None
+    syndicate_cluster_id: Optional[str] = None
+    past_cases: List[VoiceprintMatchCase] = Field(default_factory=list)
+    linked_phone_numbers: List[str] = Field(default_factory=list)
+    linked_accounts: List[str] = Field(default_factory=list)
+    linked_locations: List[str] = Field(default_factory=list)
+    fraud_graph_cluster_node: Optional[str] = None
+    officer_alert_summary: str
+
+
+class VoiceClusterNodeResponse(BaseModel):
+    cluster_id: str
+    cluster_node_id: str
+    speaker_alias: str
+    classification: str
+    match_confidence: float
+    linked_phones: List[str]
+    linked_accounts: List[str]
+    linked_locations: List[str]
+    incident_ids: List[str]
+

@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock,
   Inbox,
+  Radio,
   Send,
   Siren,
   X,
@@ -533,6 +534,68 @@ export default function IncidentDetail({
         <div className="rounded-lg bg-emerald-950/20 border border-emerald-800/40 px-3 py-1.5 text-[11px] text-emerald-400/90 flex items-center gap-1.5 font-mono">
           <CheckCircle2 size={12} className="text-emerald-400 shrink-0" aria-hidden="true" />
           <span>Confirmed by Headquarters server · Version v{incident.version || 1} acknowledged</span>
+        </div>
+      )}
+
+      {/* Repeat Syndicate Speaker Forensic Alert */}
+      {incident.voiceprint_match?.is_repeat_speaker && (
+        <div
+          role="region"
+          aria-label="Repeat syndicate speaker biometric alert"
+          className="rounded-xl border border-purple-500/70 bg-purple-950/40 p-3.5 my-3 text-xs space-y-2.5"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-purple-300 font-semibold">
+              <Radio size={15} className="text-purple-400 animate-pulse" aria-hidden="true" />
+              <span className="text-sm font-bold tracking-wide">Repeat Syndicate Speaker Detected</span>
+            </div>
+            <span className="text-[10px] font-mono bg-purple-500/20 text-purple-200 px-2 py-0.5 rounded-full border border-purple-500/50 font-bold uppercase">
+              {Math.round((incident.voiceprint_match.match_confidence || 0.85) * 100)}% Biometric Match
+            </span>
+          </div>
+
+          <p className="text-purple-200/90 leading-relaxed">
+            {incident.voiceprint_match.alert_summary || (
+              <>
+                Acoustic voiceprint analysis matched serial operator{' '}
+                <strong className="text-white">{incident.voiceprint_match.speaker_alias}</strong>{' '}
+                at {Math.round((incident.voiceprint_match.match_confidence || 0.85) * 100)}% cosine similarity.
+              </>
+            )}
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
+            <div className="p-2 rounded-lg bg-[var(--ink)]/80 border border-purple-500/30">
+              <span className="text-[var(--mist)] block text-[10px] uppercase font-sans">Voice Cluster ID:</span>
+              <span className="text-purple-300 font-semibold">{incident.voiceprint_match.cluster_id || 'VOICE_CLUSTER'}</span>
+            </div>
+            <div className="p-2 rounded-lg bg-[var(--ink)]/80 border border-purple-500/30">
+              <span className="text-[var(--mist)] block text-[10px] uppercase font-sans">Linked Past Cases:</span>
+              <span className="text-purple-300 font-semibold">
+                {incident.voiceprint_match.linked_cases && incident.voiceprint_match.linked_cases.length > 0
+                  ? incident.voiceprint_match.linked_cases.join(', ')
+                  : incident.voiceprint_match.past_cases?.map((c) => c.case_id || c).join(', ') || 'None'}
+              </span>
+            </div>
+            {incident.voiceprint_match.linked_phones && incident.voiceprint_match.linked_phones.length > 0 && (
+              <div className="p-2 rounded-lg bg-[var(--ink)]/80 border border-purple-500/30">
+                <span className="text-[var(--mist)] block text-[10px] uppercase font-sans">Caller Phone Lines:</span>
+                <span className="text-purple-300">{incident.voiceprint_match.linked_phones.join(', ')}</span>
+              </div>
+            )}
+            {incident.voiceprint_match.linked_accounts && incident.voiceprint_match.linked_accounts.length > 0 && (
+              <div className="p-2 rounded-lg bg-[var(--ink)]/80 border border-purple-500/30">
+                <span className="text-[var(--mist)] block text-[10px] uppercase font-sans">Mule Disbursal Accounts:</span>
+                <span className="text-purple-300">{incident.voiceprint_match.linked_accounts.join(', ')}</span>
+              </div>
+            )}
+            {incident.voiceprint_match.linked_locations && incident.voiceprint_match.linked_locations.length > 0 && (
+              <div className="p-2 rounded-lg bg-[var(--ink)]/80 border border-purple-500/30 sm:col-span-2">
+                <span className="text-[var(--mist)] block text-[10px] uppercase font-sans">Geographic Hotspots:</span>
+                <span className="text-purple-300">{incident.voiceprint_match.linked_locations.join(' · ')}</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

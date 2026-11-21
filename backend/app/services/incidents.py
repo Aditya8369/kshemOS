@@ -36,12 +36,31 @@ _staffing: dict[str, int] = {region: 0 for region in REGIONS}
 
 _SAMPLE_EVIDENCE_INCIDENTS = (
     {
+        "id": "INC-0001",
+        "report_id": "CASE-2026-DELHI-01",
+        "title": "Digital Arrest Extortion Scheme - Fake CBI/Police Video Warrant",
+        "description": "Victim coerced during 6-hour video interrogation by scammer posing as DCP Rathore claiming seizure of narcotics in parcel.",
+        "category": "digital_arrest",
+        "region": "Central Zone",
+        "severity": "critical",
+    },
+    {
+        "id": "INC-0002",
+        "report_id": "CASE-2026-DELHI-02",
+        "title": "SBI NetBanking Credential Phishing & KYC Smishing",
+        "description": "SMS smishing targeting senior citizens with fake YONO APK download links and live OTP exfiltration.",
+        "category": "scam_call",
+        "region": "East Zone",
+        "severity": "high",
+    },
+    {
         "id": "INC-EVIDENCE-DELHI-01",
         "report_id": "CASE-2026-DELHI-01",
         "title": "Delhi digital arrest and financial fraud evidence",
         "description": "Investigation of digital arrest impersonation and related financial fraud.",
         "category": "digital_arrest",
         "region": "Central Zone",
+        "severity": "critical",
     },
     {
         "id": "INC-EVIDENCE-NCR-02",
@@ -50,6 +69,7 @@ _SAMPLE_EVIDENCE_INCIDENTS = (
         "description": "Investigation of counterfeit currency seized during a field operation.",
         "category": "counterfeit_currency",
         "region": "North Zone",
+        "severity": "high",
     },
 )
 
@@ -62,21 +82,29 @@ def seed_sample_evidence_incidents() -> None:
     now = _now_ms()
     with _lock:
         for sample in _SAMPLE_EVIDENCE_INCIDENTS:
+            v_alert = None
+            try:
+                from app.services import voice_fingerprint
+                v_alert = voice_fingerprint.get_incident_voiceprint_alert(sample["id"])
+            except Exception:
+                pass
+
             _incidents.setdefault(
                 sample["id"],
                 {
                     **sample,
-                    "severity": "medium",
+                    "severity": sample.get("severity", "medium"),
                     "previous_severity": None,
                     "status": "in_progress",
-                    "assigned_to": None,
-                    "linked_account": None,
-                    "opened_at": now,
+                    "assigned_to": "INSP-VERMA-771" if "0001" in sample["id"] else None,
+                    "linked_account": "ACC-1002" if "delhi" in sample["id"].lower() or "0001" in sample["id"] else None,
+                    "opened_at": now - 7200000,
                     "first_response_at": None,
                     "resolved_at": None,
                     "updated_at": now,
                     "version": 1,
                     "notes": [],
+                    "voiceprint_match": v_alert,
                 },
             )
 
@@ -693,6 +721,19 @@ def get_feed() -> dict[str, Any]:
         }
 
     with _lock:
+        enriched_incidents = []
+        for incident in _incidents.values():
+            item = dict(incident)
+            if not item.get("voiceprint_match"):
+                try:
+                    from app.services import voice_fingerprint
+                    v_match = voice_fingerprint.get_incident_voiceprint_alert(item["id"])
+                    if v_match:
+                        item["voiceprint_match"] = v_match
+                except Exception:
+                    pass
+            enriched_incidents.append(item)
+
         return {
             "regions": list(REGIONS),
             "staffing": [
@@ -702,9 +743,7 @@ def get_feed() -> dict[str, Any]:
                 }
                 for region in REGIONS
             ],
-            "incidents": [
-                dict(incident) for incident in _incidents.values()
-            ],
+            "incidents": enriched_incidents,
         }
 
 

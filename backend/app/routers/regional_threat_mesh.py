@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Path
 
 from app.models import (
+    AdvisoryBroadcastCreateRequest,
     CitizenMeshAdvisoryQuery,
     CommanderSignoffRequest,
     RegionalMicroAdvisory,
@@ -65,6 +66,78 @@ def get_micro_advisory_endpoint(
     if not adv:
         raise HTTPException(status_code=404, detail=f"Micro-advisory {advisory_id} not found.")
     return adv
+
+
+@router.post("/broadcast-advisories", response_model=RegionalMicroAdvisory)
+def create_broadcast_advisory_endpoint(
+    payload: AdvisoryBroadcastCreateRequest,
+):
+    """
+    Accepts GeoJSON polygon coordinates in AdvisoryBroadcastCreateRequest,
+    validates vertex limits (min 3, max 500 vertices) and coordinate bounds,
+    and drafts a multi-zone micro-advisory targeting affected postal sectors.
+    """
+    polygon = payload.polygon_geojson
+    if not isinstance(polygon, dict) or polygon.get("type") != "Polygon":
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid GeoJSON geometry: 'type' must be 'Polygon'.",
+        )
+
+    coords = polygon.get("coordinates")
+    if not coords or not isinstance(coords, list):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid GeoJSON: 'coordinates' array required.",
+        )
+
+    ring = coords[0] if isinstance(coords[0], list) and len(coords[0]) > 0 and isinstance(coords[0][0], (list, tuple)) else coords
+
+    # Distinct vertex count check
+    vertex_count = len(ring)
+    if vertex_count >= 4 and ring[0] == ring[-1]:
+        distinct_count = vertex_count - 1
+    else:
+        distinct_count = vertex_count
+
+    if distinct_count < 3:
+        raise HTTPException(
+            status_code=400,
+            detail="Polygon boundary must contain at least 3 distinct vertices.",
+        )
+
+    if distinct_count > 500:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Polygon exceeds maximum allowed vertex limit of 500 (has {distinct_count} vertices).",
+        )
+
+    # Validate coordinate values
+    for pt in ring:
+        if not isinstance(pt, (list, tuple)) or len(pt) < 2:
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid coordinate element format in polygon. Expected [lng, lat].",
+            )
+        try:
+            lng, lat = float(pt[0]), float(pt[1])
+        except (ValueError, TypeError):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid numeric coordinate value in polygon: {pt}",
+            )
+        if not (-180.0 <= lng <= 180.0 and -90.0 <= lat <= 90.0):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Coordinate [{lng}, {lat}] is out of geographic bounds (lng must be [-180, 180], lat must be [-90, 90]).",
+            )
+
+    try:
+        return regional_threat_mesh.create_polygon_broadcast_advisory(payload)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create broadcast advisory: {str(e)}")
 
 
 @router.post("/advisories/{advisory_id}/signoff", response_model=RegionalMicroAdvisory)

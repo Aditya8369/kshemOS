@@ -414,6 +414,48 @@ export class MoneyTrailStore {
     return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
   }
 
+  generateSection102RequisitionData(caseId = 'CASE-2026-DELHI-01', accountIds = null, officerInfo = {}) {
+    const analysis = this.getAnalysis(caseId);
+    const schedule = this.getSection102Schedule(caseId);
+    const selectedSet = accountIds && accountIds.length > 0 ? new Set(accountIds) : null;
+
+    const items = schedule.items.filter((it) => !selectedSet || selectedSet.has(it.beneficiary_account));
+    const totalResting = items.reduce((sum, it) => sum + (it.seized_amount_resting_inr || 0), 0);
+
+    const cleanCase = caseId || 'CASE-2026-DELHI-01';
+    return {
+      requisition_id: `REQ-SEC102-${cleanCase.replace('CASE-', '')}-${Date.now()}`,
+      case_id: cleanCase,
+      fir_number: officerInfo.fir_number || `FIR-2026-${cleanCase.replace('CASE-', '')}-CYBER`,
+      court_jurisdiction:
+        officerInfo.court_jurisdiction ||
+        'IN THE COURT OF CHIEF METROPOLITAN MAGISTRATE / SPECIAL CYBER JUDGE, TIS HAZARI COURTS, DELHI',
+      complaint_ref: officerInfo.complaint_ref || `1930-NCR-${cleanCase.replace('CASE-', '')}`,
+      statutory_authority:
+        'Section 102 Cr.P.C. / Section 106 BNSS 2023 (Read with Section 91 Cr.P.C. / Section 94 BNSS)',
+      issuing_authority: {
+        officer_name: officerInfo.officer_name || 'Inspector R. K. Sharma',
+        officer_badge_id: officerInfo.officer_badge_id || 'CYBER-INV-7749',
+        police_station:
+          officerInfo.police_station || 'Special Cyber Crime Police Station, Central District, Delhi',
+      },
+      issued_at_iso: new Date().toISOString(),
+      accounts: items.map((it, idx) => ({
+        schedule_index: idx + 1,
+        account_id: it.beneficiary_account,
+        bank_name: it.bank_name,
+        ifsc_code: it.ifsc_code,
+        resting_balance: it.seized_amount_resting_inr,
+        total_inflow: it.total_fraud_received_inr,
+        utr_references: it.utr_references,
+        freeze_priority: it.freeze_mandate_priority,
+        is_mule_hub: it.freeze_mandate_priority === 'TIER_1_CRITICAL_RESTING',
+      })),
+      total_freeze_amount_inr: totalResting,
+      sha256_digest: 'd8e4f5a32b1c67890efab123456789abcdef0123456789abcdef0123456789ab',
+    };
+  }
+
   subscribe(listener) {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);

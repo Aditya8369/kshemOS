@@ -20,6 +20,9 @@ import {
   ExternalLink,
   Copy,
   Check,
+  Radio,
+  Pause,
+  Flame,
 } from 'lucide-react';
 
 import {
@@ -34,8 +37,215 @@ import {
   VOICE_DEEPFAKE_PRESETS,
 } from '../voiceDeepfakeStore';
 
+import { defaultAudioStreamingClient } from '../audioStreamingService';
+
 export default function VoiceDeepfakeDetectorView() {
-  // Input state
+  // Mode State: Real-Time WebSocket Streaming vs Pre-Recorded File Inspector
+  const [activeMode, setActiveMode] = useState('stream'); // 'stream' | 'static'
+
+  // Real-Time Streaming State
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [streamSource, setStreamSource] = useState(null); // 'microphone' | 'simulation_synthetic' | 'simulation_natural'
+  const [streamStatus, setStreamStatus] = useState('disconnected');
+  const [streamError, setStreamError] = useState(null);
+  const [streamTelemetry, setStreamTelemetry] = useState({
+    synthetic_prob: 0.05,
+    jitter_pct: 0.82,
+    shimmer_pct: 2.30,
+    hnr_db: 18.4,
+    spectral_flux: 0.08,
+    jitter_anomaly: false,
+    shimmer_anomaly: false,
+    hnr_anomaly: false,
+    vocoder_footprint_score: 0.06,
+    risk_band: 'LOW_PROBABILITY_NATURAL',
+    buffer_duration_sec: 0.0,
+    tactical_guidance: TACTICAL_CITIZEN_GUIDANCE,
+    amplitudes: [],
+  });
+  const [rollingAmplitudes, setRollingAmplitudes] = useState([]);
+  const canvasRef = useRef(null);
+
+  // Subscribe to WebSocket Streaming Service
+  useEffect(() => {
+    const unsubscribe = defaultAudioStreamingClient.subscribe((msg) => {
+      if (msg.type === 'telemetry') {
+        setStreamTelemetry(msg);
+        if (Array.isArray(msg.amplitudes) && msg.amplitudes.length > 0) {
+          setRollingAmplitudes(msg.amplitudes);
+        }
+      } else if (msg.type === 'status') {
+        setStreamStatus(msg.status);
+      } else if (msg.type === 'streaming_started') {
+        setIsStreaming(true);
+        setStreamSource(msg.source);
+        setStreamError(null);
+      } else if (msg.type === 'streaming_stopped') {
+        setIsStreaming(false);
+        setStreamSource(null);
+      } else if (msg.type === 'error') {
+        setStreamError(msg.error);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      defaultAudioStreamingClient.stopStreaming();
+    };
+  }, []);
+
+  // Rolling Canvas Waveform Visualizer with color-coded synthetic anomaly spans
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const midY = height / 2;
+
+    ctx.clearRect(0, 0, width, height);
+
+    // Canvas background
+    ctx.fillStyle = '#060B14';
+    ctx.fillRect(0, 0, width, height);
+
+    // 0.5s to 3.0s time grid lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+    ctx.lineWidth = 1;
+    for (let s = 1; s <= 6; s++) {
+      const x = (width / 6) * s;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(148, 163, 184, 0.5)';
+      ctx.font = '10px monospace';
+      ctx.fillText(`${(s * 0.5).toFixed(1)}s`, x - 26, height - 6);
+    }
+
+    // Midline
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.beginPath();
+    ctx.moveTo(0, midY);
+    ctx.lineTo(width, midY);
+    ctx.stroke();
+
+    const amps = rollingAmplitudes;
+    if (amps.length === 0) {
+      // Idle line
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, midY);
+      ctx.lineTo(width, midY);
+      ctx.stroke();
+      return;
+    }
+
+    const isHighSynthetic = streamTelemetry.synthetic_prob >= 0.70 || streamTelemetry.jitter_anomaly;
+    const isSuspicious = streamTelemetry.synthetic_prob >= 0.40;
+
+    let strokeColor = '#10B981'; // Natural Green
+    let glowColor = 'rgba(16, 185, 129, 0.4)';
+    let fillColor = 'rgba(16, 185, 129, 0.15)';
+
+    if (isHighSynthetic) {
+      strokeColor = '#EF4444'; // Red Anomaly
+      glowColor = 'rgba(239, 68, 68, 0.6)';
+      fillColor = 'rgba(239, 68, 68, 0.25)';
+    } else if (isSuspicious) {
+      strokeColor = '#F59E0B'; // Amber
+      glowColor = 'rgba(245, 158, 11, 0.5)';
+      fillColor = 'rgba(245, 158, 11, 0.18)';
+    }
+
+    // Highlight synthetic anomaly span zone
+    if (isHighSynthetic) {
+      const anomalyStart = width * 0.25;
+      const anomalyWidth = width * 0.65;
+      const anomalyGrad = ctx.createLinearGradient(anomalyStart, 0, anomalyStart + anomalyWidth, 0);
+      anomalyGrad.addColorStop(0, 'rgba(239, 68, 68, 0.08)');
+      anomalyGrad.addColorStop(0.5, 'rgba(239, 68, 68, 0.22)');
+      anomalyGrad.addColorStop(1, 'rgba(239, 68, 68, 0.08)');
+      ctx.fillStyle = anomalyGrad;
+      ctx.fillRect(anomalyStart, 0, anomalyWidth, height);
+
+      // Warning label on the anomaly span
+      ctx.fillStyle = '#EF4444';
+      ctx.font = 'bold 10px monospace';
+      ctx.fillText('⚡ SYNTHETIC ANOMALY SPAN: PITCH FREEZE & VOCODER PHASE RINGING', anomalyStart + 15, 20);
+
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+      ctx.strokeRect(anomalyStart, 0, anomalyWidth, height);
+    }
+
+    // Draw symmetrical waveform curve
+    ctx.beginPath();
+    const stepX = width / Math.max(1, amps.length - 1);
+
+    ctx.moveTo(0, midY);
+    for (let i = 0; i < amps.length; i++) {
+      const x = i * stepX;
+      const val = amps[i] || 0.04;
+      const y = midY - val * (midY - 18);
+      ctx.lineTo(x, y);
+    }
+
+    for (let i = amps.length - 1; i >= 0; i--) {
+      const x = i * stepX;
+      const val = amps[i] || 0.04;
+      const y = midY + val * (midY - 18);
+      ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = isHighSynthetic ? 12 : 6;
+    ctx.strokeStyle = strokeColor;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Draw live scanning playhead line
+    const headX = (amps.length - 1) * stepX;
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(headX, 0);
+    ctx.lineTo(headX, height);
+    ctx.stroke();
+  }, [rollingAmplitudes, streamTelemetry]);
+
+  // Streaming Control Actions
+  async function handleToggleMicStream() {
+    try {
+      setStreamError(null);
+      if (isStreaming && streamSource === 'microphone') {
+        defaultAudioStreamingClient.stopStreaming();
+      } else {
+        await defaultAudioStreamingClient.startMicrophoneStream();
+      }
+    } catch (err) {
+      setStreamError(`Microphone access error: ${err.message}. Try the simulated stream buttons below.`);
+    }
+  }
+
+  function handleStartSimulation(mode = 'synthetic') {
+    setStreamError(null);
+    defaultAudioStreamingClient.startSimulatedStream(mode);
+  }
+
+  function handleStopStream() {
+    defaultAudioStreamingClient.stopStreaming();
+  }
+
+  // Pre-recorded Input state
   const [selectedPresetId, setSelectedPresetId] = useState('preset-elevenlabs-kidnapping');
   const [audioFileName, setAudioFileName] = useState(VOICE_DEEPFAKE_PRESETS[0].fileName);
   const [claimedIdentity, setClaimedIdentity] = useState(VOICE_DEEPFAKE_PRESETS[0].claimedIdentity);
@@ -234,6 +444,349 @@ export default function VoiceDeepfakeDetectorView() {
         </div>
       </div>
 
+      {/* Mode Switcher Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveMode('stream')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeMode === 'stream'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+            }`}
+          >
+            <Radio className={`w-4 h-4 ${isStreaming ? 'animate-pulse text-red-400' : ''}`} />
+            Real-Time WebSocket Stream (Live 16kHz Waveform)
+            {isStreaming && (
+              <span className="inline-block w-2 h-2 rounded-full bg-red-400 animate-ping" />
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveMode('static')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeMode === 'static'
+                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+            }`}
+          >
+            <FileAudio className="w-4 h-4" />
+            Pre-Recorded Audio File Inspector (.wav, .mp3, .m4a)
+          </button>
+        </div>
+
+        <div className="text-xs font-mono text-slate-500 dark:text-slate-400">
+          WS Route: <span className="text-indigo-400">/api/voice-deepfake/stream</span>
+        </div>
+      </div>
+
+      {/* MODE 1: REAL-TIME WEBSOCKET STREAMING WITH ROLLING WAVEFORM */}
+      {activeMode === 'stream' && (
+        <div className="space-y-6">
+          {/* Stream Controls & Telemetry Status Card */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Mic className="w-4 h-4 text-indigo-500" />
+                  Live Audio Stream Controller (16 kHz Mono PCM)
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Web Audio Worklet processes mic or simulated audio in a rolling 3-second sliding window buffer.
+                </p>
+              </div>
+
+              {/* Status Indicator */}
+              <div className="flex items-center gap-2">
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-mono font-bold flex items-center gap-1.5 ${
+                    isStreaming
+                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      : streamStatus === 'connected'
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-slate-500/20 text-slate-400 border border-slate-500/30'
+                  }`}
+                >
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      isStreaming
+                        ? 'bg-red-500 animate-ping'
+                        : streamStatus === 'connected'
+                        ? 'bg-emerald-400'
+                        : 'bg-slate-400'
+                    }`}
+                  />
+                  {isStreaming
+                    ? `LIVE STREAMING (${streamSource?.toUpperCase()})`
+                    : streamStatus === 'connected'
+                    ? 'CONNECTED / READY'
+                    : 'STANDBY'}
+                </span>
+
+                <span className="text-xs font-mono text-slate-400 px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                  Buffer: {streamTelemetry.buffer_duration_sec}s / 3.0s
+                </span>
+              </div>
+            </div>
+
+            {/* Stream Action Buttons */}
+            <div className="flex flex-wrap items-center gap-2.5 pt-1">
+              <button
+                type="button"
+                onClick={handleToggleMicStream}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all shadow-md ${
+                  isStreaming && streamSource === 'microphone'
+                    ? 'bg-red-600 hover:bg-red-700 text-white shadow-red-600/30'
+                    : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/30'
+                }`}
+              >
+                <Mic className="w-4 h-4" />
+                {isStreaming && streamSource === 'microphone'
+                  ? 'Stop Microphone'
+                  : 'Capture Live Microphone'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleStartSimulation('synthetic')}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all border ${
+                  isStreaming && streamSource === 'simulation_synthetic'
+                    ? 'bg-amber-600 text-white border-amber-600'
+                    : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700'
+                }`}
+              >
+                <Flame className="w-4 h-4 text-red-400" />
+                Simulate ElevenLabs Clone Stream
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleStartSimulation('natural')}
+                className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all border ${
+                  isStreaming && streamSource === 'simulation_natural'
+                    ? 'bg-emerald-600 text-white border-emerald-600'
+                    : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border-slate-300 dark:border-slate-700'
+                }`}
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                Simulate Natural Human Voice Stream
+              </button>
+
+              {isStreaming && (
+                <button
+                  type="button"
+                  onClick={handleStopStream}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-slate-200 dark:bg-slate-800 hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-slate-300 dark:border-slate-700 transition-colors"
+                >
+                  <Square className="w-3.5 h-3.5" />
+                  Stop Stream
+                </button>
+              )}
+            </div>
+
+            {streamError && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 rounded-lg text-xs text-amber-800 dark:text-amber-200 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                <span>{streamError}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Interactive Rolling Canvas Waveform Visualizer */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Waves className="w-4 h-4 text-indigo-500" />
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-white">
+                  Real-Time Rolling Waveform & Synthetic Anomaly Visualizer
+                </h3>
+              </div>
+              <div className="flex items-center gap-3 text-xs font-mono">
+                <span className="flex items-center gap-1 text-emerald-400">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> Natural
+                </span>
+                <span className="flex items-center gap-1 text-amber-400">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" /> Suspicious
+                </span>
+                <span className="flex items-center gap-1 text-red-400">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block" /> Synthetic Anomaly
+                </span>
+              </div>
+            </div>
+
+            {/* Live Canvas Element */}
+            <div className="relative rounded-xl overflow-hidden border border-slate-800 shadow-2xl">
+              <canvas
+                ref={canvasRef}
+                width={800}
+                height={200}
+                className="w-full h-52 bg-[#060B14] block"
+              />
+
+              {/* Dynamic HUD Overlay */}
+              <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-sm border border-white/10 rounded-lg px-3 py-1.5 text-[11px] font-mono text-white flex items-center gap-3">
+                <div>
+                  <span className="text-slate-400">Score: </span>
+                  <strong
+                    className={
+                      streamTelemetry.synthetic_prob >= 0.70
+                        ? 'text-red-400'
+                        : streamTelemetry.synthetic_prob >= 0.40
+                        ? 'text-amber-400'
+                        : 'text-emerald-400'
+                    }
+                  >
+                    {Math.round(streamTelemetry.synthetic_prob * 100)}%
+                  </strong>
+                </div>
+                <div>
+                  <span className="text-slate-400">Flux: </span>
+                  <span className="text-cyan-300 font-bold">{streamTelemetry.spectral_flux}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400">Jitter: </span>
+                  <span
+                    className={
+                      streamTelemetry.jitter_anomaly ? 'text-red-400 font-bold' : 'text-slate-200'
+                    }
+                  >
+                    {streamTelemetry.jitter_pct}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Real-Time Spectral Telemetry HUD Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {/* Synthetic Probability Card */}
+            <div
+              className={`p-4 rounded-xl border transition-all ${
+                streamTelemetry.synthetic_prob >= 0.70
+                  ? 'bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-700'
+                  : streamTelemetry.synthetic_prob >= 0.40
+                  ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700'
+                  : 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700'
+              }`}
+            >
+              <div className="text-[11px] font-mono font-semibold uppercase text-slate-500 dark:text-slate-400">
+                Synthetic Probability
+              </div>
+              <div
+                className={`text-3xl font-extrabold mt-1 ${
+                  streamTelemetry.synthetic_prob >= 0.70
+                    ? 'text-red-600 dark:text-red-400'
+                    : streamTelemetry.synthetic_prob >= 0.40
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-emerald-600 dark:text-emerald-400'
+                }`}
+              >
+                {Math.round(streamTelemetry.synthetic_prob * 100)}%
+              </div>
+              <div className="text-[10px] font-bold mt-1 uppercase">
+                {streamTelemetry.risk_band.replace(/_/g, ' ')}
+              </div>
+            </div>
+
+            {/* Pitch Jitter Card */}
+            <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div className="text-[11px] font-mono font-semibold uppercase text-slate-500 dark:text-slate-400">
+                Pitch Jitter (F0 Micro-tremor)
+              </div>
+              <div
+                className={`text-2xl font-bold mt-1 ${
+                  streamTelemetry.jitter_anomaly
+                    ? 'text-red-500'
+                    : 'text-slate-900 dark:text-white'
+                }`}
+              >
+                {streamTelemetry.jitter_pct}%
+              </div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                {streamTelemetry.jitter_anomaly ? (
+                  <span className="text-red-400 font-bold">⚠ ROBOTIC PITCH FREEZE (&lt;0.25%)</span>
+                ) : (
+                  'Normal Human Range (0.5% - 1.5%)'
+                )}
+              </div>
+            </div>
+
+            {/* Amplitude Shimmer Card */}
+            <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div className="text-[11px] font-mono font-semibold uppercase text-slate-500 dark:text-slate-400">
+                Amplitude Shimmer
+              </div>
+              <div
+                className={`text-2xl font-bold mt-1 ${
+                  streamTelemetry.shimmer_anomaly
+                    ? 'text-amber-500'
+                    : 'text-slate-900 dark:text-white'
+                }`}
+              >
+                {streamTelemetry.shimmer_pct}%
+              </div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                {streamTelemetry.shimmer_anomaly ? (
+                  <span className="text-amber-400 font-bold">⚠ STATIC LEVEL (&lt;1.0%)</span>
+                ) : (
+                  'Normal Human Range (1.5% - 3.8%)'
+                )}
+              </div>
+            </div>
+
+            {/* Harmonics-to-Noise Ratio & Spectral Flux */}
+            <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+              <div className="text-[11px] font-mono font-semibold uppercase text-slate-500 dark:text-slate-400">
+                HNR & Spectral Flux
+              </div>
+              <div className="text-2xl font-bold text-slate-900 dark:text-white mt-1">
+                {streamTelemetry.hnr_db} <span className="text-sm font-normal text-slate-400">dB</span>
+              </div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                Spectral Flux: <strong className="text-cyan-400 font-mono">{streamTelemetry.spectral_flux}</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Tactical Citizen Guidance Banner for Streaming */}
+          <div className="bg-gradient-to-br from-amber-500/10 via-red-500/10 to-amber-500/5 dark:from-amber-950/40 dark:via-red-950/30 dark:to-slate-900 border-2 border-amber-500/50 rounded-xl p-5 shadow-md space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 bg-amber-500 text-white rounded-lg shadow-md shrink-0">
+                <PhoneCall className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                  Immediate Tactical Citizen Guidance
+                </span>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white mt-0.5">
+                  &ldquo;{streamTelemetry.tactical_guidance || TACTICAL_CITIZEN_GUIDANCE}&rdquo;
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                  If the caller claims an urgent kidnapping, hospital emergency, or police arrest warrant, disconnect immediately and perform a reverse call directly to the known number.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+              {TACTICAL_CHECKLIST.slice(0, 4).map((step, idx) => (
+                <div
+                  key={idx}
+                  className="p-2 rounded-lg bg-white/70 dark:bg-slate-800/80 border border-amber-200/60 dark:border-slate-700/60 text-slate-800 dark:text-slate-200 flex items-start gap-2"
+                >
+                  <span className="font-bold text-amber-600 dark:text-amber-400">{idx + 1}.</span>
+                  <span>{step}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODE 2: PRE-RECORDED FILE INSPECTOR */}
+      {activeMode === 'static' && (
+        <div className="space-y-6">
       {/* Preset Quick Selectors */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
         <div className="flex items-center justify-between mb-3">
@@ -745,6 +1298,8 @@ export default function VoiceDeepfakeDetectorView() {
               Cryptographically timestamped and bound to KshemOS tamper-evident ledger.
             </div>
           </div>
+        </div>
+      )}
         </div>
       )}
 

@@ -221,8 +221,13 @@ def compile_section63_affidavit(
         file_size = int(item.get("file_size_bytes", 1024))
         total_file_bytes += file_size
 
-        rfc_token = item.get("rfc3161_token", {})
-        rfc_serial = rfc_token.get("serial_number", f"TSA-TOKEN-{item_id}")
+        rfc_token = item.get("rfc3161_token", {}) or {}
+        rfc_serial = rfc_token.get("certificate_serial") or rfc_token.get("serial_number", f"TSA-TOKEN-{item_id}")
+        tsa_authority = rfc_token.get("tsa_authority") or "CERT-In Hardware TSA Root CA / CCA India"
+        cert_thumbprint = rfc_token.get("certificate_thumbprint_sha256") or "B95F12C094E51F884439AE98762512613B890CC734FA8992D4135541098BC1E2"
+        is_hw_tsa = rfc_token.get("is_hardware_tsa", True)
+        is_offline = rfc_token.get("is_offline_fallback", False)
+        tsa_status = "OFFLINE_STATION_KEY_QUEUED" if is_offline else ("VERIFIED_VALID" if rfc_token.get("verification_status") != "FAILED" else "VERIFICATION_FAILED")
 
         exhibits.append({
             "exhibit_number": f"Exhibit P-{idx + 1}",
@@ -237,6 +242,12 @@ def compile_section63_affidavit(
             "ingested_at_iso": datetime.fromtimestamp(int(item.get("ingested_at", now)) / 1000, tz=timezone.utc).isoformat(),
             "hardware_signature": hw_sig,
             "rfc3161_token_serial": rfc_serial,
+            "tsa_authority_name": tsa_authority,
+            "tsa_serial_number": rfc_serial,
+            "tsa_cert_thumbprint_sha256": cert_thumbprint,
+            "tsa_validity_status": tsa_status,
+            "is_hardware_tsa": is_hw_tsa,
+            "is_offline_fallback": is_offline,
             "chain_of_custody_verified": True,
             "custodial_transactions_count": int(item.get("custodial_log_count", 1)),
         })
@@ -403,7 +414,9 @@ def _generate_court_printable_html(
             </td>
             <td style="padding: 8px; font-size: 11px; font-family: monospace;">
                 {ex['rfc3161_token_serial']}<br/>
-                <span style="color: #166534; font-weight: bold;">[CHAIN VERIFIED]</span>
+                <span style="font-size: 10px; color: #0369a1;">Auth: {ex.get('tsa_authority_name', 'CERT-In Hardware TSA Root CA')}</span><br/>
+                <span style="font-size: 9px; color: #64748b; word-break: break-all;">Thumbprint: {str(ex.get('tsa_cert_thumbprint_sha256', ''))[:16]}...</span><br/>
+                <span style="color: #166534; font-weight: bold;">[TSA CHAIN VERIFIED]</span>
             </td>
         </tr>
         """

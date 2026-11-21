@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Radio,
   ShieldAlert,
@@ -19,12 +19,19 @@ import {
   Sliders,
   Eye,
   Megaphone,
+  PenTool,
+  RotateCcw,
+  Maximize2,
+  Layers,
+  Sparkles,
+  Target,
 } from 'lucide-react';
 
 import {
   fetchThreatClustersApi,
   fetchMicroAdvisoriesApi,
   commanderSignoffApi,
+  createBroadcastAdvisoryApi,
   queryPortalMeshBannerApi,
   fetchThreatMeshStatsApi,
 } from '../api';
@@ -34,6 +41,80 @@ import {
   SCAM_DEFINITIONS,
   ingestReportLocally,
 } from '../regionalThreatMeshStore';
+
+import {
+  PIN_CENTROIDS,
+  STATION_CIRCLES,
+  matchPolygonToJurisdictions,
+  validatePolygonVertices,
+  booleanPointInPolygon,
+} from '../spatialPolygonMatcher';
+
+const MAP_CONFIG = {
+  minLat: 28.50,
+  maxLat: 28.73,
+  minLng: 77.09,
+  maxLng: 77.29,
+  width: 760,
+  height: 440,
+};
+
+function project(lat, lng) {
+  const x = ((lng - MAP_CONFIG.minLng) / (MAP_CONFIG.maxLng - MAP_CONFIG.minLng)) * MAP_CONFIG.width;
+  const y = ((MAP_CONFIG.maxLat - lat) / (MAP_CONFIG.maxLat - MAP_CONFIG.minLat)) * MAP_CONFIG.height;
+  return {
+    x: Math.max(15, Math.min(MAP_CONFIG.width - 15, x)),
+    y: Math.max(15, Math.min(MAP_CONFIG.height - 15, y)),
+  };
+}
+
+function unproject(x, y) {
+  const lng = MAP_CONFIG.minLng + (x / MAP_CONFIG.width) * (MAP_CONFIG.maxLng - MAP_CONFIG.minLng);
+  const lat = MAP_CONFIG.maxLat - (y / MAP_CONFIG.height) * (MAP_CONFIG.maxLat - MAP_CONFIG.minLat);
+  return {
+    lat: Number(lat.toFixed(5)),
+    lng: Number(lng.toFixed(5)),
+  };
+}
+
+const PRESET_GEOMETRIES = {
+  north_central: {
+    name: 'North-Central Corridor (4 Sectors / 2 Circles)',
+    points: [
+      { lat: 28.718, lng: 77.185 },
+      { lat: 28.712, lng: 77.245 },
+      { lat: 28.625, lng: 77.248 },
+      { lat: 28.628, lng: 77.180 },
+    ],
+  },
+  south_tech: {
+    name: 'South Financial & Tech Ring',
+    points: [
+      { lat: 28.555, lng: 77.195 },
+      { lat: 28.555, lng: 77.265 },
+      { lat: 28.515, lng: 77.265 },
+      { lat: 28.515, lng: 77.195 },
+    ],
+  },
+  west_district: {
+    name: 'West Commercial Hub',
+    points: [
+      { lat: 28.685, lng: 77.110 },
+      { lat: 28.685, lng: 77.155 },
+      { lat: 28.640, lng: 77.155 },
+      { lat: 28.640, lng: 77.110 },
+    ],
+  },
+  quad_metro: {
+    name: 'All Metropolitan Hubs',
+    points: [
+      { lat: 28.720, lng: 77.100 },
+      { lat: 28.720, lng: 77.280 },
+      { lat: 28.510, lng: 77.280 },
+      { lat: 28.510, lng: 77.100 },
+    ],
+  },
+};
 
 export default function RegionalThreatMeshView() {
   // Data state
@@ -65,9 +146,218 @@ export default function RegionalThreatMeshView() {
   const [ingesting, setIngesting] = useState(false);
   const [ingestSuccess, setIngestSuccess] = useState(null);
 
+  // Interactive Dynamic Geofence Polygon Builder state
+  const svgRef = useRef(null);
+  const [drawingMode, setDrawingMode] = useState('polygon'); // 'polygon' | 'freehand'
+  const [polygonPoints, setPolygonPoints] = useState(PRESET_GEOMETRIES.north_central.points);
+  const [isPolygonClosed, setIsPolygonClosed] = useState(true);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [mousePos, setMousePos] = useState(null);
+  const [selectedPresetKey, setSelectedPresetKey] = useState('north_central');
+  const [spatialMatch, setSpatialMatch] = useState(() =>
+    matchPolygonToJurisdictions(PRESET_GEOMETRIES.north_central.points)
+  );
+
+  // Multi-Zone Advisory Broadcast Drafting
+  const [draftTitle, setDraftTitle] = useState(
+    'Notice: Fake electricity bill payment SMS active in North/Central corridor.'
+  );
+  const [draftGuidance, setDraftGuidance] = useState(
+    'Coordinated cyber fraud detected across dynamic geofenced jurisdiction boundary. Citizens must verify all electricity disconnection notices directly via official DISCOM app or helpline 19122 / 1930.'
+  );
+  const [draftScamCategory, setDraftScamCategory] = useState('electricity_bill_scam');
+  const [draftUrgency, setDraftUrgency] = useState('high');
+  const [submittingDraft, setSubmittingDraft] = useState(false);
+  const [draftFeedback, setDraftFeedback] = useState(null);
+
   useEffect(() => {
     loadData();
   }, []);
+
+  // Recalculate Point-in-Polygon intersections whenever polygon vertices change
+  useEffect(() => {
+    if (polygonPoints && polygonPoints.length >= 3) {
+      const match = matchPolygonToJurisdictions(polygonPoints);
+      setSpatialMatch(match);
+      if (match.postal_sector_count > 0) {
+        setDraftTitle(
+          `Notice: Cyber Threat Alert across ${match.postal_sector_count} postal sectors in ${
+            match.matched_circles[0] || 'Metropolitan Area'
+          }.`
+        );
+      }
+    } else {
+      setSpatialMatch(null);
+    }
+  }, [polygonPoints]);
+
+  function getSvgCoordinates(e) {
+    if (!svgRef.current) return null;
+    const rect = svgRef.current.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const x = (clientX - rect.left) * (MAP_CONFIG.width / rect.width);
+    const y = (clientY - rect.top) * (MAP_CONFIG.height / rect.height);
+    return {
+      x: Math.max(0, Math.min(MAP_CONFIG.width, x)),
+      y: Math.max(0, Math.min(MAP_CONFIG.height, y)),
+    };
+  }
+
+  function handleCanvasClick(e) {
+    if (drawingMode !== 'polygon') return;
+    const coords = getSvgCoordinates(e);
+    if (!coords) return;
+    const pt = unproject(coords.x, coords.y);
+
+    if (isPolygonClosed) {
+      // Start a fresh custom boundary
+      setPolygonPoints([pt]);
+      setIsPolygonClosed(false);
+      setSelectedPresetKey(null);
+      setDraftFeedback(null);
+      return;
+    }
+
+    // Check if clicked close to initial vertex to complete polygon
+    if (polygonPoints.length >= 3) {
+      const first = polygonPoints[0];
+      const firstSvg = project(first.lat, first.lng);
+      const dist = Math.hypot(firstSvg.x - coords.x, firstSvg.y - coords.y);
+      if (dist < 20) {
+        setIsPolygonClosed(true);
+        return;
+      }
+    }
+
+    if (polygonPoints.length < 500) {
+      setPolygonPoints((prev) => [...prev, pt]);
+    }
+  }
+
+  function handleCanvasMouseDown(e) {
+    if (drawingMode !== 'freehand') return;
+    const coords = getSvgCoordinates(e);
+    if (!coords) return;
+    const pt = unproject(coords.x, coords.y);
+    setIsDrawing(true);
+    setIsPolygonClosed(false);
+    setSelectedPresetKey(null);
+    setPolygonPoints([pt]);
+    setDraftFeedback(null);
+  }
+
+  function handleCanvasMouseMove(e) {
+    const coords = getSvgCoordinates(e);
+    if (!coords) return;
+    const geo = unproject(coords.x, coords.y);
+    setMousePos({ ...coords, ...geo });
+
+    if (drawingMode === 'freehand' && isDrawing) {
+      setPolygonPoints((prev) => {
+        if (!prev.length) return [geo];
+        const last = prev[prev.length - 1];
+        const lastSvg = project(last.lat, last.lng);
+        // Throttle vertices distance >= 12px to stay well within 500 vertex limit
+        if (Math.hypot(lastSvg.x - coords.x, lastSvg.y - coords.y) >= 12) {
+          if (prev.length < 480) {
+            return [...prev, geo];
+          }
+        }
+        return prev;
+      });
+    }
+  }
+
+  function handleCanvasMouseUp() {
+    if (drawingMode === 'freehand' && isDrawing) {
+      setIsDrawing(false);
+      if (polygonPoints.length >= 3) {
+        setIsPolygonClosed(true);
+      }
+    }
+  }
+
+  function handleClosePolygon() {
+    if (polygonPoints.length >= 3) {
+      setIsPolygonClosed(true);
+    }
+  }
+
+  function handleClearPolygon() {
+    setPolygonPoints([]);
+    setIsPolygonClosed(false);
+    setSpatialMatch(null);
+    setSelectedPresetKey(null);
+    setDraftFeedback(null);
+  }
+
+  function handleApplyPreset(key) {
+    if (PRESET_GEOMETRIES[key]) {
+      setPolygonPoints(PRESET_GEOMETRIES[key].points);
+      setIsPolygonClosed(true);
+      setSelectedPresetKey(key);
+      setDraftFeedback(null);
+    }
+  }
+
+  async function handleDraftAdvisorySubmit(e) {
+    e.preventDefault();
+    if (!polygonPoints || polygonPoints.length < 3) {
+      setDraftFeedback({
+        type: 'error',
+        message: 'Please sketch or select a geofence polygon with at least 3 vertices first.',
+      });
+      return;
+    }
+
+    const validation = validatePolygonVertices(polygonPoints);
+    if (!validation.valid) {
+      setDraftFeedback({ type: 'error', message: validation.error });
+      return;
+    }
+
+    setSubmittingDraft(true);
+    setDraftFeedback(null);
+    try {
+      const match = spatialMatch || matchPolygonToJurisdictions(polygonPoints);
+      const payload = {
+        title: draftTitle.trim() || 'Notice: Multi-Zone Cyber Threat Alert',
+        summary_guidance:
+          draftGuidance.trim() ||
+          'Coordinated cyber fraud detected across dynamic geofenced jurisdiction boundary.',
+        scam_category: draftScamCategory,
+        urgency: draftUrgency,
+        polygon_geojson: match.polygon_geojson,
+        target_pincodes: match.matched_pincodes,
+        police_station_circle: match.matched_circles[0] || 'Delhi Cyber Command',
+        service_area_id: match.matched_service_areas[0] || 'SA-NORTH-01',
+        estimated_citizen_reach: match.estimated_citizen_reach,
+        action_checklist: [
+          'Verify all claims through official portals or helpline 1930.',
+          'Under Indian law (BNSS), no authority demands fund transfer over phone or video.',
+          'Disconnect suspected extortion calls immediately and notify local police desk.',
+        ],
+        commander_badge_id: commanderBadge,
+        commander_name: commanderName,
+      };
+
+      const res = await createBroadcastAdvisoryApi(payload);
+      setDraftFeedback({
+        type: 'success',
+        message: `Draft Micro-Advisory ${res.advisory_id} successfully created! ${match.multi_zone_summary}. Available for Commander Sign-off below.`,
+      });
+      await loadData();
+      if (res.advisory_id) setSelectedAdvisoryId(res.advisory_id);
+    } catch (err) {
+      setDraftFeedback({
+        type: 'error',
+        message: err.message || 'Failed to submit broadcast advisory.',
+      });
+    } finally {
+      setSubmittingDraft(false);
+    }
+  }
 
   async function loadData() {
     try {
@@ -244,6 +534,497 @@ export default function RegionalThreatMeshView() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Interactive Dynamic Geofence Polygon Builder for Micro-Advisories */}
+      <div className="bg-white dark:bg-slate-900 border border-purple-200 dark:border-purple-900/60 rounded-xl p-5 shadow-sm space-y-4">
+        {/* Header & Tool Bar */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-200 dark:border-slate-800 pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400 border border-purple-400/30">
+                <PenTool className="w-4 h-4" />
+              </span>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                Interactive Dynamic Geofence Polygon Builder
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-700 uppercase">
+                  Spatial Engine
+                </span>
+              </h2>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Sketch freehand boundaries or click polygon vertices directly over the jurisdiction heat map. Intersects with station circles and PIN centroids to draft multi-zone micro-advisories.
+            </p>
+          </div>
+
+          {/* Canvas Drawing Controls & Mode Switch */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            {/* Mode Switcher */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+              <button
+                type="button"
+                onClick={() => setDrawingMode('polygon')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1 ${
+                  drawingMode === 'polygon'
+                    ? 'bg-purple-600 text-white shadow'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Target className="w-3.5 h-3.5" />
+                <span>Polygon (Click)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDrawingMode('freehand')}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-all flex items-center gap-1 ${
+                  drawingMode === 'freehand'
+                    ? 'bg-purple-600 text-white shadow'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <PenTool className="w-3.5 h-3.5" />
+                <span>Freehand (Drag)</span>
+              </button>
+            </div>
+
+            {/* Presets */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => handleApplyPreset('north_central')}
+                className={`px-2 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                  selectedPresetKey === 'north_central'
+                    ? 'border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                }`}
+              >
+                North-Central
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplyPreset('south_tech')}
+                className={`px-2 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                  selectedPresetKey === 'south_tech'
+                    ? 'border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                }`}
+              >
+                South Tech
+              </button>
+              <button
+                type="button"
+                onClick={() => handleApplyPreset('west_district')}
+                className={`px-2 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                  selectedPresetKey === 'west_district'
+                    ? 'border-purple-500 bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300'
+                }`}
+              >
+                West Hub
+              </button>
+            </div>
+
+            {/* Complete & Clear actions */}
+            {!isPolygonClosed && polygonPoints.length >= 3 && (
+              <button
+                type="button"
+                onClick={handleClosePolygon}
+                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition-all"
+              >
+                Complete Boundary
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleClearPolygon}
+              className="px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-red-500 hover:border-red-300 transition-all flex items-center gap-1"
+              title="Clear sketched polygon"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Clear</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Dynamic Multi-Zone Summary Banner (Auto-populated reach) */}
+        {spatialMatch && (
+          <div className="p-3.5 rounded-xl border border-purple-500/50 bg-gradient-to-r from-purple-950/40 via-slate-900 to-purple-950/30 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-500/20 rounded-lg text-purple-300 shrink-0">
+                <Compass className="w-5 h-5 animate-spin-slow" />
+              </div>
+              <div>
+                <div className="text-[10px] uppercase font-mono tracking-wider text-purple-300 font-bold flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-purple-400" />
+                  Spatial Point-in-Polygon Engine · Live Intersection
+                </div>
+                <div className="text-sm font-bold text-white mt-0.5">
+                  {spatialMatch.multi_zone_summary}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-purple-900/60 border border-purple-400/40 text-purple-200">
+                {polygonPoints.length} Vertices
+              </span>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-blue-900/60 border border-blue-400/40 text-blue-200">
+                {spatialMatch.postal_sector_count} Sectors
+              </span>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-emerald-900/60 border border-emerald-400/40 text-emerald-200">
+                {spatialMatch.police_circle_count} Police Circles
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* 2-Column Layout: Tactical GIS Canvas + Multi-Zone Advisory Form */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* Left Canvas (7 cols) */}
+          <div className="lg:col-span-7 bg-slate-950 rounded-xl border border-slate-800 p-2 shadow-inner relative overflow-hidden flex flex-col">
+            {/* Canvas Header Overlay */}
+            <div className="flex items-center justify-between px-3 py-1.5 text-[10px] font-mono text-slate-400 border-b border-slate-800/80 mb-1 z-10">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                Delhi-NCR Metropolitan Threat Grid (28.50°N - 28.73°N)
+              </span>
+              <span>
+                {mousePos ? `Lat: ${mousePos.lat.toFixed(4)}°N, Lng: ${mousePos.lng.toFixed(4)}°E` : 'Hover to inspect'}
+              </span>
+            </div>
+
+            {/* Interactive SVG Drawing Viewport */}
+            <div className="relative w-full aspect-[760/440] bg-slate-950 select-none cursor-crosshair">
+              <svg
+                ref={svgRef}
+                viewBox={`0 0 ${MAP_CONFIG.width} ${MAP_CONFIG.height}`}
+                className="w-full h-full"
+                onClick={handleCanvasClick}
+                onMouseDown={handleCanvasMouseDown}
+                onMouseMove={handleCanvasMouseMove}
+                onMouseUp={handleCanvasMouseUp}
+                onTouchStart={handleCanvasMouseDown}
+                onTouchMove={handleCanvasMouseMove}
+                onTouchEnd={handleCanvasMouseUp}
+              >
+                <defs>
+                  {/* Heat Map Radial Gradient */}
+                  <radialGradient id="heatGradient" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
+                    <stop offset="50%" stopColor="#f97316" stopOpacity="0.4" />
+                    <stop offset="100%" stopColor="#eab308" stopOpacity="0" />
+                  </radialGradient>
+                  {/* Subtle Grid Pattern */}
+                  <pattern id="gridPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1e293b" strokeWidth="0.8" strokeDasharray="2,2" />
+                  </pattern>
+                </defs>
+
+                {/* Grid Background */}
+                <rect width={MAP_CONFIG.width} height={MAP_CONFIG.height} fill="#090d16" />
+                <rect width={MAP_CONFIG.width} height={MAP_CONFIG.height} fill="url(#gridPattern)" />
+
+                {/* Coordinate Grid Axes & Labels */}
+                <line x1="0" y1="110" x2={MAP_CONFIG.width} y2="110" stroke="#1e293b" strokeWidth="1" />
+                <line x1="0" y1="220" x2={MAP_CONFIG.width} y2="220" stroke="#1e293b" strokeWidth="1" />
+                <line x1="0" y1="330" x2={MAP_CONFIG.width} y2="330" stroke="#1e293b" strokeWidth="1" />
+                <line x1="190" y1="0" x2="190" y2={MAP_CONFIG.height} stroke="#1e293b" strokeWidth="1" />
+                <line x1="380" y1="0" x2="380" y2={MAP_CONFIG.height} stroke="#1e293b" strokeWidth="1" />
+                <line x1="570" y1="0" x2="570" y2={MAP_CONFIG.height} stroke="#1e293b" strokeWidth="1" />
+
+                <text x="10" y="105" fill="#475569" fontSize="9" fontFamily="monospace">28.67°N (Tis Hazari)</text>
+                <text x="10" y="215" fill="#475569" fontSize="9" fontFamily="monospace">28.62°N (Central Desk)</text>
+                <text x="10" y="325" fill="#475569" fontSize="9" fontFamily="monospace">28.56°N (Saket Unit)</text>
+
+                {/* Active Threat Cluster Hotspots (Heat Map) */}
+                {clusters.map((c, i) => {
+                  const sa = SERVICE_AREAS_REGISTRY[c.service_area_id];
+                  if (!sa) return null;
+                  const center = project(sa.geofence_center.lat, sa.geofence_center.lng);
+                  return (
+                    <g key={c.cluster_id || i}>
+                      <circle
+                        cx={center.x}
+                        cy={center.y}
+                        r="60"
+                        fill="url(#heatGradient)"
+                        opacity="0.38"
+                      />
+                      <circle
+                        cx={center.x}
+                        cy={center.y}
+                        r="25"
+                        fill="url(#heatGradient)"
+                        opacity="0.6"
+                      />
+                    </g>
+                  );
+                })}
+
+                {/* Police Station Circles with Radius Boundary Rings */}
+                {STATION_CIRCLES.map((st) => {
+                  const pt = project(st.lat, st.lng);
+                  const rPx = st.radius_km * 7.2;
+                  const isIntersected = spatialMatch?.matched_circles?.includes(st.circle_name);
+                  return (
+                    <g key={st.circle_name}>
+                      <circle
+                        cx={pt.x}
+                        cy={pt.y}
+                        r={rPx}
+                        fill="none"
+                        stroke={isIntersected ? '#38bdf8' : '#334155'}
+                        strokeWidth={isIntersected ? '1.5' : '1'}
+                        strokeDasharray="4,4"
+                        opacity={isIntersected ? '0.75' : '0.35'}
+                      />
+                      <circle
+                        cx={pt.x}
+                        cy={pt.y}
+                        r="5.5"
+                        fill={isIntersected ? '#0284c7' : '#475569'}
+                        stroke="#ffffff"
+                        strokeWidth="1.5"
+                      />
+                      <text
+                        x={pt.x}
+                        y={pt.y - 10}
+                        textAnchor="middle"
+                        fill={isIntersected ? '#7dd3fc' : '#64748b'}
+                        fontSize="10"
+                        fontFamily="monospace"
+                        fontWeight="bold"
+                        className="select-none pointer-events-none"
+                      >
+                        {st.service_area_name.replace(' Cyber Command', '').replace(' Cyber Cell', '')}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {/* Postal PIN Centroids & Badges */}
+                {PIN_CENTROIDS.map((pin) => {
+                  const pt = project(pin.lat, pin.lng);
+                  const isInside = spatialMatch?.matched_pincodes?.includes(pin.pincode);
+                  return (
+                    <g key={pin.pincode}>
+                      <circle
+                        cx={pt.x}
+                        cy={pt.y}
+                        r={isInside ? '6' : '3.5'}
+                        fill={isInside ? '#a855f7' : '#475569'}
+                        stroke={isInside ? '#ffffff' : '#1e293b'}
+                        strokeWidth="1.5"
+                        className={isInside ? 'filter drop-shadow-[0_0_6px_rgba(168,85,247,0.8)]' : ''}
+                      />
+                      <text
+                        x={pt.x}
+                        y={pt.y + 13}
+                        textAnchor="middle"
+                        fill={isInside ? '#e9d5ff' : '#64748b'}
+                        fontSize="9.5"
+                        fontFamily="monospace"
+                        fontWeight={isInside ? 'bold' : 'normal'}
+                        className="select-none pointer-events-none"
+                      >
+                        {pin.pincode}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {/* Drawn Geofence Polygon */}
+                {polygonPoints && polygonPoints.length >= 2 && (
+                  <>
+                    <polygon
+                      points={polygonPoints
+                        .map((p) => {
+                          const pt = project(p.lat, p.lng);
+                          return `${pt.x},${pt.y}`;
+                        })
+                        .join(' ')}
+                      fill={isPolygonClosed ? 'rgba(168, 85, 247, 0.24)' : 'rgba(168, 85, 247, 0.08)'}
+                      stroke="#c084fc"
+                      strokeWidth="2.5"
+                      strokeDasharray={isPolygonClosed ? 'none' : '5,4'}
+                      className="filter drop-shadow-[0_0_10px_rgba(192,132,252,0.4)]"
+                    />
+
+                    {/* Polygon Vertices */}
+                    {polygonPoints.map((p, idx) => {
+                      const pt = project(p.lat, p.lng);
+                      const isFirst = idx === 0 && !isPolygonClosed && polygonPoints.length >= 3;
+                      return (
+                        <circle
+                          key={idx}
+                          cx={pt.x}
+                          cy={pt.y}
+                          r={isFirst ? '6.5' : '4'}
+                          fill={isFirst ? '#22c55e' : '#ffffff'}
+                          stroke="#9333ea"
+                          strokeWidth="2"
+                          className={isFirst ? 'animate-bounce cursor-pointer' : ''}
+                        />
+                      );
+                    })}
+
+                    {/* Active Dragging or Cursor Trailing Guide */}
+                    {!isPolygonClosed && mousePos && polygonPoints.length > 0 && (
+                      <line
+                        x1={project(polygonPoints[polygonPoints.length - 1].lat, polygonPoints[polygonPoints.length - 1].lng).x}
+                        y1={project(polygonPoints[polygonPoints.length - 1].lat, polygonPoints[polygonPoints.length - 1].lng).y}
+                        x2={mousePos.x}
+                        y2={mousePos.y}
+                        stroke="#c084fc"
+                        strokeWidth="1.5"
+                        strokeDasharray="4,4"
+                      />
+                    )}
+                  </>
+                )}
+              </svg>
+
+              {/* Instructions Pill */}
+              <div className="absolute bottom-2 left-2 px-2.5 py-1 bg-slate-900/90 border border-slate-700/80 rounded-md text-[10px] text-slate-300 font-mono flex items-center gap-1.5">
+                <Target className="w-3 h-3 text-purple-400" />
+                <span>
+                  {drawingMode === 'polygon'
+                    ? isPolygonClosed
+                      ? 'Click canvas to start new polygon'
+                      : 'Click to add vertex · Click green initial point to close'
+                    : 'Click & drag cursor across map to sketch custom boundary'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Spatial Match Breakdown & Multi-Zone Advisory Form (5 cols) */}
+          <div className="lg:col-span-5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-4 space-y-3.5 flex flex-col justify-between">
+            <div className="space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center justify-between">
+                <span>Draft Multi-Zone Micro-Advisory</span>
+                <span className="font-mono text-[10px] text-purple-600 dark:text-purple-400">
+                  {spatialMatch?.postal_sector_count || 0} Sectors Intersected
+                </span>
+              </h3>
+
+              {/* Form Inputs */}
+              <form onSubmit={handleDraftAdvisorySubmit} className="space-y-2.5 text-xs">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Advisory Headline Title
+                  </label>
+                  <input
+                    type="text"
+                    value={draftTitle}
+                    onChange={(e) => setDraftTitle(e.target.value)}
+                    placeholder="Headline title for citizen broadcast"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-medium"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Threat Scam Category
+                    </label>
+                    <select
+                      value={draftScamCategory}
+                      onChange={(e) => setDraftScamCategory(e.target.value)}
+                      className="w-full px-2 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs"
+                    >
+                      {Object.entries(SCAM_DEFINITIONS).map(([cat, def]) => (
+                        <option key={cat} value={cat}>
+                          {def.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Urgency Level
+                    </label>
+                    <select
+                      value={draftUrgency}
+                      onChange={(e) => setDraftUrgency(e.target.value)}
+                      className="w-full px-2 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs uppercase font-semibold"
+                    >
+                      <option value="high">High Urgency</option>
+                      <option value="critical">Critical (Immediate)</option>
+                      <option value="medium">Medium Priority</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Plain-Language Citizen Guidance
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={draftGuidance}
+                    onChange={(e) => setDraftGuidance(e.target.value)}
+                    placeholder="Instructions for citizens inside affected geofence perimeter"
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs leading-relaxed"
+                    required
+                  />
+                </div>
+
+                {/* Spatial Intersection Badges */}
+                <div className="p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500">Target Postal PINs:</span>
+                    <span className="font-mono font-bold text-slate-900 dark:text-white">
+                      {spatialMatch?.matched_pincodes?.length
+                        ? spatialMatch.matched_pincodes.join(', ')
+                        : 'No sectors inside polygon'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-500">Police Circles:</span>
+                    <span className="text-slate-900 dark:text-slate-200 truncate max-w-[200px]">
+                      {spatialMatch?.matched_circles?.join(', ') || 'None'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-100 dark:border-slate-800">
+                    <span className="text-slate-500">Est. Citizen Population:</span>
+                    <span className="font-bold text-purple-600 dark:text-purple-400">
+                      {spatialMatch ? spatialMatch.estimated_citizen_reach.toLocaleString('en-IN') : 0} citizens
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submittingDraft || !polygonPoints || polygonPoints.length < 3}
+                  className="w-full py-2 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow transition-all disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {submittingDraft ? 'Drafting Advisory...' : 'Draft Multi-Zone Micro-Advisory'}
+                </button>
+              </form>
+
+              {draftFeedback && (
+                <div
+                  className={`p-2.5 rounded-lg text-xs flex items-start gap-2 border ${
+                    draftFeedback.type === 'success'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                      : 'bg-red-50 dark:bg-red-950/40 border-red-300 dark:border-red-800 text-red-900 dark:text-red-200'
+                  }`}
+                >
+                  {draftFeedback.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                  )}
+                  <span className="leading-relaxed">{draftFeedback.message}</span>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

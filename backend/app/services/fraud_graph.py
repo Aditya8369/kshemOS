@@ -291,3 +291,127 @@ def get_ring_info(account_id: str) -> dict:
             account_id in HARVESTED_HONEYPOT_ACCOUNTS
         ),
     }
+
+
+def link_voiceprint_cluster_to_fraud_graph(
+    cluster_id: str,
+    speaker_alias: str,
+    match_confidence: float,
+    phone_numbers: list[str],
+    bank_accounts: list[str],
+    locations: list[str],
+    incident_ids: list[str] | None = None,
+) -> str:
+    """
+    Creates or updates a VOICE_CLUSTER node in the fraud graph,
+    linking disparate phone numbers, bank accounts, and geographic locations
+    associated with a confirmed SAME_CALLER_SYNDICATE_OPERATOR.
+    """
+    graph = get_graph()
+    store = _get_store()
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    cluster_node_id = f"VOICE_CLUSTER-{cluster_id}"
+
+    # 1. Add / Upsert the VOICE_CLUSTER node
+    graph.add_node(
+        cluster_node_id,
+        node_type="VOICE_CLUSTER",
+        speaker_alias=speaker_alias,
+        cluster_id=cluster_id,
+        match_confidence=match_confidence,
+        classification="SAME_CALLER_SYNDICATE_OPERATOR",
+        flagged=True,
+        known_mule=True,
+    )
+    store.upsert_account(
+        cluster_node_id,
+        flagged=True,
+        harvested=True,
+        known_mule=True,
+    )
+    FLAGGED_ACCOUNTS.add(cluster_node_id)
+    KNOWN_MULE_ACCOUNTS.add(cluster_node_id)
+
+    # 2. Link Disparate Phone Numbers
+    for phone in phone_numbers:
+        clean_phone = phone.replace(" ", "").replace("+", "")
+        phone_node = f"PHONE-{clean_phone}"
+        graph.add_node(
+            phone_node,
+            node_type="PHONE_NUMBER",
+            phone=phone,
+            flagged=True,
+        )
+        edge_id = f"voice-phone-{cluster_id}-{clean_phone}"
+        edge_data = {
+            "edge_id": edge_id,
+            "source": cluster_node_id,
+            "target": phone_node,
+            "relationship_type": "SAME_VOICEPRINT_CALLER",
+            "relationship": "SAME_VOICEPRINT_CALLER",
+            "source_signal": "Acoustic Voiceprint Matcher",
+            "observed_at": now_iso,
+            "confidence": match_confidence,
+            "provenance": "acoustic_embedding_cosine_similarity",
+            "annotation": f"Voiceprint match ({round(match_confidence*100, 1)}%) identified speaker {speaker_alias} operating through phone {phone}.",
+        }
+        graph.add_edge(cluster_node_id, phone_node, **edge_data)
+        store.upsert_relationship(edge_data)
+
+    # 3. Link Bank Mule Accounts
+    for acc in bank_accounts:
+        if acc not in graph:
+            graph.add_node(
+                acc,
+                node_type="BANK_ACCOUNT",
+                flagged=True,
+                known_mule=True,
+            )
+            store.upsert_account(acc, flagged=True, known_mule=True)
+            FLAGGED_ACCOUNTS.add(acc)
+            KNOWN_MULE_ACCOUNTS.add(acc)
+
+        edge_id = f"voice-acc-{cluster_id}-{acc}"
+        edge_data = {
+            "edge_id": edge_id,
+            "source": cluster_node_id,
+            "target": acc,
+            "relationship_type": "SYNDICATE_DISBURSAL_ACCOUNT",
+            "relationship": "SYNDICATE_DISBURSAL_ACCOUNT",
+            "source_signal": "Acoustic Voiceprint Matcher",
+            "observed_at": now_iso,
+            "confidence": match_confidence,
+            "provenance": "voiceprint_extortion_crosslink",
+            "annotation": f"Mule account {acc} solicited by repeat syndicate speaker {speaker_alias}.",
+        }
+        graph.add_edge(cluster_node_id, acc, **edge_data)
+        store.upsert_relationship(edge_data)
+
+    # 4. Link Geographic Locations
+    for loc in locations:
+        clean_loc = loc.replace(" ", "_").replace(",", "")
+        loc_node = f"GEO-{clean_loc}"
+        graph.add_node(
+            loc_node,
+            node_type="GEOGRAPHY",
+            location=loc,
+            flagged=True,
+        )
+        edge_id = f"voice-geo-{cluster_id}-{clean_loc}"
+        edge_data = {
+            "edge_id": edge_id,
+            "source": cluster_node_id,
+            "target": loc_node,
+            "relationship_type": "OPERATOR_COORDINATE_CLUSTER",
+            "relationship": "OPERATOR_COORDINATE_CLUSTER",
+            "source_signal": "Acoustic Voiceprint Matcher",
+            "observed_at": now_iso,
+            "confidence": match_confidence,
+            "provenance": "caller_telecom_geolocation",
+            "annotation": f"Syndicate speaker {speaker_alias} active within telecommunication cluster {loc}.",
+        }
+        graph.add_edge(cluster_node_id, loc_node, **edge_data)
+        store.upsert_relationship(edge_data)
+
+    return cluster_node_id
