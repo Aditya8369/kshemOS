@@ -568,67 +568,66 @@ export default function FieldSeizureCompanionView() {
         )}
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-[var(--paper-line)] gap-2">
-          <div className="flex border-b border-[var(--paper-line)] gap-2 overflow-x-auto">
-            <button
-              type="button"
-              onClick={() => setActiveTab('vault')}
-              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer flex items-center gap-2 ${onClick = {() => {
+        <div className="flex border-b border-[var(--paper-line)] gap-2 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => {
               if (cameraActive) stopCameraScanner();
-            setActiveTab('vault');
+              setActiveTab('vault');
             }}
             className={`px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${activeTab === 'vault'
-                ? 'border-[var(--saffron)] text-[var(--ink)]'
-                : 'border-transparent text-[var(--ink-text)]/60 hover:text-[var(--ink)]'
-              }`}
+              ? 'border-[var(--saffron)] text-[var(--ink)]'
+              : 'border-transparent text-[var(--ink-text)]/60 hover:text-[var(--ink)]'
+            }`}
           >
             📦 Seized Hardware Vault & Sync Queue ({records.length})
           </button>
 
           <button
             type="button"
-            onClick={() => setActiveTab('intake')}
-            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer flex items-center gap-2 ${onClick = {() => {
+            onClick={() => {
               if (cameraActive) stopCameraScanner();
-          setActiveTab('intake');
+              setActiveTab('intake');
             }}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${activeTab === 'intake'
+            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${activeTab === 'intake'
               ? 'border-[var(--saffron)] text-[var(--ink)]'
               : 'border-transparent text-[var(--ink-text)]/60 hover:text-[var(--ink)]'
             }`}
           >
-          ➕ On-Scene Seizure Capture (PWA)
-        </button>
+            ➕ On-Scene Seizure Capture (PWA)
+          </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('intake-verification')}
-          className={`px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer flex items-center gap-2 ${onClick = {() => {
+          <button
+            type="button"
+            onClick={() => {
               if (cameraActive) stopCameraScanner();
-        setActiveTab('intake-verification');
+              setActiveTab('intake-verification');
             }}
-        className={`px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${activeTab === 'intake-verification'
-            ? 'border-[var(--saffron)] text-[var(--ink)]'
-            : 'border-transparent text-[var(--ink-text)]/60 hover:text-[var(--ink)]'
-          }`}
+            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${activeTab === 'intake-verification'
+              ? 'border-[var(--saffron)] text-[var(--ink)]'
+              : 'border-transparent text-[var(--ink-text)]/60 hover:text-[var(--ink)]'
+            }`}
           >
-        🔬 Central Intake & Tamper Lab
-      </button>
+            🔬 Central Intake & Tamper Lab
+          </button>
 
-      <button
-        type="button"
-        onClick={() => setActiveTab('mesh-sync')}
-        className={`px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${activeTab === 'mesh-sync'
-            ? 'border-[var(--saffron)] text-[var(--ink)]'
-            : 'border-transparent text-[var(--ink-text)]/60 hover:text-[var(--ink)]'
-          }`}
-      >
-        📡 Peer Mesh Sync (Local)
-        {records.some((r) => r.chain_of_custody_events?.some((e) => e.action === 'PEER_MESH_EXCHANGED')) && (
-          <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" title="Peer mesh records reconciled" />
-        )}
-      </button>
-    </div>
+          <button
+            type="button"
+            onClick={() => {
+              if (cameraActive) stopCameraScanner();
+              setActiveTab('mesh-sync');
+            }}
+            className={`px-4 py-2.5 text-xs font-bold border-b-2 transition cursor-pointer flex items-center gap-2 whitespace-nowrap ${activeTab === 'mesh-sync'
+              ? 'border-[var(--saffron)] text-[var(--ink)]'
+              : 'border-transparent text-[var(--ink-text)]/60 hover:text-[var(--ink)]'
+            }`}
+          >
+            📡 Peer Mesh Sync (Local)
+            {records.some((r) => r.chain_of_custody_events?.some((e) => e.action === 'PEER_MESH_EXCHANGED')) && (
+              <span className="w-2 h-2 rounded-full bg-indigo-600 animate-pulse" title="Peer mesh records reconciled" />
+            )}
+          </button>
+        </div>
 
         {/* TAB 1: VAULT LIST */ }
   {
