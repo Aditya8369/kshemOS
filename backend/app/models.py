@@ -2402,6 +2402,10 @@ class EmergencyMitigationReceiptRequest(BaseModel):
     reported_to_1930: bool = False
     reported_to_portal: bool = False
     aadhaar_biometrics_locked: bool = False
+    aadhaar_qr_scanned: bool = False
+    aadhaar_qr_scan_timestamp: Optional[str] = None
+    aadhaar_last_4: Optional[str] = None
+    aadhaar_signature_verified: bool = False
     incident_description: Optional[str] = None
 
 
@@ -2419,6 +2423,10 @@ class EmergencyMitigationReceipt(BaseModel):
     reported_to_1930: bool
     reported_to_portal: bool
     aadhaar_biometrics_locked: bool
+    aadhaar_qr_scanned: bool = False
+    aadhaar_qr_scan_timestamp: Optional[str] = None
+    aadhaar_last_4: Optional[str] = None
+    aadhaar_signature_verified: bool = False
     rbi_circular_reference: str
     legal_disclaimer: str
     sha256_hash: str
