@@ -10,6 +10,8 @@
  * 5. Restricts advisory targeting strictly to affected jurisdiction boundaries (withholding alerts outside geofence).
  */
 
+import { matchPolygonToJurisdictions, booleanPointInPolygon } from './spatialPolygonMatcher.js';
+
 export const SERVICE_AREAS_REGISTRY = {
   'SA-NORTH-01': {
     service_area_id: 'SA-NORTH-01',
@@ -244,6 +246,8 @@ export function queryPortalMeshBannerLocally(query) {
       const dist = haversineDistKm(query.lat, query.lng, adv.geofence_center.lat, adv.geofence_center.lng);
       if (dist <= adv.geofence_radius_km) {
         matched = true;
+      } else if (adv.polygon_geojson && booleanPointInPolygon({ lat: query.lat, lng: query.lng }, adv.polygon_geojson)) {
+        matched = true;
       }
     }
 
@@ -442,6 +446,70 @@ export async function queryPortalMeshBannerApi(query) {
     return data.banner;
   } catch (e) {
     return queryPortalMeshBannerLocally(query);
+  }
+}
+
+export function createBroadcastAdvisoryLocally(payload) {
+  const store = getOrInitStore();
+  const matchResult = matchPolygonToJurisdictions(payload.polygon_geojson);
+
+  const idNum = Object.keys(store.advisories).length + 101;
+  const advisoryId = `ADV-MESH-POLY-${idNum}`;
+  const now = Date.now();
+
+  const primaryCircle = matchResult.matched_circles[0] || payload.police_station_circle || 'Delhi Cyber Command';
+  const primaryArea = matchResult.matched_service_areas[0] || payload.service_area_id || 'SA-NORTH-01';
+
+  const advisory = {
+    advisory_id: advisoryId,
+    cluster_id: `CLUST-POLY-${idNum}`,
+    title: payload.title,
+    summary_guidance: payload.summary_guidance,
+    scam_category: payload.scam_category || 'electricity_bill_scam',
+    service_area_id: primaryArea,
+    service_area_name: 'Multi-Zone Metropolitan Corridor',
+    police_station_circle: primaryCircle,
+    target_pincodes: matchResult.matched_pincodes.length ? matchResult.matched_pincodes : (payload.target_pincodes || ['110007']),
+    geofence_center: matchResult.centroid || { lat: 28.6500, lng: 77.2000 },
+    geofence_radius_km: 8.0,
+    polygon_geojson: matchResult.polygon_geojson || payload.polygon_geojson,
+    estimated_citizen_reach: matchResult.estimated_citizen_reach || payload.estimated_citizen_reach || 18500,
+    multi_zone_summary: matchResult.multi_zone_summary,
+    affected_police_circles: matchResult.matched_circles,
+    complaints_aggregated: (matchResult.matched_pincodes.length || 2) * 2,
+    window_hours: 12.0,
+    status: 'DRAFTED_PENDING_APPROVAL',
+    urgency: payload.urgency || 'high',
+    action_checklist: payload.action_checklist || [
+      'Verify suspect calls or notices against official DISCOM and police desks.',
+      'Report fraudulent numbers immediately to Cyber Crime Helpline 1930.',
+    ],
+    drafted_at: now,
+    published_at: null,
+    approved_by_commander_badge: null,
+    approved_by_commander_name: null,
+    active_portal_banner_text: `${payload.title} | ${matchResult.multi_zone_summary}. Verify via 1930 / official portals.`,
+  };
+
+  store.advisories[advisoryId] = advisory;
+  writeStorage(LOCAL_STORAGE_KEY, store);
+  return advisory;
+}
+
+export async function createBroadcastAdvisoryApi(payload) {
+  try {
+    const res = await fetch(`${API_BASE}/broadcast-advisories`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    return await res.json();
+  } catch (e) {
+    return createBroadcastAdvisoryLocally(payload);
   }
 }
 

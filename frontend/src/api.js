@@ -1158,6 +1158,7 @@ export {
   fetchThreatClustersApi,
   fetchMicroAdvisoriesApi,
   commanderSignoffApi,
+  createBroadcastAdvisoryApi,
   queryPortalMeshBannerApi,
   fetchThreatMeshStatsApi,
 } from './regionalThreatMeshStore.js';
