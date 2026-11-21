@@ -1097,6 +1097,18 @@ export async function fetchFieldSeizureStatsApi() {
   return null;
 }
 
+// -----------------------------------------------------------------------------
+// Peer-to-Peer WebRTC Mesh Synchronization Engine
+// -----------------------------------------------------------------------------
+export {
+  generateQRCodeSVG,
+  encodeSignalingPayload,
+  decodeSignalingPayload,
+  applyPeerMeshExchange,
+  P2PMeshSyncSession,
+  executeSimulatedPeerMeshSync,
+} from './p2pSyncEngine.js';
+
 // ============================================================
 // EMERGENCY FINANCIAL KILL-SWITCH & AADHAAR LOCK APIS
 // ============================================================
