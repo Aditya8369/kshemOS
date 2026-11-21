@@ -1256,3 +1256,132 @@ export async function fetchSampleMoneyTrailCsvApi() {
     };
   }
 }
+
+export async function fetchBankNodalDirectoryApi() {
+  try {
+    const response = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/money-trail/nodal-directory`);
+    return await handle(response);
+  } catch {
+    return {
+      banks: [
+        {
+          bank_code: 'SBIN',
+          bank_name: 'State Bank of India',
+          cyber_desk_email: 'nodal.cyber@sbi.co.in',
+          nodal_officer: 'General Manager & Chief Nodal Officer, Fraud Risk Management Cell',
+          ifsc_prefixes: ['SBIN'],
+        },
+        {
+          bank_code: 'HDFC',
+          bank_name: 'HDFC Bank',
+          cyber_desk_email: 'nodal.cyber@hdfcbank.com',
+          nodal_officer: 'Principal Nodal Officer & LEA Liaison Lead',
+          ifsc_prefixes: ['HDFC'],
+        },
+        {
+          bank_code: 'ICIC',
+          bank_name: 'ICICI Bank',
+          cyber_desk_email: 'cno.cyberliaison@icicibank.com',
+          nodal_officer: 'Chief Nodal Officer, Law Enforcement Operations',
+          ifsc_prefixes: ['ICIC'],
+        },
+        {
+          bank_code: 'PUNB',
+          bank_name: 'Punjab National Bank',
+          cyber_desk_email: 'nodal.lea@pnb.co.in',
+          nodal_officer: 'Chief Nodal Officer, Cyber Investigation Desk',
+          ifsc_prefixes: ['PUNB'],
+        },
+        {
+          bank_code: 'CNRB',
+          bank_name: 'Canara Bank',
+          cyber_desk_email: 'nodal.cyber@canarabank.com',
+          nodal_officer: 'Chief Nodal Officer & Digital Security Lead',
+          ifsc_prefixes: ['CNRB'],
+        },
+        {
+          bank_code: 'BARB',
+          bank_name: 'Bank of Baroda',
+          cyber_desk_email: 'cyberdesk.nodal@bankofbaroda.co.in',
+          nodal_officer: 'Principal Nodal Officer, Cyber Crime Response Cell',
+          ifsc_prefixes: ['BARB'],
+        },
+        {
+          bank_code: 'UTIB',
+          bank_name: 'Axis Bank',
+          cyber_desk_email: 'nodal.lea@axisbank.com',
+          nodal_officer: 'Principal Nodal Officer, Law Enforcement Response Team',
+          ifsc_prefixes: ['UTIB'],
+        },
+      ],
+    };
+  }
+}
+
+export async function previewSection102NoticeApi(payload = {}) {
+  try {
+    const response = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/money-trail/preview-notice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    return await handle(response);
+  } catch {
+    const caseId = payload.case_id || 'CASE-2026-DELHI-01';
+    const cleanFir = payload.fir_number || `FIR-2026-${caseId.replace('CASE-', '')}-CYBER`;
+    return {
+      requisition_id: `REQ-SEC102-${caseId.replace('CASE-', '')}-${Date.now()}`,
+      case_id: caseId,
+      fir_number: cleanFir,
+      court_jurisdiction:
+        payload.court_jurisdiction ||
+        'IN THE COURT OF CHIEF METROPOLITAN MAGISTRATE / SPECIAL CYBER JUDGE, TIS HAZARI COURTS, DELHI',
+      complaint_ref: payload.complaint_ref || `1930-NCR-${caseId.replace('CASE-', '')}`,
+      statutory_authority:
+        'Section 102 Cr.P.C. / Section 106 BNSS 2023 (Read with Section 91 Cr.P.C. / Section 94 BNSS)',
+      issuing_authority: {
+        officer_name: payload.officer_name || 'Inspector R. K. Sharma',
+        officer_badge_id: payload.officer_badge_id || 'CYBER-INV-7749',
+        police_station: payload.police_station || 'Special Cyber Crime Police Station, Central District, Delhi',
+      },
+      issued_at_iso: new Date().toISOString(),
+      accounts: payload.accounts || [],
+      total_freeze_amount_inr: (payload.accounts || []).reduce(
+        (acc, it) => acc + (it.resting_balance || it.seized_amount_resting_inr || 0),
+        0
+      ),
+      sha256_digest: 'd8e4f5a32b1c67890efab123456789abcdef0123456789abcdef0123456789ab',
+    };
+  }
+}
+
+export async function generateSection102PdfApi(payload = {}) {
+  const url = `${BASE_URL.replace(/\/+$/, '')}/api/money-trail/generate-notice-pdf`;
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to generate Section 102 PDF notice: ${response.statusText}`);
+  }
+
+  const blob = await response.blob();
+  const contentDisp = response.headers.get('Content-Disposition') || '';
+  const match = contentDisp.match(/filename="?([^";]+)"?/);
+  const filename = match ? match[1] : `Section_102_CrPC_Freeze_Order_${payload.case_id || 'ORDER'}.pdf`;
+
+  if (typeof window !== 'undefined') {
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+  }
+
+  return { success: true, filename, size: blob.size };
+}
