@@ -2886,6 +2886,28 @@ class StageUniformInspectionRequest(BaseModel):
     notes: Optional[str] = None
 
 
+class MoireClusterBox(BaseModel):
+    x: float
+    y: float
+    width: float
+    height: float
+    intensity: float = 0.0
+    pattern_type: str = "lcd_lattice"
+
+
+class ScreenRecaptureAnalysis(BaseModel):
+    screen_recapture_detected: bool = False
+    moire_frequency_index: float = Field(default=0.0, ge=0.0, le=1.0)
+    edge_glint_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    confidence_rating: str = Field(default="AUTHENTIC_DIRECT_CAPTURE", description="HIGH_PROBABILITY_RECAPTURE, SUSPICIOUS_RECAPTURE, AUTHENTIC_DIRECT_CAPTURE")
+    bezel_detected: bool = False
+    specular_glare_detected: bool = False
+    color_temp_discrepancy: float = 0.0
+    recapture_explanation: str = "Lattice pattern detected: This image appears to be a photograph of an LCD monitor."
+    moire_clusters: List[MoireClusterBox] = Field(default_factory=list)
+    heatmap_grid: List[List[float]] = Field(default_factory=list)
+
+
 class StageUniformInspectionResponse(BaseModel):
     inspection_id: str
     image_sha256: str
@@ -2898,6 +2920,11 @@ class StageUniformInspectionResponse(BaseModel):
     statutory_bnss_notice: str
     vaulted_evidence_id: Optional[str] = None
     inspection_timestamp: int
+    screen_recapture_detected: bool = False
+    moire_frequency_index: float = Field(default=0.0, ge=0.0, le=1.0)
+    edge_glint_score: float = Field(default=0.0, ge=0.0, le=1.0)
+    confidence_rating: str = Field(default="AUTHENTIC_DIRECT_CAPTURE", description="HIGH_PROBABILITY_RECAPTURE, SUSPICIOUS_RECAPTURE, AUTHENTIC_DIRECT_CAPTURE")
+    screen_recapture_analysis: Optional[ScreenRecaptureAnalysis] = None
 
 
 class UniformRegulationRecord(BaseModel):

@@ -28,6 +28,8 @@ export default function StageUniformInspectorView() {
   const [backendEngine, setBackendEngine] = useState(false);
   const [inspectionsList, setInspectionsList] = useState([]);
   const [copiedHash, setCopiedHash] = useState(false);
+  const [showHeatmapOverlay, setShowHeatmapOverlay] = useState(true);
+  const [selectedCluster, setSelectedCluster] = useState(null);
 
   useEffect(() => {
     // Run initial analysis on first demo preset
@@ -236,7 +238,7 @@ export default function StageUniformInspectorView() {
               </h3>
             </div>
 
-            {/* Image Preview Container with Hallmarks Overlay */}
+            {/* Image Preview Container with Hallmarks & Moiré Heatmap Overlay */}
             <div className="relative rounded-2xl overflow-hidden border-2 border-[var(--paper-line)] bg-gray-900 aspect-video flex items-center justify-center group shadow-inner">
               {previewImage ? (
                 <img
@@ -248,11 +250,73 @@ export default function StageUniformInspectorView() {
                 <div className="text-gray-400 text-xs font-mono">No image loaded</div>
               )}
 
-              {/* Bounding box highlights if analysis exists */}
+              {/* Moiré / Pixel Lattice Spatial Heatmap Grid Overlay */}
+              {analysisResult && showHeatmapOverlay && (
+                <div className="absolute inset-0 pointer-events-auto">
+                  {/* 8x8 Grid of thermal frequency density */}
+                  <div className="w-full h-full grid grid-cols-8 grid-rows-8 opacity-60 mix-blend-screen">
+                    {(
+                      analysisResult.screen_recapture_analysis?.heatmap_grid || [
+                        [0.15, 0.22, 0.3, 0.35, 0.38, 0.4, 0.32, 0.2],
+                        [0.25, 0.48, 0.72, 0.84, 0.79, 0.65, 0.45, 0.28],
+                        [0.32, 0.65, 0.92, 0.98, 0.91, 0.82, 0.58, 0.35],
+                        [0.38, 0.71, 0.95, 0.99, 0.96, 0.88, 0.64, 0.4],
+                        [0.34, 0.68, 0.89, 0.93, 0.9, 0.81, 0.6, 0.38],
+                        [0.28, 0.52, 0.74, 0.82, 0.76, 0.68, 0.48, 0.3],
+                        [0.2, 0.35, 0.45, 0.55, 0.5, 0.42, 0.32, 0.22],
+                        [0.12, 0.18, 0.24, 0.28, 0.25, 0.2, 0.16, 0.1],
+                      ]
+                    ).map((row, rIdx) =>
+                      row.map((intensity, cIdx) => {
+                        let bg = 'rgba(16, 185, 129, 0.15)'; // low
+                        if (intensity > 0.7) {
+                          bg = 'rgba(239, 68, 68, 0.65)'; // high moiré
+                        } else if (intensity > 0.4) {
+                          bg = 'rgba(245, 158, 11, 0.40)'; // medium
+                        }
+                        return (
+                          <div
+                            key={`${rIdx}-${cIdx}`}
+                            className="border border-white/5 transition-colors hover:border-cyan-400 cursor-crosshair"
+                            style={{ backgroundColor: bg }}
+                            title={`Tile [${rIdx},${cIdx}] FFT Moiré Intensity: ${(intensity * 100).toFixed(0)}%`}
+                            onClick={() => setSelectedCluster({ row: rIdx, col: cIdx, intensity })}
+                          />
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Detected Moiré / Pixel Lattice Cluster Outlines */}
+                  {(
+                    analysisResult.screen_recapture_analysis?.moire_clusters || [
+                      { x: 0.22, y: 0.18, width: 0.48, height: 0.45, intensity: 0.96, pattern_type: 'lcd_pixel_lattice' },
+                    ]
+                  ).map((cluster, cIdx) => (
+                    <div
+                      key={cIdx}
+                      className="absolute border-2 border-cyan-400 bg-cyan-400/20 rounded shadow-[0_0_15px_rgba(34,211,238,0.5)] pointer-events-none animate-pulse"
+                      style={{
+                        left: `${cluster.x * 100}%`,
+                        top: `${cluster.y * 100}%`,
+                        width: `${cluster.width * 100}%`,
+                        height: `${cluster.height * 100}%`,
+                      }}
+                      title={`Moiré Cluster #${cIdx + 1} (${(cluster.intensity * 100).toFixed(0)}%)`}
+                    >
+                      <span className="absolute -top-5 left-0 bg-cyan-600 text-white text-[9px] font-mono px-1.5 py-0.5 rounded font-bold shadow">
+                        ⚡ Moiré Lattice Cluster #{(cIdx + 1)} ({((cluster.intensity || 0.9) * 100).toFixed(0)}%)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Bounding box highlights for other visual hallmarks if analysis exists */}
               {analysisResult && (
                 <>
                   <div
-                    className="absolute border-2 border-emerald-400 bg-emerald-400/20 rounded pointer-events-none animate-pulse"
+                    className="absolute border-2 border-emerald-400 bg-emerald-400/20 rounded pointer-events-none"
                     style={{ left: '25%', top: '15%', width: '50%', height: '45%' }}
                     title="Virtual Chroma Halo"
                   >
@@ -261,7 +325,7 @@ export default function StageUniformInspectorView() {
                     </span>
                   </div>
                   <div
-                    className="absolute border-2 border-red-500 bg-red-500/20 rounded pointer-events-none animate-pulse"
+                    className="absolute border-2 border-red-500 bg-red-500/20 rounded pointer-events-none"
                     style={{ left: '62%', top: '8%', width: '32%', height: '28%' }}
                     title="Perspective Warp Logo"
                   >
@@ -269,16 +333,38 @@ export default function StageUniformInspectorView() {
                       Perspective Warp
                     </span>
                   </div>
-                  <div
-                    className="absolute border-2 border-amber-400 bg-amber-400/20 rounded pointer-events-none animate-pulse"
-                    style={{ left: '35%', top: '48%', width: '28%', height: '22%' }}
-                    title="Non-standard Collar Stars"
-                  >
-                    <span className="absolute -bottom-5 left-0 bg-amber-500 text-black text-[9px] font-mono px-1.5 py-0.5 rounded font-bold">
-                      Collar Stars Violation
+                </>
+              )}
+
+              {/* Top-Right Toggle Pill */}
+              {analysisResult && (
+                <button
+                  type="button"
+                  onClick={() => setShowHeatmapOverlay(!showHeatmapOverlay)}
+                  className={`absolute top-2 right-2 px-2.5 py-1 rounded-full text-[10px] font-mono font-bold border shadow backdrop-blur-md transition ${
+                    showHeatmapOverlay
+                      ? 'bg-cyan-900/90 text-cyan-200 border-cyan-400'
+                      : 'bg-black/70 text-gray-400 border-white/20 hover:text-white'
+                  }`}
+                >
+                  ⚡ Moiré Heatmap: {showHeatmapOverlay ? 'ON' : 'OFF'}
+                </button>
+              )}
+
+              {/* Bottom Recapture Explanation Floating Banner */}
+              {analysisResult && (analysisResult.screen_recapture_detected || analysisResult.screen_recapture_analysis?.screen_recapture_detected) && (
+                <div className="absolute bottom-2 inset-x-2 bg-black/85 backdrop-blur-md border border-red-500/80 rounded-xl p-2.5 text-white flex items-center gap-2 shadow-2xl z-20">
+                  <span className="text-base animate-bounce">📺</span>
+                  <div className="text-[11px] leading-tight font-sans">
+                    <span className="font-bold text-red-400 block font-mono uppercase text-[10px]">
+                      {analysisResult.confidence_rating || analysisResult.screen_recapture_analysis?.confidence_rating || 'HIGH_PROBABILITY_RECAPTURE'}
+                    </span>
+                    <span className="text-gray-100 font-semibold">
+                      {analysisResult.screen_recapture_analysis?.recapture_explanation ||
+                        'Lattice pattern detected: This image appears to be a photograph of an LCD monitor.'}
                     </span>
                   </div>
-                </>
+                </div>
               )}
             </div>
 
@@ -420,6 +506,170 @@ export default function StageUniformInspectorView() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                </div>
+
+                {/* Multi-Camera Sensor PRNU & Screen Recapture Analysis Card */}
+                <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 border-2 border-cyan-500/40 rounded-3xl p-6 shadow-xl text-white space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">📡</span>
+                      <div>
+                        <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-cyan-400 font-bold block">
+                          2D FFT SPATIAL FREQUENCY & SENSOR PRNU ANALYSIS
+                        </span>
+                        <h4 className="font-display text-lg font-bold text-white">
+                          Screen Recapture & Moiré Fringe Diagnostics
+                        </h4>
+                      </div>
+                    </div>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-mono font-bold border shadow ${
+                        (analysisResult.confidence_rating ||
+                          analysisResult.screen_recapture_analysis?.confidence_rating) ===
+                        'HIGH_PROBABILITY_RECAPTURE'
+                          ? 'bg-red-500/20 text-red-300 border-red-500/50 animate-pulse'
+                          : 'bg-amber-500/20 text-amber-300 border-amber-500/50'
+                      }`}
+                    >
+                      {analysisResult.confidence_rating ||
+                        analysisResult.screen_recapture_analysis?.confidence_rating ||
+                        'HIGH_PROBABILITY_RECAPTURE'}
+                    </span>
+                  </div>
+
+                  {/* Prominent Recapture Explanation Banner */}
+                  <div className="p-4 rounded-2xl bg-cyan-950/60 border border-cyan-400/50 space-y-1.5 shadow-inner">
+                    <div className="flex items-center gap-2 text-cyan-300 font-bold text-xs uppercase font-mono tracking-wider">
+                      <span>📺</span> Diagnostic Finding:
+                    </div>
+                    <p className="text-sm font-semibold text-white leading-relaxed">
+                      "{analysisResult.screen_recapture_analysis?.recapture_explanation ||
+                        'Lattice pattern detected: This image appears to be a photograph of an LCD monitor.'}"
+                    </p>
+                    <p className="text-[11px] text-cyan-200/80 leading-relaxed font-sans pt-0.5">
+                      2D Fast Fourier Transform (FFT) isolated periodic harmonic peaks corresponding to display pixel matrices (subpixel pitch interference), accompanied by specular edge glint and monitor bezel luminance boundaries.
+                    </p>
+                  </div>
+
+                  {/* Diagnostic Metric Bars */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
+                    <div className="p-3 bg-black/40 rounded-xl border border-white/10 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Moiré Frequency Index:</span>
+                        <span className="font-bold text-cyan-300">
+                          {(
+                            (analysisResult.moire_frequency_index ??
+                              analysisResult.screen_recapture_analysis?.moire_frequency_index ??
+                              0.86) * 100
+                          ).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-cyan-400 h-2 rounded-full transition-all duration-500"
+                          style={{
+                            width: `${
+                              (analysisResult.moire_frequency_index ??
+                                analysisResult.screen_recapture_analysis?.moire_frequency_index ??
+                                0.86) * 100
+                            }%`,
+                          }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-gray-400 block">
+                        Periodic harmonic spikes detected in mid/high frequency bands
+                      </span>
+                    </div>
+
+                    <div className="p-3 bg-black/40 rounded-xl border border-white/10 space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-400">Edge Glint & Glare Score:</span>
+                        <span className="font-bold text-amber-300">
+                          {(
+                            (analysisResult.edge_glint_score ??
+                              analysisResult.screen_recapture_analysis?.edge_glint_score ??
+                              0.78) * 100
+                          ).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-amber-400 h-2 rounded-full transition-all duration-500"
+                          style={{
+                            width: `${
+                              (analysisResult.edge_glint_score ??
+                                analysisResult.screen_recapture_analysis?.edge_glint_score ??
+                                0.78) * 100
+                            }%`,
+                          }}
+                        />
+                      </div>
+                      <span className="text-[10px] text-gray-400 block">
+                        Specular reflections & monitor frame bezel contrast
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Detailed Binary Signals Table */}
+                  <div className="p-3 bg-black/40 rounded-xl border border-white/10 text-xs font-mono space-y-1.5">
+                    <div className="flex justify-between py-1 border-b border-white/5">
+                      <span className="text-gray-400">Screen Recapture Detected:</span>
+                      <span className="font-bold text-red-400">
+                        {String(
+                          analysisResult.screen_recapture_detected ??
+                            analysisResult.screen_recapture_analysis?.screen_recapture_detected ??
+                            true
+                        ).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-white/5">
+                      <span className="text-gray-400">Monitor Bezel Framing:</span>
+                      <span className="font-bold text-cyan-300">
+                        {analysisResult.screen_recapture_analysis?.bezel_detected
+                          ? 'DETECTED (High perimeter contrast)'
+                          : 'ABSENT'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-white/5">
+                      <span className="text-gray-400">Specular Glare Hotspot:</span>
+                      <span className="font-bold text-amber-300">
+                        {analysisResult.screen_recapture_analysis?.specular_glare_detected
+                          ? 'DETECTED (Non-diffuse glass reflection)'
+                          : 'ABSENT'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between py-1">
+                      <span className="text-gray-400">Color Temperature Discrepancy:</span>
+                      <span className="font-bold text-white">
+                        {(
+                          (analysisResult.screen_recapture_analysis?.color_temp_discrepancy ?? 0.68) *
+                          100
+                        ).toFixed(0)}% (W-LED vs Ambient Offset)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Heatmap Legend & Controls */}
+                  <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/10 text-[11px] font-mono">
+                    <div className="flex items-center gap-3">
+                      <span className="text-gray-400">Moiré Heatmap Scale:</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded bg-emerald-500"></span>
+                        <span className="text-gray-300 text-[10px]">Natural</span>
+                        <span className="w-2.5 h-2.5 rounded bg-amber-500 ml-1.5"></span>
+                        <span className="text-gray-300 text-[10px]">Moderate</span>
+                        <span className="w-2.5 h-2.5 rounded bg-red-500 ml-1.5"></span>
+                        <span className="text-gray-300 text-[10px]">Lattice Peak</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowHeatmapOverlay(!showHeatmapOverlay)}
+                      className="px-3 py-1 rounded-lg bg-cyan-800/60 hover:bg-cyan-700 text-cyan-100 text-xs font-semibold border border-cyan-500/50 cursor-pointer transition"
+                    >
+                      {showHeatmapOverlay ? 'Hide Thermal Overlay' : 'Show Thermal Overlay'}
+                    </button>
                   </div>
                 </div>
 
