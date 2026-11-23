@@ -90,7 +90,7 @@ If the risk threshold is crossed, the system pushes an intervention — **before
 |---|---|
 | **Frontend** | React 19, Vite 8, Tailwind CSS 4, Oxlint |
 | **Backend** | Python 3.11+, FastAPI, Uvicorn |
-| **AI / ML** | Whispr (ASR) → Sentence-Transformers + FAISS (scam-script similarity), LightGBM/XGBoost (risk scoring), YOLOv11 + OpenCV (currency CV) |
+| **AI / ML** | Whisper (ASR) → Sentence-Transformers + FAISS (scam-script similarity), LightGBM/XGBoost (risk scoring), YOLOv11 + OpenCV (currency CV) |
 | **Graph** | Neo4j + Graph Neural Networks (production) / NetworkX (prototype) |
 | **LLM** | Anthropic Claude API (Sonnet 5) |
 | **Database** | PostgreSQL (relational), Neo4j (graph), FAISS/Chroma (vector) |
@@ -178,6 +178,7 @@ kshemos/
 │           ├── Shell.jsx             # App shell — nav, footer, portal toggle
 │           ├── HomePage.jsx          # Landing page
 │           ├── CitizenPortal.jsx     # Main citizen dashboard
+|           ├── ContributorsPage.jsx    # Open Source Contributors Hub & Core Team directory
 │           ├── OfficerCommandCenter.jsx  # Officer dashboard
 │           ├── IncidentDashboardView.jsx # Live operational incident dashboard
 │           ├── incidentDashboard/        # Dashboard parts: tables, coverage, case detail, feed hook
