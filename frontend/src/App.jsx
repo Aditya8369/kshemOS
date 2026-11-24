@@ -98,6 +98,7 @@ import FieldSeizureCompanionView from './components/evidence/FieldSeizureCompani
 import EmergencyKillSwitchView from './components/EmergencyKillSwitchView';
 import VoiceDeepfakeDetectorView from './components/VoiceDeepfakeDetectorView';
 import AdvisorySubscriptionView from './components/AdvisorySubscriptionView';
+import StageUniformInspectorView from './components/StageUniformInspectorView';
 
 export default function App() {
   const [portal, setPortal] = useState('citizen');
