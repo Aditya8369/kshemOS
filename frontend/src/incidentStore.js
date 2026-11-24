@@ -63,26 +63,50 @@ const INCIDENTS_KEY = 'kshemos.incidents.v1';
 const STAFFING_KEY = 'kshemos.staffing.v1';
 
 const CACHE_KEY = 'kshemos.cache.incidents.v2';
+const OFFICER_API_TOKEN_KEY = 'kshemos.officer-api-token';
 
 export const INCIDENTS_CHANGED_EVENT = 'kshemos:incidents-changed';
 
 const BACKEND_RETRY_MS = 15 * 1000;
 
 let backendDownUntil = 0;
+let authPromptShown = false;
+
+function getOfficerApiToken() {
+  if (typeof window === 'undefined') return '';
+
+  let token = window.sessionStorage.getItem(OFFICER_API_TOKEN_KEY)?.trim() || '';
+  if (!token && !authPromptShown) {
+    authPromptShown = true;
+    token = window.prompt('Enter the Officer API bearer token')?.trim() || '';
+    if (token) {
+      window.sessionStorage.setItem(OFFICER_API_TOKEN_KEY, token);
+    }
+  }
+  return token;
+}
 
 async function backendRequest(path, options = {}) {
+  const token = getOfficerApiToken();
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
 
   const res = await fetch(`${BASE_URL}${path}`, {
 
     ...options,
 
-    headers: { 'Content-Type': 'application/json', ...options.headers },
+    headers,
 
   });
 
   if (res.status === 401) {
-    // Device/session revoked: local drafts must not outlive the session.
-    await clearOfflineData('session_revoked');
+    if (token) {
+      window.sessionStorage.removeItem(OFFICER_API_TOKEN_KEY);
+      authPromptShown = false;
+    }
   }
 
   if (!(res.headers.get('content-type') || '').includes('application/json')) {

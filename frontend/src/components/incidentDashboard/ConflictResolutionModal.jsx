@@ -4,9 +4,13 @@ import { resolveConflict, INCIDENTS_CHANGED_EVENT } from '../../api';
 import { SEVERITIES, STATUSES } from '../../incidentDashboard';
 import { STATUS_LABEL } from './display';
 
-export default function ConflictResolutionModal({ conflictItem, onClose }) {
-  if (!conflictItem) return null;
+export default function ConflictResolutionModal(props) {
+  if (!props.conflictItem) return null;
 
+  return <ConflictResolutionModalContent {...props} />;
+}
+
+function ConflictResolutionModalContent({ conflictItem, onClose }) {
   const { queueId, incidentId, changes = {}, serverConflictData = {}, baseSnapshot = {} } = conflictItem;
   const serverIncident = serverConflictData?.serverIncident || {};
   const conflictingFields = serverConflictData?.conflictingFields || Object.keys(changes);
