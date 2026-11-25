@@ -9,7 +9,7 @@ import {
   fetchUniformRegulationsApi,
   listStageInspectionsApi,
   fetchStageInspectionStatsApi,
-} from '../api.js';
+} from '../stageUniformInspectorStore.js';
 
 export default function StageUniformInspectorView() {
   const [activeTab, setActiveTab] = useState('inspector'); // 'inspector' | 'regulations' | 'vault_history'
