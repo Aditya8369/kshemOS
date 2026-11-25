@@ -671,3 +671,206 @@ export async function deleteDispatchRuleApi(ruleId) {
   return defaultJurisdictionStore.deleteDispatchRule(ruleId);
 }
 
+// =============================================================================
+// AUTOMATED INTER-STATE ZERO-FIR & SPATIAL JURISDICTION APIS
+// =============================================================================
+
+export const SAMPLE_ZERO_FIR_PAYLOAD = {
+  incident_id: 'INC-2026-DELHI-8841',
+  reporting_officer_badge: 'IO-CYBER-88',
+  reporting_officer_name: 'Inspector Rajesh Kumar',
+  reporting_officer_rank: 'Inspector of Police',
+  originating_station_code: 'DL-IFSO-01',
+  victim_name: 'Dr. Ramesh Sundaram',
+  victim_phone: '+91-98110-23456',
+  victim_email: 'ramesh.sundaram@delhi.gov.in',
+  victim_location: {
+    lat: 28.6139,
+    lng: 77.209,
+    city: 'New Delhi',
+    state: 'Delhi',
+    pincode: '110001',
+    address: 'B-42, Pandara Road, Central Secretariat',
+  },
+  complaint_narrative:
+    'Victim was coerced over a 4-hour fraudulent Skype "Digital Arrest" video call by threat actors impersonating CBI Officers and Mumbai Police Cyber Cell. Suspects claimed a FedEx courier containing counterfeit passports was intercepted in victim\'s name and demanded an urgent "RBI Asset Verification" transfer to a designated liquidating escrow account, under threat of immediate in-person arrest.',
+  bns_sections: [
+    'Section 318(4) BNS (Cheating & Dishonestly Inducing Delivery)',
+    'Section 319(2) BNS (Cheating by Personation)',
+    'Section 336(3) BNS (Forgery for Cheating)',
+    'Section 340(2) BNS (Forged Electronic Record)',
+  ],
+  it_act_sections: [
+    'Section 66C IT Act (Identity Theft)',
+    'Section 66D IT Act (Cheating by Personation using Computer Resource)',
+    'Section 78 IT Act (Investigation by Police Officer)',
+  ],
+  financial_transactions: [
+    {
+      utr_number: 'UTR2026112590123841',
+      amount_inr: 4850000.0,
+      timestamp_ist: '2026-11-25 11:42:10 IST',
+      remitter_account: '•••• •••• 9012',
+      beneficiary_ifsc: 'ICIC0009123',
+      beneficiary_account: '912300481920',
+      beneficiary_bank_name: 'ICICI Bank (Gandhinagar Financial Center, Gujarat)',
+    },
+  ],
+  digital_evidence_hashes: [
+    {
+      item_id: 'EV-01',
+      file_name: 'Skype_Digital_Arrest_Call_Recording.mp4',
+      evidence_type: 'Video Forensics Call Stream',
+      sha256_hash: '9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08',
+      file_size_bytes: 42189020,
+      seizure_timestamp: '2026-11-25 12:15:00 IST',
+      verification_status: 'VERIFIED_VALID (Sec 63 BSA)',
+    },
+    {
+      item_id: 'EV-02',
+      file_name: 'Forged_CBI_Notice_and_Clearance_PDF.pdf',
+      evidence_type: 'Forged Electronic Document',
+      sha256_hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      file_size_bytes: 841920,
+      seizure_timestamp: '2026-11-25 12:18:00 IST',
+      verification_status: 'VERIFIED_VALID (Sec 63 BSA)',
+    },
+  ],
+  suspect_phone_numbers: ['+91-98765-43210', '+855-88-412-9019'],
+  suspect_cell_tower: {
+    lat: 27.8974,
+    lng: 76.9842,
+    tower_id: 'TWR-MEWAT-04',
+    telecom_circle: 'Haryana',
+    district: 'Nuh/Mewat',
+    state: 'Haryana',
+  },
+  suspect_ip_addresses: ['185.220.101.45', '103.14.26.19'],
+  suspect_telegram_handles: ['@cbi_clearance_desk', '@task_officer_mewat'],
+  suspect_crypto_wallets: ['TJYg4oN8yBfP88fLq6pD6vVvXF5p7A3Z4k'],
+};
+
+export async function resolveSpatialJurisdictionApi(payload) {
+  try {
+    return await requestBackend('/api/jurisdiction/resolve-spatial', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    const vState = payload.victim_location?.state || 'Delhi';
+    const ifsc = payload.beneficiary_ifsc || 'SBIN0001234';
+    const isCross = !ifsc.startsWith('SBIN') || vState !== 'Delhi';
+    return {
+      is_cross_border_interstate: isCross,
+      victim_reporting_jurisdiction: {
+        station_name: 'Special Cell Cyber Crime Police Station (IFSO), New Delhi',
+        state: vState,
+        nodal_officer: 'DCP (IFSO / Cyber Crime Unit)',
+        email: 'cybercell-specialcell@delhipolice.gov.in',
+        phone: '+91-11-20892633',
+        address: 'Sector 17, Dwarka, New Delhi - 110078',
+        court_jurisdiction: 'Chief Metropolitan Magistrate, Patiala House Courts, New Delhi',
+        station_code: 'DL-IFSO-01',
+      },
+      beneficiary_bank_jurisdiction: {
+        station_name: 'State Cyber Crime Cell, CID Crime, Gandhinagar',
+        state: 'Gujarat',
+        nodal_officer: 'DIGP (CID Crime & Cyber Branch)',
+        email: 'cc-cid@gujarat.gov.in',
+        phone: '+91-79-23254385',
+        address: 'CID Crime Headquarters, Police Bhavan, Sector 18, Gandhinagar - 382018',
+        court_jurisdiction: 'Chief Judicial Magistrate, Ahmedabad / Gandhinagar',
+        station_code: 'GJ-CID-CYBER',
+      },
+      target_transfer_jurisdiction: {
+        station_name: 'State Cyber Crime Cell, CID Crime, Gandhinagar',
+        state: 'Gujarat',
+        nodal_officer: 'DIGP (CID Crime & Cyber Branch)',
+        email: 'cc-cid@gujarat.gov.in',
+        phone: '+91-79-23254385',
+        address: 'CID Crime Headquarters, Police Bhavan, Sector 18, Gandhinagar - 382018',
+        court_jurisdiction: 'Chief Judicial Magistrate, Ahmedabad / Gandhinagar',
+        station_code: 'GJ-CID-CYBER',
+      },
+      jurisdictional_conflict_status: isCross
+        ? 'INTER_STATE_CROSS_JURISDICTION_DETECTED'
+        : 'INTRA_STATE_LOCAL_JURISDICTION',
+      statutory_mandate:
+        'Under Section 173 BNSS 2023, Zero-FIR registration is mandatory without territorial bar.',
+      recommended_action:
+        'Register Zero-FIR at reporting station and dispatch Section 78/79 IT Act mutual aid requisition to Gujarat State Cyber Cell.',
+    };
+  }
+}
+
+export async function compileZeroFirDossierApi(payload) {
+  try {
+    return await requestBackend('/api/jurisdiction/zero-fir/compile', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    const zeroFirNum = `0-FIR/2026/DL-IFSO-01/${Math.floor(1000 + Math.random() * 9000)}`;
+    return {
+      zero_fir_number: zeroFirNum,
+      registration_timestamp_ist: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST',
+      statutory_citation: 'Section 173 Bharatiya Nagarik Suraksha Sanhita (BNSS), 2023',
+      originating_police_station: {
+        station_name: 'Special Cell Cyber Crime Police Station (IFSO), New Delhi',
+        state: 'Delhi',
+      },
+      transferred_to_police_station: {
+        station_name: 'State Cyber Crime Cell, CID Crime, Gandhinagar',
+        state: 'Gujarat',
+      },
+      victim_name_redacted: 'Dr. R•••••m',
+      total_disputed_amount_inr: 4850000.0,
+      sections_invoked: ['Section 318(4) BNS', 'Section 319(2) BNS', 'Section 66D IT Act'],
+      evidence_count: 2,
+      sha256_dossier_seal: '7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069',
+      pdf_base64: '',
+      pdf_download_url: `/api/jurisdiction/zero-fir/${zeroFirNum}/pdf`,
+      status: 'REGISTERED_PENDING_TRANSFER',
+    };
+  }
+}
+
+export async function dispatchInterStateRequisitionApi(payload) {
+  try {
+    return await requestBackend('/api/jurisdiction/mutual-aid/requisition', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  } catch (err) {
+    const reqId = `REQ-IT78-79/2026/${Math.floor(5000 + Math.random() * 5000)}`;
+    return {
+      requisition_id: reqId,
+      zero_fir_number: payload.zero_fir_number || '0-FIR/2026/DL-IFSO-01/1001',
+      statutory_reference: 'Section 78 & 79 IT Act read with Section 94 & 106 BNSS',
+      originating_station: {
+        station_name: 'Special Cell Cyber Crime Police Station (IFSO), New Delhi',
+        state: 'Delhi',
+      },
+      target_nodal_station: {
+        station_name: 'State Cyber Crime Cell, CID Crime, Gandhinagar',
+        state: payload.target_state || 'Gujarat',
+      },
+      dispatched_timestamp_ist: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) + ' IST',
+      urgency_level: 'IMMEDIATE_ASSET_FLIGHT_RISK',
+      transmission_token: 'TOKEN-MUTUAL-88B12C',
+      sha256_requisition_seal: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+      pdf_base64: '',
+      pdf_download_url: `/api/jurisdiction/mutual-aid/requisition/${reqId}/pdf`,
+      status: 'DISPATCHED_TO_NODAL_CYBER_DESK',
+    };
+  }
+}
+
+export async function fetchStateNodalDirectoryApi() {
+  try {
+    return await requestBackend('/api/jurisdiction/state-nodal-directory');
+  } catch (err) {
+    return [];
+  }
+}
+

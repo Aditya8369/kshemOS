@@ -14,10 +14,12 @@ import DispatchRulesEditor from './DispatchRulesEditor';
 import HighImpactReviewModal from './HighImpactReviewModal';
 import SnapshotHistoryDrawer from './SnapshotHistoryDrawer';
 import MutualAidRebalanceView from './MutualAidRebalanceView';
+import ZeroFirDossierView from './ZeroFirDossierView';
 
 const TABS = [
   { key: 'zones', label: 'Zones & Service Areas' },
   { key: 'rules', label: 'Dispatch Routing Rules' },
+  { key: 'zero_fir', label: 'Inter-State Zero-FIR (Sec 173 BNSS)' },
   { key: 'mutual_aid', label: 'Mutual Aid & Dynamic Rebalancing' },
   { key: 'proposals', label: 'Review Queue' },
   { key: 'snapshots', label: 'Audit Snapshots' },
@@ -199,6 +201,8 @@ export default function JurisdictionConfigView() {
             await reloadData();
           }}
         />
+      ) : activeTab === 'zero_fir' ? (
+        <ZeroFirDossierView />
       ) : activeTab === 'mutual_aid' ? (
         <MutualAidRebalanceView
           serviceAreas={data.serviceAreas}

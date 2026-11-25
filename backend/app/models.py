@@ -1140,6 +1140,151 @@ class ConfigSnapshot(BaseModel):
     dispatch_rules: list[DispatchRule]
 
 
+# ---------- Automated Inter-State Cybercrime Zero-FIR (Section 173 BNSS) ----------
+
+class LocationCoordinates(BaseModel):
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    city: Optional[str] = None
+    state: str
+    pincode: Optional[str] = None
+    address: Optional[str] = None
+
+
+class SuspectCellTowerLocation(BaseModel):
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+    tower_id: Optional[str] = None
+    telecom_circle: str
+    district: Optional[str] = None
+    state: str
+
+
+class StateNodalCyberStation(BaseModel):
+    station_name: str
+    state: str
+    nodal_officer: str
+    email: str
+    phone: str
+    address: str
+    court_jurisdiction: str
+    station_code: str
+
+
+class SpatialJurisdictionRequest(BaseModel):
+    victim_location: LocationCoordinates
+    beneficiary_ifsc: str
+    suspect_cell_tower: Optional[SuspectCellTowerLocation] = None
+    suspect_ip: Optional[str] = None
+    incident_id: Optional[str] = None
+
+
+class SpatialJurisdictionResponse(BaseModel):
+    is_cross_border_interstate: bool
+    victim_reporting_jurisdiction: StateNodalCyberStation
+    beneficiary_bank_jurisdiction: StateNodalCyberStation
+    suspect_telecom_jurisdiction: Optional[StateNodalCyberStation] = None
+    target_transfer_jurisdiction: StateNodalCyberStation
+    jurisdictional_conflict_status: str
+    statutory_mandate: str
+    recommended_action: str
+
+
+class UtrTransactionItem(BaseModel):
+    utr_number: str
+    amount_inr: float
+    timestamp_ist: str
+    remitter_account: Optional[str] = None
+    beneficiary_ifsc: str
+    beneficiary_account: str
+    beneficiary_bank_name: Optional[str] = None
+
+
+class EvidenceHashItem(BaseModel):
+    item_id: str
+    file_name: str
+    evidence_type: str
+    sha256_hash: str
+    file_size_bytes: int
+    seizure_timestamp: str
+    verification_status: str = "VERIFIED_VALID"
+
+
+class ZeroFirDossierRequest(BaseModel):
+    incident_id: Optional[str] = None
+    reporting_officer_badge: str = Field(default="IO-CYBER-88", description="Investigating officer badge ID")
+    reporting_officer_name: str = Field(default="Inspector Rajesh Kumar", description="Investigating officer name")
+    reporting_officer_rank: str = Field(default="Inspector of Police", description="Officer rank (>= Inspector per Sec 78 IT Act)")
+    originating_station_code: str = Field(default="DL-IFSO-01", description="Originating police station code")
+    victim_name: str
+    victim_phone: str
+    victim_email: Optional[str] = None
+    victim_location: LocationCoordinates
+    complaint_narrative: str
+    bns_sections: List[str] = Field(default_factory=lambda: ["Section 318(4) BNS", "Section 319(2) BNS", "Section 336(3) BNS"])
+    it_act_sections: List[str] = Field(default_factory=lambda: ["Section 66C IT Act", "Section 66D IT Act", "Section 78 IT Act"])
+    financial_transactions: List[UtrTransactionItem] = Field(default_factory=list)
+    digital_evidence_hashes: List[EvidenceHashItem] = Field(default_factory=list)
+    suspect_phone_numbers: List[str] = Field(default_factory=list)
+    suspect_cell_tower: Optional[SuspectCellTowerLocation] = None
+    suspect_ip_addresses: List[str] = Field(default_factory=list)
+    suspect_telegram_handles: List[str] = Field(default_factory=list)
+    suspect_crypto_wallets: List[str] = Field(default_factory=list)
+    target_state_override: Optional[str] = None
+
+
+class ZeroFirDossierResponse(BaseModel):
+    zero_fir_number: str
+    registration_timestamp_ist: str
+    statutory_citation: str
+    originating_police_station: StateNodalCyberStation
+    transferred_to_police_station: StateNodalCyberStation
+    victim_name_redacted: str
+    total_disputed_amount_inr: float
+    sections_invoked: List[str]
+    evidence_count: int
+    sha256_dossier_seal: str
+    pdf_base64: str
+    pdf_download_url: str
+    status: str = "REGISTERED_PENDING_TRANSFER"
+
+
+class InterStateRequisitionRequest(BaseModel):
+    zero_fir_number: str
+    incident_id: Optional[str] = None
+    originating_station_code: str = Field(default="DL-IFSO-01")
+    target_state: str
+    investigating_officer_name: str = Field(default="Inspector Rajesh Kumar")
+    investigating_officer_badge: str = Field(default="IO-CYBER-88")
+    investigating_officer_rank: str = Field(default="Inspector of Police")
+    required_actions: List[str] = Field(default_factory=lambda: [
+        "Freeze beneficiary mule accounts under Section 106 BNSS / Section 102 CrPC",
+        "Requisition bank KYC & branch CCTV footage under Section 94 BNSS",
+        "Requisition CDR & subscriber identity data from local telecom service provider under Section 79 IT Act",
+        "Physical verification and search of suspect mule operator premises"
+    ])
+    beneficiary_accounts: List[str] = Field(default_factory=list)
+    beneficiary_ifsc: Optional[str] = None
+    suspect_numbers: List[str] = Field(default_factory=list)
+    urgency_level: Literal["IMMEDIATE_ASSET_FLIGHT_RISK", "HIGH_PRIORITY", "ROUTINE"] = "IMMEDIATE_ASSET_FLIGHT_RISK"
+    additional_notes: Optional[str] = None
+
+
+class InterStateRequisitionResponse(BaseModel):
+    requisition_id: str
+    zero_fir_number: str
+    statutory_reference: str
+    originating_station: StateNodalCyberStation
+    target_nodal_station: StateNodalCyberStation
+    dispatched_timestamp_ist: str
+    urgency_level: str
+    transmission_token: str
+    sha256_requisition_seal: str
+    pdf_base64: str
+    pdf_download_url: str
+    status: str = "DISPATCHED_TO_NODAL_CYBER_DESK"
+
+
 # ---------- Cross-Jurisdiction Mutual Aid & Dynamic Resource Rebalancing ----------
 
 MutualAidTriggerType = Literal["automatic_threshold", "commander_manual"]
