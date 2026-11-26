@@ -1,9 +1,17 @@
 from __future__ import annotations
 
 from typing import Any, Optional
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 
+from app.models import (
+    InterStateRequisitionRequest,
+    InterStateRequisitionResponse,
+    SpatialJurisdictionRequest,
+    SpatialJurisdictionResponse,
+    ZeroFirDossierRequest,
+    ZeroFirDossierResponse,
+)
 from app.services import jurisdiction as jurisdiction_service
 
 router = APIRouter(prefix="/api/jurisdiction", tags=["Jurisdiction & Zone Configuration"])
@@ -184,4 +192,85 @@ def restore_snapshot(snapshot_id: str, req: Optional[RestoreSnapshotRequest] = N
         "restored_snapshot_id": snapshot_id,
         "new_snapshot": new_snap,
     }
+
+
+# =============================================================================
+# AUTOMATED INTER-STATE ZERO-FIR & MUTUAL AID REQUISITION ENDPOINTS
+# =============================================================================
+
+@router.post("/resolve-spatial", response_model=SpatialJurisdictionResponse)
+def resolve_spatial_jurisdiction_endpoint(req: SpatialJurisdictionRequest):
+    """
+    Resolve spatial jurisdiction boundaries across victim location,
+    beneficiary bank IFSC, and suspect cell tower origin.
+    """
+    try:
+        return jurisdiction_service.resolve_spatial_jurisdiction(req.model_dump())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Spatial resolution error: {exc}")
+
+
+@router.post("/zero-fir/compile", response_model=ZeroFirDossierResponse)
+def compile_zero_fir_endpoint(req: ZeroFirDossierRequest):
+    """
+    Generate an official Section 173 BNSS Zero-FIR dossier PDF containing
+    victim complaint narratives, digital evidence hashes (Section 63 BSA compliant),
+    UTR transaction audit logs, and suspect IP/telecom coordinates.
+    """
+    try:
+        return jurisdiction_service.compile_zero_fir_dossier(req.model_dump())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Zero-FIR compilation error: {exc}")
+
+
+@router.get("/zero-fir/{zero_fir_number:path}/pdf")
+def get_zero_fir_pdf_endpoint(zero_fir_number: str):
+    """
+    Stream vector PDF bytes for a registered Section 173 BNSS Zero-FIR dossier.
+    """
+    pdf_bytes = jurisdiction_service.get_zero_fir_pdf(zero_fir_number)
+    if not pdf_bytes:
+        raise HTTPException(status_code=404, detail=f"Zero-FIR PDF {zero_fir_number} not found")
+    safe_name = zero_fir_number.replace("/", "_") + ".pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{safe_name}"'},
+    )
+
+
+@router.post("/mutual-aid/requisition", response_model=InterStateRequisitionResponse)
+def create_interstate_requisition_endpoint(req: InterStateRequisitionRequest):
+    """
+    Pre-fill and dispatch Section 78/79 IT Act mutual assistance forms
+    to the designated State Nodal Cyber Police Station of the recipient state.
+    """
+    try:
+        return jurisdiction_service.generate_interstate_mutual_aid_requisition(req.model_dump())
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Inter-state requisition error: {exc}")
+
+
+@router.get("/mutual-aid/requisition/{requisition_id:path}/pdf")
+def get_interstate_requisition_pdf_endpoint(requisition_id: str):
+    """
+    Stream vector PDF bytes for an Inter-State Cybercrime Mutual Aid Requisition.
+    """
+    pdf_bytes = jurisdiction_service.get_interstate_requisition_pdf(requisition_id)
+    if not pdf_bytes:
+        raise HTTPException(status_code=404, detail=f"Requisition PDF {requisition_id} not found")
+    safe_name = requisition_id.replace("/", "_") + ".pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{safe_name}"'},
+    )
+
+
+@router.get("/state-nodal-directory")
+def list_state_nodal_directory_endpoint():
+    """
+    Retrieve verified directory of all Indian State Nodal Cyber Police Stations.
+    """
+    return jurisdiction_service.list_state_nodal_directory()
 
