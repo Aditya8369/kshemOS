@@ -118,3 +118,14 @@ def get_takedown_stats_endpoint():
     """
     return takedown_service.get_takedown_stats()
 
+
+@router.get("/extension-rules")
+def get_takedown_extension_rules_endpoint():
+    """
+    Compiles declarativeNetRequest rules from active takedown records for the
+    Citizen Digital Safety Guardian browser extension.
+    """
+    from app.services import extension_guardian
+    return extension_guardian.compile_declarative_rules()
+
+

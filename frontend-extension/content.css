@@ -1,0 +1,205 @@
+/* kshemOS Citizen Digital Safety Guardian - Takeover Overlay Styling */
+
+.kshemos-takeover-container {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483647 !important; /* Highest possible z-index */
+  background: rgba(15, 23, 42, 0.94) !important;
+  backdrop-filter: blur(16px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  padding: 20px !important;
+  box-sizing: border-box !important;
+  animation: kshemos-fade-in 0.25s ease-out forwards !important;
+}
+
+@keyframes kshemos-fade-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.kshemos-takeover-modal {
+  max-width: 680px !important;
+  width: 100% !important;
+  background: linear-gradient(145deg, #1e1014, #12090c, #0a0406) !important;
+  border: 2px solid #ef4444 !important;
+  box-shadow: 0 0 50px rgba(239, 68, 68, 0.4), inset 0 0 20px rgba(239, 68, 68, 0.15) !important;
+  border-radius: 24px !important;
+  padding: 32px !important;
+  color: #ffffff !important;
+  box-sizing: border-box !important;
+}
+
+.kshemos-takeover-header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 16px !important;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.3) !important;
+  padding-bottom: 20px !important;
+  margin-bottom: 20px !important;
+}
+
+.kshemos-shield-icon {
+  font-size: 40px !important;
+  background: rgba(239, 68, 68, 0.2) !important;
+  border: 1px solid #ef4444 !important;
+  border-radius: 18px !important;
+  padding: 8px 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.5) !important;
+}
+
+.kshemos-badge {
+  font-family: monospace !important;
+  font-size: 11px !important;
+  font-weight: bold !important;
+  letter-spacing: 0.15em !important;
+  color: #f59e0b !important;
+  text-transform: uppercase !important;
+  margin-bottom: 4px !important;
+}
+
+.kshemos-takeover-title {
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  color: #ffffff !important;
+  margin: 0 !important;
+  line-height: 1.25 !important;
+}
+
+.kshemos-takeover-lead {
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  color: #e2e8f0 !important;
+  margin-bottom: 16px !important;
+}
+
+.kshemos-takeover-brand {
+  font-size: 13px !important;
+  background: rgba(245, 158, 11, 0.15) !important;
+  border: 1px solid #f59e0b !important;
+  color: #fbbf24 !important;
+  padding: 8px 12px !important;
+  border-radius: 10px !important;
+  margin-bottom: 16px !important;
+}
+
+.kshemos-takeover-risks {
+  margin-bottom: 16px !important;
+}
+
+.kshemos-risks-label {
+  font-family: monospace !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  color: #f87171 !important;
+  margin-bottom: 8px !important;
+}
+
+.kshemos-pills-row {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+
+.kshemos-risk-pill {
+  font-size: 12px !important;
+  font-family: monospace !important;
+  background: rgba(239, 68, 68, 0.25) !important;
+  border: 1px solid #ef4444 !important;
+  color: #fecaca !important;
+  padding: 4px 10px !important;
+  border-radius: 8px !important;
+  font-weight: 600 !important;
+}
+
+.kshemos-warning-box {
+  background: rgba(0, 0, 0, 0.4) !important;
+  border-left: 4px solid #ef4444 !important;
+  padding: 12px 16px !important;
+  font-size: 12px !important;
+  color: #cbd5e1 !important;
+  line-height: 1.5 !important;
+  margin-bottom: 24px !important;
+  border-radius: 4px 10px 10px 4px !important;
+}
+
+.kshemos-takeover-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+}
+
+.kshemos-btn-primary {
+  display: block !important;
+  text-align: center !important;
+  background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  font-size: 14px !important;
+  padding: 14px 20px !important;
+  border-radius: 14px !important;
+  text-decoration: none !important;
+  border: 1px solid #f87171 !important;
+  box-shadow: 0 4px 20px rgba(220, 38, 38, 0.5) !important;
+  transition: all 0.15s ease-in-out !important;
+}
+
+.kshemos-btn-primary:hover {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 25px rgba(239, 68, 68, 0.6) !important;
+}
+
+.kshemos-btn-secondary {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  padding: 10px 16px !important;
+  border-radius: 12px !important;
+  cursor: pointer !important;
+  transition: background 0.15s !important;
+}
+
+.kshemos-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+.kshemos-btn-dismiss {
+  background: transparent !important;
+  border: none !important;
+  color: #94a3b8 !important;
+  font-size: 11px !important;
+  text-decoration: underline !important;
+  cursor: pointer !important;
+  padding: 4px !important;
+  text-align: center !important;
+}
+
+.kshemos-btn-dismiss:hover {
+  color: #e2e8f0 !important;
+}
+
+.kshemos-takeover-footer {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding-top: 14px !important;
+  margin-top: 20px !important;
+  font-family: monospace !important;
+  font-size: 11px !important;
+  color: #94a3b8 !important;
+}
+
+.kshemos-takeover-footer strong {
+  color: #fbbf24 !important;
+}

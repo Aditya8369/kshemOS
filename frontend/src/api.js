@@ -1405,3 +1405,28 @@ export async function generateSection102PdfApi(payload = {}) {
 
   return { success: true, filename, size: blob.size };
 }
+
+export async function fetchExtensionRulesApi() {
+  const response = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/extension/rules`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}: Failed to fetch compiled extension rules`);
+  return await response.json();
+}
+
+export async function fetchExtensionStatusApi() {
+  const response = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/extension/status`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}: Failed to fetch extension status`);
+  return await response.json();
+}
+
+export async function evaluateDomHeuristicsApi(payload) {
+  const response = await fetch(`${BASE_URL.replace(/\/+$/, '')}/api/extension/evaluate-dom`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error(`HTTP ${response.status}: Failed to evaluate DOM heuristics`);
+  return await response.json();
+}
+
+export * from './voiceHotlineStore.js';
+

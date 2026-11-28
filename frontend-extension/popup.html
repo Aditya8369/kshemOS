@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>kshemOS Citizen Digital Safety Guardian</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 360px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #334155;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
+    }
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .shield-badge {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid #ef4444;
+      border-radius: 10px;
+      padding: 6px;
+      font-size: 18px;
+    }
+    .title-box h1 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1.2;
+    }
+    .title-box p {
+      font-size: 10px;
+      color: #94a3b8;
+      font-family: monospace;
+      letter-spacing: 0.05em;
+    }
+    .status-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 14px;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .status-pill {
+      font-family: monospace;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+      border: 1px solid #10b981;
+    }
+    .status-pill.danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border-color: #ef4444;
+    }
+    .domain-text {
+      font-family: monospace;
+      font-size: 11px;
+      color: #cbd5e1;
+      word-break: break-all;
+    }
+
+    /* Primary Kill-Switch Bridge Button */
+    .killswitch-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      color: #ffffff;
+      border: 1px solid #ef4444;
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+      transition: all 0.15s ease;
+      margin-bottom: 14px;
+      text-decoration: none;
+    }
+    .killswitch-btn:hover {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+    }
+
+    /* Grid of Quick Action Shortcuts */
+    .shortcuts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .shortcut-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 10px;
+      border-radius: 10px;
+      text-decoration: none;
+      color: #e2e8f0;
+      transition: background 0.15s;
+    }
+    .shortcut-card:hover {
+      background: #334155;
+    }
+    .shortcut-title {
+      font-size: 10px;
+      color: #94a3b8;
+      font-family: monospace;
+      margin-bottom: 4px;
+    }
+    .shortcut-code {
+      font-size: 13px;
+      font-weight: 700;
+      color: #f59e0b;
+      font-family: monospace;
+    }
+
+    /* Telemetry row */
+    .telemetry-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      font-family: monospace;
+      color: #94a3b8;
+      border-top: 1px solid #334155;
+      padding-top: 10px;
+    }
+    .sync-btn {
+      background: transparent;
+      border: 1px solid #475569;
+      color: #cbd5e1;
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .sync-btn:hover {
+      background: #334155;
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo-row">
+      <div class="shield-badge">🛡️</div>
+      <div class="title-box">
+        <h1>kshemOS Guardian</h1>
+        <p>CITIZEN DIGITAL DEFENSE</p>
+      </div>
+    </div>
+    <span class="status-pill" id="protection-status">ACTIVE</span>
+  </div>
+
+  <div class="status-card">
+    <div class="status-row">
+      <span style="color: #94a3b8;">Current Website:</span>
+      <span id="tab-security-verdict" class="status-pill">MONITORED</span>
+    </div>
+    <div class="domain-text" id="current-domain">Inspecting active tab...</div>
+  </div>
+
+  <!-- One-Click Emergency Kill-Switch Bridge -->
+  <button id="btn-killswitch" class="killswitch-btn">
+    <span>🚨</span>
+    <span>EMERGENCY KILL-SWITCH</span>
+  </button>
+
+  <div class="shortcuts-grid">
+    <div class="shortcut-card">
+      <div class="shortcut-title">USSD AePS FREEZE</div>
+      <div class="shortcut-code">*99*99*1#</div>
+    </div>
+    <div class="shortcut-card">
+      <div class="shortcut-title">NATIONAL HELPLINE</div>
+      <div class="shortcut-code">1930</div>
+    </div>
+  </div>
+
+  <div class="telemetry-row">
+    <span>Rules Loaded: <strong id="rule-count" style="color: #38bdf8;">10 Active</strong></span>
+    <button id="btn-sync" class="sync-btn">🔄 Sync Mesh</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

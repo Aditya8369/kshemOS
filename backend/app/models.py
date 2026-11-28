@@ -3272,3 +3272,61 @@ class VoiceClusterNodeResponse(BaseModel):
     linked_locations: List[str]
     incident_ids: List[str]
 
+
+# =============================================================================
+# CITIZEN DIGITAL SAFETY GUARDIAN BROWSER EXTENSION MODELS
+# =============================================================================
+
+class DeclarativeRuleAction(BaseModel):
+    type: str = Field(default="block", description="Rule action type: block, redirect, allow")
+    redirect: Optional[Dict[str, Any]] = None
+
+
+class DeclarativeRuleCondition(BaseModel):
+    urlFilter: str = Field(..., description="URL matching pattern e.g. ||sbi-netbanking-kyc-alert.top")
+    resourceTypes: List[str] = Field(default_factory=lambda: ["main_frame", "sub_frame"])
+    isUrlFilterCaseSensitive: bool = False
+
+
+class DeclarativeNetRequestRule(BaseModel):
+    id: int
+    priority: int = 1
+    action: DeclarativeRuleAction
+    condition: DeclarativeRuleCondition
+
+
+class ExtensionRulesResponse(BaseModel):
+    extension_id: str = "kshemos-digital-safety-guardian"
+    version: str = "1.0.0"
+    compiled_at: int
+    total_rules: int
+    takedown_sources_count: int
+    threat_mesh_sources_count: int
+    rules: List[DeclarativeNetRequestRule]
+    active_threat_domains: List[str]
+    protected_bank_domains: List[str]
+
+
+class PhishHeuristicEvaluationRequest(BaseModel):
+    current_url: str
+    current_hostname: str
+    detected_form_fields: List[str] = Field(default_factory=list)
+    page_title: Optional[str] = None
+    has_card_pin: bool = False
+    has_cvv: bool = False
+    has_netbanking_password: bool = False
+    has_aadhaar_otp: bool = False
+
+
+class PhishHeuristicEvaluationResponse(BaseModel):
+    is_phishing: bool
+    risk_level: Literal["CRITICAL_PHISHING", "SUSPICIOUS_HIGH_RISK", "SAFE_VERIFIED"]
+    warning_title: str
+    warning_message: str
+    detected_indicators: List[str]
+    impersonated_brand: Optional[str] = None
+    matched_takedown_notice_id: Optional[str] = None
+    recommended_action: str
+    killswitch_deep_link: str
+
+

@@ -29,6 +29,12 @@ export default function EmergencyKillSwitchView() {
   const [pastReceipts, setPastReceipts] = useState([]);
   const [copiedKey, setCopiedKey] = useState(null);
   const [showGuideModal, setShowGuideModal] = useState(false);
+  const [showExtensionModal, setShowExtensionModal] = useState(false);
+
+  // Browser Extension Bridge State
+  const [extensionTriggered, setExtensionTriggered] = useState(false);
+  const [extensionDomain, setExtensionDomain] = useState('');
+  const [extensionBrand, setExtensionBrand] = useState('');
 
   // UIDAI Offline QR Verification & USSD Builder State
   const [scannedAadhaar, setScannedAadhaar] = useState(null);
@@ -104,6 +110,33 @@ export default function EmergencyKillSwitchView() {
     const list = getEmergencyBanksList();
     setBanks(list);
     setPastReceipts(getStoredMitigationReceipts());
+
+    // Check for Browser Extension Bridge triggers
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const suspect = params.get('suspect_domain');
+      const brand = params.get('brand');
+      if (suspect) {
+        setExtensionTriggered(true);
+        setExtensionDomain(suspect);
+        if (brand) setExtensionBrand(brand);
+        setIncidentNotes(
+          `AUTOMATED GUARDIAN EXTENSION TRIGGER: Fake bank lookalike portal intercepted at ${suspect}${
+            brand ? ` (impersonating ${brand})` : ''
+          }. Form credentials and PIN/CVV fields detected.`
+        );
+
+        // Pre-select appropriate bank if detected
+        const bLower = (brand || suspect).toLowerCase();
+        if (bLower.includes('sbi')) setSelectedBankId('sbi');
+        else if (bLower.includes('hdfc')) setSelectedBankId('hdfc');
+        else if (bLower.includes('icici')) setSelectedBankId('icici');
+        else if (bLower.includes('axis')) setSelectedBankId('axis');
+        else if (bLower.includes('pnb')) setSelectedBankId('pnb');
+        else if (bLower.includes('canara')) setSelectedBankId('canara');
+        else if (bLower.includes('bob') || bLower.includes('baroda')) setSelectedBankId('bob');
+      }
+    }
 
     function handleReceiptUpdate() {
       setPastReceipts(getStoredMitigationReceipts());
@@ -184,7 +217,7 @@ export default function EmergencyKillSwitchView() {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Top Emergency Header */}
         <div className="border-b border-[var(--paper-line)] pb-6 space-y-2">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-xs uppercase tracking-widest text-red-600 font-bold bg-red-100 border border-red-300 px-2.5 py-0.5 rounded-full flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
               EMERGENCY KILL-SWITCH
@@ -192,6 +225,14 @@ export default function EmergencyKillSwitchView() {
             <span className="font-mono text-xs text-[var(--ink-text)]/60">
               RBI Circular DBR.No.Leg.BC.78/09.07.005/2017-18
             </span>
+            <button
+              type="button"
+              onClick={() => setShowExtensionModal(true)}
+              className="ml-auto px-3 py-1 rounded-full bg-[var(--paper)] border border-[var(--paper-line)] text-xs font-mono font-bold hover:bg-gray-200 flex items-center gap-1.5 cursor-pointer text-[var(--ink)] shadow-2xs"
+            >
+              <span>🛡️</span>
+              <span>Guardian Browser Extension (Manifest V3)</span>
+            </button>
           </div>
           <h1 className="text-2xl sm:text-4xl font-display font-bold text-[var(--ink)] tracking-tight">
             Stop the Drain: Immediate Bank & Aadhaar Kill-Switch
@@ -202,6 +243,29 @@ export default function EmergencyKillSwitchView() {
             and generate a certified RBI zero-liability evidence receipt.
           </p>
         </div>
+
+        {/* Browser Extension Real-Time Bridge Alert */}
+        {extensionTriggered && (
+          <div className="bg-gradient-to-r from-red-600 to-rose-700 text-white rounded-2xl p-5 shadow-lg border border-red-400 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-mono text-xs uppercase tracking-widest font-extrabold bg-black/30 px-3 py-1 rounded-full border border-white/20 flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
+                TRIGGERED BY GUARDIAN BROWSER EXTENSION
+              </span>
+              <span className="font-mono text-xs text-rose-200">
+                Suspect Portal: <strong>{extensionDomain}</strong>
+              </span>
+            </div>
+            <h3 className="text-base sm:text-lg font-bold">
+              Phishing Portal Intercepted: {extensionDomain}
+            </h3>
+            <p className="text-xs text-white/90 leading-relaxed">
+              kshemOS's DOM Heuristic Shield detected unauthorized credential harvesting forms on an untrusted website
+              {extensionBrand ? ` (impersonating ${extensionBrand})` : ''}. Your prompt actions below establish immediate compliance
+              with the RBI Zero-Liability framework.
+            </p>
+          </div>
+        )}
 
         {/* High-Visibility Statutory Alert */}
         <div className="bg-gradient-to-r from-red-600/10 via-amber-500/10 to-transparent border-l-4 border-red-600 rounded-2xl p-4 sm:p-5 shadow-sm space-y-2">
@@ -967,6 +1031,80 @@ export default function EmergencyKillSwitchView() {
                   type="button"
                   onClick={() => setShowGuideModal(false)}
                   className="px-4 py-2 rounded-xl border border-gray-300 text-xs font-semibold hover:bg-gray-100"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* GUARDIAN BROWSER EXTENSION MODAL */}
+        {showExtensionModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-4 border border-[var(--paper-line)] max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-[var(--paper-line)] pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🛡️</span>
+                  <div>
+                    <h3 className="font-bold text-sm text-[var(--ink)]">
+                      kshemOS Citizen Digital Safety Guardian Extension
+                    </h3>
+                    <span className="text-[10px] font-mono text-emerald-700 font-bold">
+                      Manifest V3 • Real-Time DOM Heuristic Shield & Takedown Mesh
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowExtensionModal(false)}
+                  className="text-gray-400 hover:text-gray-600 font-bold text-lg cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-3 text-xs leading-relaxed">
+                <div className="bg-[var(--paper)] p-4 rounded-2xl border border-[var(--paper-line)] space-y-2">
+                  <h4 className="font-bold text-sm text-[var(--ink)] flex items-center gap-2">
+                    <span>⚡</span> How the Guardian Browser Extension Protects You
+                  </h4>
+                  <ul className="list-disc pl-5 space-y-1.5 text-gray-700">
+                    <li>
+                      <strong>declarativeNetRequest Network Blocking:</strong> Drops network requests to phishing domains and malicious infrastructure in kshemOS's active takedown database before pages even load.
+                    </li>
+                    <li>
+                      <strong>DOM Heuristic Shield:</strong> Actively inspects web forms for Card PINs, CVVs, NetBanking passwords, or Aadhaar OTPs. On unauthorized domains, triggers an instant red takeover: <em>"Warning: Fake Bank Portal Detected by kshemOS"</em>.
+                    </li>
+                    <li>
+                      <strong>Emergency Kill-Switch Bridge:</strong> Provides a one-click button in your browser toolbar that opens this view directly to freeze cards and lock Aadhaar biometrics if you suspect deception.
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 text-amber-950 space-y-1">
+                  <div className="font-bold text-xs">How to Install in Chrome / Edge / Brave:</div>
+                  <ol className="list-decimal pl-5 space-y-1 text-[11px]">
+                    <li>Open <code>chrome://extensions</code> (or <code>edge://extensions</code>).</li>
+                    <li>Enable <strong>Developer Mode</strong> (top right toggle).</li>
+                    <li>Click <strong>Load unpacked</strong>.</li>
+                    <li>Select the <code>kshemOS/frontend-extension</code> directory in your repo.</li>
+                  </ol>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-2 border-t border-[var(--paper-line)]">
+                <a
+                  href="/api/extension/rules"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 rounded-xl bg-[var(--navy)] text-white font-bold text-xs hover:brightness-110"
+                >
+                  Inspect Compiled Dynamic Rules (API) ↗
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setShowExtensionModal(false)}
+                  className="px-4 py-2 rounded-xl border border-gray-300 text-xs font-semibold hover:bg-gray-100 cursor-pointer"
                 >
                   Close
                 </button>

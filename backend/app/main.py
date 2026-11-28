@@ -34,6 +34,7 @@ from app.routers import (
     voice_deepfake,
     advisory_subscriptions,
     voice_fingerprint,
+    extension_guardian,
 )
 
 app = FastAPI(
@@ -88,6 +89,7 @@ app.include_router(emergency_killswitch.router)
 app.include_router(voice_deepfake.router)
 app.include_router(advisory_subscriptions.router)
 app.include_router(voice_fingerprint.router)
+app.include_router(extension_guardian.router)
 
 
 @app.get("/", tags=["Health"])
