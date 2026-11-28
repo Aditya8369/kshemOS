@@ -2886,15 +2886,17 @@ class VoiceHotlineLanguageInfo(BaseModel):
 
 class VoiceHotlineCallRequest(BaseModel):
     caller_phone: Optional[str] = Field(default="+91 98765 43210", description="Caller phone number (anonymized in logs)")
-    initial_language: Optional[str] = Field(default="en", description="Default initial language (en, hi, ta, te, kn, bn, mr, gu)")
+    initial_language: Optional[str] = Field(default="en", description="Default initial language (en, hi, ta, te, kn, bn, mr, gu, ml, pa)")
     telecom_circle: Optional[str] = Field(default="Delhi", description="Telecom circle of the incoming line")
     is_forwarded_call: bool = Field(default=False, description="Whether call was forwarded from citizen active call")
+    target_bank_id: Optional[str] = Field(default="sbi", description="Bank identifier for tailoring defensive actions")
 
 
 class VoiceHotlineInputRequest(BaseModel):
     session_id: str = Field(..., description="Unique IVR session identifier")
     dtmf_digit: str = Field(..., description="DTMF keypad press (1, 2, 3...)")
     speech_input: Optional[str] = Field(default=None, description="Optional transcribed voice utterance")
+    target_bank_id: Optional[str] = Field(default=None, description="Optional bank identifier for defensive SMS customization")
 
 
 class VoiceHotlinePromptResponse(BaseModel):
@@ -2911,6 +2913,7 @@ class VoiceHotlinePromptResponse(BaseModel):
     sms_summary: Optional[str] = None
     nearest_cyber_desk: Optional[str] = None
     triage_incident_id: Optional[str] = None
+    defensive_actions: Optional[Dict[str, Any]] = None
     is_completed: bool = False
 
 
@@ -2931,6 +2934,82 @@ class VoiceHotlineSessionRecord(BaseModel):
     sms_text: Optional[str] = None
     nearest_cyber_desk: Optional[str] = None
     triage_incident_id: Optional[str] = None
+    target_bank_id: Optional[str] = "sbi"
+    defensive_actions: Optional[Dict[str, Any]] = None
+
+
+# ---------- Telephony Gateway & Real-Time ASR Models ----------
+
+class TelephonyWebhookRequest(BaseModel):
+    gateway: str = Field(default="twilio", description="telephony provider: twilio, exotel, sip, asterisk")
+    call_sid: str = Field(default_factory=lambda: f"CALL-{uuid.uuid4().hex[:12].upper()}")
+    from_number: str = Field(default="+919876543210", description="Caller phone number")
+    to_number: str = Field(default="+91180057436", description="Hotline DID number")
+    digits: Optional[str] = Field(default=None, description="DTMF keypad entry received")
+    speech_result: Optional[str] = Field(default=None, description="Speech utterance transcribed by telephony provider")
+    call_status: str = Field(default="in-progress", description="Call state: ringing, in-progress, completed")
+    telecom_circle: Optional[str] = Field(default="Delhi", description="Incoming telecom circle")
+    session_id: Optional[str] = Field(default=None, description="Existing IVR session identifier if subsequent turn")
+    target_bank_id: Optional[str] = Field(default="sbi", description="Citizen primary bank for defensive action blast")
+
+
+class TelephonyWebhookResponse(BaseModel):
+    gateway: str
+    session_id: str
+    status: str
+    action: str
+    spoken_prompt: str
+    audio_locale: str
+    xml_payload: Optional[str] = None
+    json_dialplan: Optional[Dict[str, Any]] = None
+    defensive_actions: Optional[Dict[str, Any]] = None
+
+
+class AsrIntentExtractionRequest(BaseModel):
+    audio_base64: Optional[str] = Field(default=None, description="Base64 encoded WAV/MP3 speech segment")
+    speech_text: Optional[str] = Field(default=None, description="Raw speech utterance text")
+    language_hint: Optional[str] = Field(default=None, description="Language hint: en, hi, ta, te, kn, bn, mr, gu, ml, pa")
+    caller_phone: Optional[str] = Field(default=None, description="Caller phone")
+
+
+class AsrIntentExtractionResponse(BaseModel):
+    detected_language: str
+    language_name: str
+    transcription: str
+    confidence_score: float
+    scam_intent: str
+    intent_description: str
+    extracted_entities: Dict[str, Any] = Field(default_factory=dict)
+    risk_level: str
+    recommended_reassurance: str
+    suggested_action: str
+
+
+class DefensiveSmsBlastRequest(BaseModel):
+    caller_phone: str = Field(default="+91 98765 43210", description="Citizen recipient mobile number")
+    bank_id: Optional[str] = Field(default="sbi", description="Bank identifier (sbi, hdfc, icici, axis, pnb, etc.)")
+    telecom_circle: Optional[str] = Field(default="Delhi", description="Telecom circle for nearest cyber police desk")
+    aadhaar_last4: Optional[str] = Field(default="8892", description="Last 4 digits of Aadhaar for UIDAI biometric lock command")
+    account_last4: Optional[str] = Field(default="4512", description="Last 4 digits of bank account for instant freeze")
+    card_last4: Optional[str] = Field(default="1098", description="Last 4 digits of debit card for instant block")
+
+
+class DefensiveSmsBlastResponse(BaseModel):
+    recipient_phone: str
+    bank_id: str
+    bank_name: str
+    ussd_code: str
+    ussd_deep_link: str
+    bank_card_block_syntax: str
+    bank_card_block_number: str
+    bank_sms_deep_link: str
+    aadhaar_lock_syntax: str
+    aadhaar_lock_deep_link: str
+    bank_fraud_hotline: str
+    national_cyber_helpline: str
+    full_sms_body: str
+    dispatched_at_iso: str
+    delivery_status: str
 
 
 # ---------- Voice Deepfake & Synthetic Audio Impersonation Detector ----------

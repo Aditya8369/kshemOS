@@ -13,10 +13,13 @@ import {
   submitVoiceHotlineInputApi,
   listVoiceHotlineSessionsApi,
   getVoiceHotlineStatsApi,
-} from '../api.js';
+  simulateTelephonyWebhookApi,
+  transcribeSpeechIntentApi,
+  dispatchDefensiveSmsBlastApi,
+} from '../voiceHotlineStore.js';
 
 export default function VoiceSafetyHotlineView() {
-  const [activeTab, setActiveTab] = useState('simulator'); // 'simulator' | 'sms' | 'triage' | 'telemetry'
+  const [activeTab, setActiveTab] = useState('simulator'); // 'simulator' | 'sms' | 'triage' | 'telemetry' | 'telephony'
 
   // Call session state
   const [session, setSession] = useState(null);
@@ -27,10 +30,32 @@ export default function VoiceSafetyHotlineView() {
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [callerPhone, setCallerPhone] = useState('+91 98765 43210');
   const [telecomCircle, setTelecomCircle] = useState('Delhi');
+  const [targetBank, setTargetBank] = useState('sbi');
   const [backendEngine, setBackendEngine] = useState(false);
   const [sessionsList, setSessionsList] = useState([]);
   const [dispatchedSmsList, setDispatchedSmsList] = useState([]);
   const [hotlineStats, setHotlineStats] = useState(null);
+
+  // Telephony & ASR states
+  const [telephonyGateway, setTelephonyGateway] = useState('twilio'); // 'twilio' | 'exotel' | 'sip'
+  const [telephonyDigits, setTelephonyDigits] = useState('1');
+  const [telephonySpeechInput, setTelephonySpeechInput] = useState('');
+  const [telephonyResult, setTelephonyResult] = useState(null);
+  const [isTelephonyLoading, setIsTelephonyLoading] = useState(false);
+
+  // ASR & Intent Extraction state
+  const [asrSpeechText, setAsrSpeechText] = useState('सीबीआई हेडक्वार्टर से बोल रहे हैं, आपके आधार कार्ड पर पार्सल में ड्रग्स मिला है, तुरंत डिजिटल अरेस्ट के लिए स्काइप कॉल पर रहिए।');
+  const [asrLanguageHint, setAsrLanguageHint] = useState('hi');
+  const [asrResult, setAsrResult] = useState(null);
+  const [isAsrLoading, setIsAsrLoading] = useState(false);
+
+  // Defensive Blast state
+  const [blastBankId, setBlastBankId] = useState('sbi');
+  const [blastPhone, setBlastPhone] = useState('+91 98765 43210');
+  const [blastAadhaarLast4, setBlastAadhaarLast4] = useState('8892');
+  const [blastCardLast4, setBlastCardLast4] = useState('1098');
+  const [blastResult, setBlastResult] = useState(null);
+  const [isBlastLoading, setIsBlastLoading] = useState(false);
 
   const timerRef = useRef(null);
 
@@ -87,6 +112,7 @@ export default function VoiceSafetyHotlineView() {
       initial_language: selectedLanguage,
       telecom_circle: telecomCircle,
       is_forwarded_call: false,
+      target_bank_id: targetBank,
     };
 
     let promptRes = null;
@@ -169,6 +195,64 @@ export default function VoiceSafetyHotlineView() {
     }
   }
 
+  // Telephony Webhook Trigger
+  async function handleInvokeTelephonyWebhook() {
+    setIsTelephonyLoading(true);
+    try {
+      const res = await simulateTelephonyWebhookApi(telephonyGateway, {
+        gateway: telephonyGateway,
+        from_number: callerPhone,
+        digits: telephonyDigits || null,
+        speech_result: telephonySpeechInput || null,
+        session_id: session?.session_id || null,
+        telecom_circle: telecomCircle,
+        target_bank_id: targetBank,
+      });
+      setTelephonyResult(res);
+    } catch (err) {
+      setTelephonyResult({ error: err.message });
+    } finally {
+      setIsTelephonyLoading(false);
+    }
+  }
+
+  // ASR & Intent Extraction Trigger
+  async function handleRunAsrExtraction() {
+    setIsAsrLoading(true);
+    try {
+      const res = await transcribeSpeechIntentApi({
+        speech_text: asrSpeechText,
+        language_hint: asrLanguageHint,
+        caller_phone: callerPhone,
+      });
+      setAsrResult(res);
+    } catch (err) {
+      setAsrResult({ error: err.message });
+    } finally {
+      setIsAsrLoading(false);
+    }
+  }
+
+  // Defensive Blast Trigger
+  async function handleDispatchDefensiveBlast() {
+    setIsBlastLoading(true);
+    try {
+      const res = await dispatchDefensiveSmsBlastApi({
+        caller_phone: blastPhone,
+        bank_id: blastBankId,
+        telecom_circle: telecomCircle,
+        aadhaar_last4: blastAadhaarLast4,
+        card_last4: blastCardLast4,
+      });
+      setBlastResult(res);
+      refreshHistory();
+    } catch (err) {
+      setBlastResult({ error: err.message });
+    } finally {
+      setIsBlastLoading(false);
+    }
+  }
+
   function formatTime(seconds) {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -182,7 +266,7 @@ export default function VoiceSafetyHotlineView() {
         <div className="relative z-10">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
             <span className="font-mono text-xs uppercase tracking-[0.25em] text-[var(--saffron)] font-bold">
-              OPEN-SOURCE IVR // 8 INDIC LANGUAGES SUPPORTED
+              OPEN-SOURCE IVR // 10 INDIC LANGUAGES SUPPORTED
             </span>
             <div className="flex items-center gap-2 bg-black/40 px-3 py-1 rounded-full border border-white/10 text-xs font-mono">
               <span className={`w-2 h-2 rounded-full ${isCalling ? 'bg-red-500 animate-ping' : 'bg-emerald-400'}`}></span>
@@ -198,12 +282,12 @@ export default function VoiceSafetyHotlineView() {
           </div>
 
           <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-white">
-            Multilingual Automated Voice Safety Hotline
+            Multilingual Automated Voice Safety Hotline & Defense Gateway
           </h2>
           <p className="mt-2 text-sm sm:text-base text-gray-300 max-w-4xl leading-relaxed">
-            Automated Interactive Voice Response (IVR) state machine and voice deflection gateway supporting 8 Indic languages
-            (Hindi, Tamil, Telugu, Kannada, Bengali, Marathi, Gujarati, English). Citizens can dial or forward suspicious calls
-            to receive simple step-by-step guidance, calm authoritative reassurance, automated 1930 SMS dispatch, and anonymous regional triage logging.
+            Automated Interactive Voice Response (IVR) state machine, SIP/Asterisk telephony connector, cloud gateway (Twilio/Exotel),
+            real-time Bhashini/Indic Whisper ASR intent extraction, and automated defensive SMS blast (*99*99*1#, bank freeze, UIDAI lock)
+            supporting 10 Indic languages (Hindi, Tamil, Telugu, Kannada, Bengali, Marathi, Gujarati, Malayalam, Punjabi, English).
           </p>
 
           {/* Supported Languages Badges */}
@@ -231,9 +315,10 @@ export default function VoiceSafetyHotlineView() {
       <div className="flex flex-wrap items-center gap-2 border-b border-[var(--paper-line)] pb-3">
         {[
           { id: 'simulator', label: '1. Voice Hotline & Keypad', icon: '📞' },
-          { id: 'sms', label: '2. Dispatched SMS Summaries', icon: '💬' },
+          { id: 'sms', label: '2. Defensive SMS Blast', icon: '💬' },
           { id: 'triage', label: '3. Regional Triage Sync', icon: '🚨' },
           { id: 'telemetry', label: '4. Hotline Telemetry', icon: '📊' },
+          { id: 'telephony', label: '5. Telephony Gateway & ASR', icon: '📡' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -290,6 +375,22 @@ export default function VoiceSafetyHotlineView() {
                   />
                 </div>
                 <div>
+                  <label className="block text-gray-600 font-bold mb-1">Citizen Primary Bank (Defensive Actions):</label>
+                  <select
+                    value={targetBank}
+                    onChange={(e) => setTargetBank(e.target.value)}
+                    className="w-full p-2 rounded-xl border border-[var(--paper-line)] bg-white text-[var(--ink)]"
+                  >
+                    <option value="sbi">State Bank of India (SBI)</option>
+                    <option value="hdfc">HDFC Bank</option>
+                    <option value="icici">ICICI Bank</option>
+                    <option value="axis">Axis Bank</option>
+                    <option value="pnb">Punjab National Bank (PNB)</option>
+                    <option value="canara">Canara Bank</option>
+                    <option value="bob">Bank of Baroda</option>
+                  </select>
+                </div>
+                <div>
                   <label className="block text-gray-600 font-bold mb-1">Telecom Circle (Regional Desk):</label>
                   <select
                     value={telecomCircle}
@@ -304,6 +405,10 @@ export default function VoiceSafetyHotlineView() {
                     <option value="Telangana">Telangana / Hyderabad</option>
                     <option value="West Bengal">West Bengal / Kolkata</option>
                     <option value="Gujarat">Gujarat / Ahmedabad</option>
+                    <option value="Kerala">Kerala / Thiruvananthapuram</option>
+                    <option value="Punjab">Punjab / Chandigarh</option>
+                  </select>
+                </div>
                   </select>
                 </div>
                 <button
@@ -375,9 +480,9 @@ export default function VoiceSafetyHotlineView() {
                   { key: '6', sub: 'BN' },
                   { key: '7', sub: 'MR' },
                   { key: '8', sub: 'GU' },
-                  { key: '9', sub: 'WXYZ' },
+                  { key: '9', sub: 'ML' },
                   { key: '*', sub: 'Clear' },
-                  { key: '0', sub: '+' },
+                  { key: '0', sub: 'PA' },
                   { key: '#', sub: 'End' },
                 ].map((btn) => (
                   <button
@@ -515,48 +620,206 @@ export default function VoiceSafetyHotlineView() {
         </div>
       )}
 
-      {/* TAB 2: DISPATCHED SMS SUMMARIES */}
+      {/* TAB 2: DISPATCHED SMS SUMMARIES & DEFENSIVE KILL-SWITCH BLAST */}
       {activeTab === 'sms' && (
-        <div className="bg-white border border-[var(--paper-line)] rounded-3xl p-6 shadow-sm space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <span className="text-[11px] font-mono uppercase tracking-[0.25em] text-[var(--saffron)] font-bold">
-                CITIZEN OUTREACH // POST-CALL PROTOCOL
+        <div className="space-y-6">
+          {/* 1-Tap Emergency Defense Control Panel */}
+          <div className="bg-gradient-to-r from-red-950 via-slate-900 to-slate-900 border border-red-900/60 rounded-3xl p-6 shadow-xl text-white space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-[var(--saffron)] font-bold">
+                  ONE-TAP EMERGENCY KILL-SWITCH
+                </span>
+                <h3 className="font-display text-xl font-bold text-white">
+                  Automated Defensive SMS & USSD Deflection
+                </h3>
+              </div>
+              <span className="px-3 py-1 bg-red-600/30 border border-red-500/40 text-red-200 text-xs font-mono font-bold rounded-full">
+                NPCI Universal AePS + UIDAI 1947
               </span>
-              <h3 className="font-display text-xl font-bold text-[var(--ink)]">
-                Automated SMS Summaries with Official Helplines
-              </h3>
-              <p className="mt-1 text-sm text-gray-600">
-                Immediately upon completing the automated triage, the system transmits an SMS with the official 1930 helpline,
-                reporting portal, and circle-specific cyber police desk so victims have permanent written guidance.
-              </p>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {dispatchedSmsList.length > 0 ? (
-              dispatchedSmsList.map((sms, i) => (
-                <div key={i} className="p-4 rounded-2xl bg-sky-50 border border-sky-200 space-y-2 text-xs font-mono">
-                  <div className="flex items-center justify-between text-sky-900 font-bold">
-                    <span>SMS to: {sms.recipient_phone}</span>
-                    <span className="text-[10px] text-gray-500">
-                      {new Date(sms.dispatched_at).toLocaleTimeString()}
-                    </span>
-                  </div>
-                  <div className="p-3 bg-white rounded-xl border border-sky-100 text-gray-800 leading-relaxed">
-                    {sms.sms_text}
-                  </div>
-                  <div className="flex items-center justify-between text-[11px] text-sky-800 pt-1">
-                    <span>Session: {sms.session_id}</span>
-                    <span className="text-emerald-700 font-bold">✓ Carrier Dispatched</span>
-                  </div>
+            <p className="text-xs text-gray-300 leading-relaxed max-w-3xl">
+              Provides citizens immediate one-tap commands to cut off Aadhaar-enabled biometric withdrawals (AePS) via universal USSD code,
+              freeze target bank accounts/cards via SMS, and invoke UIDAI biometric locking before fraudsters drain savings.
+            </p>
+
+            {/* Clickable Action Buttons Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-2">
+              <a
+                href="tel:*99*99*1%23"
+                className="p-3.5 rounded-2xl bg-amber-500/20 border border-amber-500/40 hover:bg-amber-500/30 transition-all flex flex-col justify-between text-left group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-lg">⚡</span>
+                  <span className="text-[10px] font-mono font-bold text-amber-300 uppercase">1-Tap USSD</span>
                 </div>
-              ))
-            ) : (
-              <div className="col-span-2 p-12 text-center text-xs font-mono text-gray-500 border-2 border-dashed border-[var(--paper-line)] rounded-2xl">
-                No SMS dispatches yet. Complete a hotline call to trigger automatic carrier dispatch.
+                <div className="mt-2">
+                  <div className="text-sm font-bold font-mono text-white group-hover:text-[var(--saffron)]">
+                    *99*99*1#
+                  </div>
+                  <div className="text-[10px] text-gray-300 mt-0.5">Instant AePS Biometric Block</div>
+                </div>
+              </a>
+
+              <a
+                href={`sms:1947?body=LOCKUID%20${blastAadhaarLast4}`}
+                className="p-3.5 rounded-2xl bg-sky-500/20 border border-sky-500/40 hover:bg-sky-500/30 transition-all flex flex-col justify-between text-left group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-lg">🔒</span>
+                  <span className="text-[10px] font-mono font-bold text-sky-300 uppercase">UIDAI SMS</span>
+                </div>
+                <div className="mt-2">
+                  <div className="text-sm font-bold font-mono text-white group-hover:text-sky-300">
+                    LOCKUID {blastAadhaarLast4}
+                  </div>
+                  <div className="text-[10px] text-gray-300 mt-0.5">Send to 1947 (Aadhaar Lock)</div>
+                </div>
+              </a>
+
+              <a
+                href={`sms:567676?body=BLOCK%20${blastCardLast4}`}
+                className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 hover:bg-emerald-500/30 transition-all flex flex-col justify-between text-left group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-lg">💳</span>
+                  <span className="text-[10px] font-mono font-bold text-emerald-300 uppercase">Bank Freeze</span>
+                </div>
+                <div className="mt-2">
+                  <div className="text-sm font-bold font-mono text-white group-hover:text-emerald-300">
+                    BLOCK {blastCardLast4}
+                  </div>
+                  <div className="text-[10px] text-gray-300 mt-0.5">SMS to Bank Shortcode</div>
+                </div>
+              </a>
+
+              <a
+                href="tel:1930"
+                className="p-3.5 rounded-2xl bg-red-500/20 border border-red-500/40 hover:bg-red-500/30 transition-all flex flex-col justify-between text-left group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-lg">🚨</span>
+                  <span className="text-[10px] font-mono font-bold text-red-300 uppercase">I4C National</span>
+                </div>
+                <div className="mt-2">
+                  <div className="text-sm font-bold font-mono text-white group-hover:text-red-300">
+                    Call 1930
+                  </div>
+                  <div className="text-[10px] text-gray-300 mt-0.5">National Cyber Helpline</div>
+                </div>
+              </a>
+            </div>
+
+            {/* Custom Defensive Blast Trigger */}
+            <div className="pt-4 border-t border-white/10 grid grid-cols-1 sm:grid-cols-5 gap-3 items-end text-xs font-mono">
+              <div>
+                <label className="block text-gray-400 mb-1">Target Phone:</label>
+                <input
+                  type="text"
+                  value={blastPhone}
+                  onChange={(e) => setBlastPhone(e.target.value)}
+                  className="w-full p-2 rounded-xl bg-black/40 border border-white/20 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 mb-1">Target Bank:</label>
+                <select
+                  value={blastBankId}
+                  onChange={(e) => setBlastBankId(e.target.value)}
+                  className="w-full p-2 rounded-xl bg-black/40 border border-white/20 text-white"
+                >
+                  <option value="sbi">SBI</option>
+                  <option value="hdfc">HDFC Bank</option>
+                  <option value="icici">ICICI Bank</option>
+                  <option value="axis">Axis Bank</option>
+                  <option value="pnb">PNB</option>
+                  <option value="canara">Canara Bank</option>
+                  <option value="bob">Bank of Baroda</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-gray-400 mb-1">Aadhaar (Last 4):</label>
+                <input
+                  type="text"
+                  maxLength={4}
+                  value={blastAadhaarLast4}
+                  onChange={(e) => setBlastAadhaarLast4(e.target.value)}
+                  className="w-full p-2 rounded-xl bg-black/40 border border-white/20 text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-gray-400 mb-1">Card (Last 4):</label>
+                <input
+                  type="text"
+                  maxLength={4}
+                  value={blastCardLast4}
+                  onChange={(e) => setBlastCardLast4(e.target.value)}
+                  className="w-full p-2 rounded-xl bg-black/40 border border-white/20 text-white"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleDispatchDefensiveBlast}
+                disabled={isBlastLoading}
+                className="py-2.5 px-4 rounded-xl bg-[var(--saffron)] text-white font-bold hover:brightness-110 transition-all flex items-center justify-center gap-2"
+              >
+                <span>{isBlastLoading ? 'Dispatching...' : '🚀 Dispatch SMS'}</span>
+              </button>
+            </div>
+
+            {/* Blast Confirmation Alert */}
+            {blastResult && (
+              <div className="p-4 rounded-2xl bg-black/50 border border-emerald-500/40 text-xs font-mono space-y-2">
+                <div className="flex items-center justify-between text-emerald-400 font-bold">
+                  <span>✓ Defensive SMS Dispatched to {blastResult.recipient_phone}</span>
+                  <span className="text-[10px] text-gray-400">{blastResult.delivery_status}</span>
+                </div>
+                <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-gray-200 whitespace-pre-line leading-relaxed">
+                  {blastResult.full_sms_body}
+                </div>
               </div>
             )}
+          </div>
+
+          {/* Past Dispatched SMS Log */}
+          <div className="bg-white border border-[var(--paper-line)] rounded-3xl p-6 shadow-sm space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <span className="text-[11px] font-mono uppercase tracking-[0.25em] text-[var(--saffron)] font-bold">
+                  CITIZEN OUTREACH // POST-CALL PROTOCOL
+                </span>
+                <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                  Dispatched SMS Carrier Log
+                </h3>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {dispatchedSmsList.length > 0 ? (
+                dispatchedSmsList.map((sms, i) => (
+                  <div key={i} className="p-4 rounded-2xl bg-sky-50 border border-sky-200 space-y-2 text-xs font-mono">
+                    <div className="flex items-center justify-between text-sky-900 font-bold">
+                      <span>SMS to: {sms.recipient_phone}</span>
+                      <span className="text-[10px] text-gray-500">
+                        {new Date(sms.dispatched_at).toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <div className="p-3 bg-white rounded-xl border border-sky-100 text-gray-800 leading-relaxed whitespace-pre-line">
+                      {sms.sms_text}
+                    </div>
+                    <div className="flex items-center justify-between text-[11px] text-sky-800 pt-1">
+                      <span>Session: {sms.session_id}</span>
+                      <span className="text-emerald-700 font-bold">✓ Carrier Dispatched</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="col-span-2 p-12 text-center text-xs font-mono text-gray-500 border-2 border-dashed border-[var(--paper-line)] rounded-2xl">
+                  No SMS dispatches yet. Complete a hotline call or trigger a defensive blast above.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -669,7 +932,7 @@ export default function VoiceSafetyHotlineView() {
 
             <div className="p-4 rounded-2xl bg-gray-50 border border-[var(--paper-line)]">
               <div className="text-gray-500">LANGUAGES ACTIVE</div>
-              <div className="text-2xl font-bold text-[var(--saffron)] mt-1">8</div>
+              <div className="text-2xl font-bold text-[var(--saffron)] mt-1">10</div>
               <div className="text-[10px] text-gray-500 mt-1">Indic Dialects</div>
             </div>
           </div>
@@ -677,9 +940,9 @@ export default function VoiceSafetyHotlineView() {
           {/* Languages Distribution */}
           <div className="p-5 rounded-2xl bg-[var(--paper)] border border-[var(--paper-line)] space-y-3">
             <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--ink)]">
-              Language Adoption Breakdown
+              Language Adoption Breakdown (10 Indian Languages)
             </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs font-mono">
               {SUPPORTED_INDIC_LANGUAGES.map((lang) => {
                 const count = sessionsList.filter((s) => s.language === lang.code).length;
                 return (
@@ -693,6 +956,275 @@ export default function VoiceSafetyHotlineView() {
                 );
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: TELEPHONY GATEWAY & REAL-TIME ASR */}
+      {activeTab === 'telephony' && (
+        <div className="space-y-6">
+          {/* Telephony Webhook Simulator */}
+          <div className="bg-white border border-[var(--paper-line)] rounded-3xl p-6 shadow-sm space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <span className="text-[11px] font-mono uppercase tracking-[0.25em] text-[var(--saffron)] font-bold">
+                  TELEPHONY ADAPTER // SIP & CLOUD GATEWAY
+                </span>
+                <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                  SIP / Asterisk & Twilio / Exotel Webhook Connector
+                </h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  Simulate external cloud telephony carrier webhooks triggering the IVR state machine.
+                  Generates compliant TwiML XML (Twilio), ExoML (Exotel), or Asterisk JSON dialplan actions.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 rounded-2xl bg-[var(--paper)] text-xs font-mono">
+              <div>
+                <label className="block text-gray-700 font-bold mb-1">Carrier Gateway:</label>
+                <select
+                  value={telephonyGateway}
+                  onChange={(e) => setTelephonyGateway(e.target.value)}
+                  className="w-full p-2 rounded-xl bg-white border border-[var(--paper-line)] font-bold"
+                >
+                  <option value="twilio">Twilio (TwiML XML)</option>
+                  <option value="exotel">Exotel (ExoML)</option>
+                  <option value="sip">SIP / Asterisk (JSON)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-bold mb-1">DTMF Digits Received:</label>
+                <input
+                  type="text"
+                  value={telephonyDigits}
+                  onChange={(e) => setTelephonyDigits(e.target.value)}
+                  placeholder="e.g. 1"
+                  className="w-full p-2 rounded-xl bg-white border border-[var(--paper-line)]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-gray-700 font-bold mb-1">Carrier Speech Input (ASR):</label>
+                <input
+                  type="text"
+                  value={telephonySpeechInput}
+                  onChange={(e) => setTelephonySpeechInput(e.target.value)}
+                  placeholder="e.g. Yes police officer"
+                  className="w-full p-2 rounded-xl bg-white border border-[var(--paper-line)]"
+                />
+              </div>
+
+              <div className="flex items-end">
+                <button
+                  type="button"
+                  onClick={handleInvokeTelephonyWebhook}
+                  disabled={isTelephonyLoading}
+                  className="w-full py-2.5 px-4 rounded-xl bg-[var(--navy)] text-white font-bold hover:brightness-110 transition-all flex items-center justify-center gap-2"
+                >
+                  <span>{isTelephonyLoading ? 'Invoking...' : '⚡ Trigger Webhook'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Telephony Output Viewer */}
+            {telephonyResult && (
+              <div className="p-4 rounded-2xl bg-gray-900 text-gray-100 font-mono text-xs space-y-3">
+                <div className="flex items-center justify-between text-gray-400 border-b border-gray-800 pb-2">
+                  <span className="font-bold text-[var(--saffron)] uppercase">
+                    Gateway: {telephonyResult.gateway} • Action: {telephonyResult.action}
+                  </span>
+                  <span>Session: {telephonyResult.session_id}</span>
+                </div>
+
+                <div>
+                  <div className="text-[11px] text-gray-400 mb-1">Spoken Audio Prompt:</div>
+                  <div className="p-2.5 bg-black/40 rounded-lg text-emerald-400">
+                    {telephonyResult.spoken_prompt}
+                  </div>
+                </div>
+
+                {telephonyResult.xml_payload && (
+                  <div>
+                    <div className="text-[11px] text-gray-400 mb-1">Carrier XML Response (TwiML / ExoML):</div>
+                    <pre className="p-3 bg-black/50 rounded-xl border border-gray-800 text-[11px] text-amber-300 overflow-x-auto">
+                      {telephonyResult.xml_payload}
+                    </pre>
+                  </div>
+                )}
+
+                {telephonyResult.json_dialplan && (
+                  <div>
+                    <div className="text-[11px] text-gray-400 mb-1">Asterisk SIP JSON Dialplan:</div>
+                    <pre className="p-3 bg-black/50 rounded-xl border border-gray-800 text-[11px] text-sky-300 overflow-x-auto">
+                      {JSON.stringify(telephonyResult.json_dialplan, null, 2)}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Real-Time Bhashini / Indic Whisper ASR Intent Extractor */}
+          <div className="bg-white border border-[var(--paper-line)] rounded-3xl p-6 shadow-sm space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <span className="text-[11px] font-mono uppercase tracking-[0.25em] text-[var(--saffron)] font-bold">
+                  SPEECH INTELLIGENCE // 10 INDIC LANGUAGES
+                </span>
+                <h3 className="font-display text-xl font-bold text-[var(--ink)]">
+                  Bhashini & Indic Whisper Real-Time Intent Extractor
+                </h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  Leverages neural speech recognition heuristics to transcribe victim utterances and detect extortion intimidation
+                  across Hindi, Tamil, Telugu, Kannada, Bengali, Marathi, Gujarati, Malayalam, Punjabi, and English.
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Preset Buttons */}
+            <div className="flex flex-wrap gap-2 text-xs font-mono">
+              <span className="text-gray-500 self-center">Sample Threats:</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setAsrLanguageHint('hi');
+                  setAsrSpeechText('सीबीआई हेडक्वार्टर से बोल रहे हैं, आपके आधार पर पार्सल में ड्रग्स मिला है, तुरंत डिजिटल अरेस्ट के लिए स्काइप कॉल पर रहिए।');
+                }}
+                className="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
+              >
+                Hindi (Digital Arrest)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAsrLanguageHint('ml');
+                  setAsrSpeechText('പോലീസ് ഹെഡ്ക്വാർട്ടേഴ്സിൽ നിന്നാണ് സംസാരിക്കുന്നത്, നിങ്ങളുടെ പേരിൽ മയക്കുമരുന്ന് പാർസൽ എത്തിയിട്ടുണ്ട്, ഉടൻ വീഡിയോ കോളിൽ വരിക.');
+                }}
+                className="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
+              >
+                Malayalam (Police Parcel)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAsrLanguageHint('pa');
+                  setAsrSpeechText('ਅਸੀਂ ਸਾਈਬਰ ਕ੍ਰਾਈਮ ਬ੍ਰਾਂਚ ਤੋਂ ਬੋਲ ਰਹੇ ਹਾਂ, ਤੁਹਾਡੇ ਆਧਾਰ ਤੇ ਗੈਰ-ਕਾਨੂੰਨੀ ਪਾਰਸਲ ਫੜਿਆ ਗਿਆ ਹੈ, ਤੁਰੰਤ ਸਕਾਈਪ ਤੇ ਆਓ।');
+                }}
+                className="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
+              >
+                Punjabi (Cyber Branch)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAsrLanguageHint('ta');
+                  setAsrSpeechText('சுங்கத்துறை அதிகாரி பேசுகிறேன், உங்கள் பெயரில் பார்சலில் போதைப்பொருள் உள்ளது, உடனே ஆன்லைன் சரிபார்ப்பு செய்ய வேண்டும்.');
+                }}
+                className="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
+              >
+                Tamil (Customs Drugs)
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAsrLanguageHint('en');
+                  setAsrSpeechText('Transfer 2 lakh rupees to RBI secret clearing escrow account within 10 minutes to verify your funds.');
+                }}
+                className="px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800"
+              >
+                English (Secret Escrow)
+              </button>
+            </div>
+
+            {/* Input Form */}
+            <div className="space-y-3 font-mono text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="sm:col-span-3">
+                  <label className="block text-gray-700 font-bold mb-1">Victim Spoken Utterance:</label>
+                  <textarea
+                    rows={3}
+                    value={asrSpeechText}
+                    onChange={(e) => setAsrSpeechText(e.target.value)}
+                    className="w-full p-3 rounded-xl border border-[var(--paper-line)] bg-[var(--paper)] text-[var(--ink)] leading-relaxed"
+                  />
+                </div>
+                <div className="flex flex-col justify-between">
+                  <div>
+                    <label className="block text-gray-700 font-bold mb-1">Language Hint:</label>
+                    <select
+                      value={asrLanguageHint}
+                      onChange={(e) => setAsrLanguageHint(e.target.value)}
+                      className="w-full p-2 rounded-xl bg-white border border-[var(--paper-line)] font-bold"
+                    >
+                      {SUPPORTED_INDIC_LANGUAGES.map((l) => (
+                        <option key={l.code} value={l.code}>{l.name} ({l.native_name})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleRunAsrExtraction}
+                    disabled={isAsrLoading}
+                    className="w-full py-3 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2 mt-2"
+                  >
+                    <span>{isAsrLoading ? 'Extracting...' : '🔍 Analyze Speech & Intent'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ASR Extraction Result Card */}
+            {asrResult && (
+              <div className="p-5 rounded-2xl bg-[var(--paper)] border border-[var(--paper-line)] font-mono text-xs space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--paper-line)] pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[var(--navy)] text-sm">
+                      Scam Intent: {asrResult.scam_intent}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                      asrResult.risk_level === 'CRITICAL'
+                        ? 'bg-red-100 text-red-800'
+                        : asrResult.risk_level === 'HIGH'
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-emerald-100 text-emerald-800'
+                    }`}>
+                      {asrResult.risk_level} RISK
+                    </span>
+                  </div>
+                  <div className="text-gray-500 text-[11px]">
+                    Detected: <strong className="text-[var(--ink)]">{asrResult.language_name}</strong> (Confidence: {(asrResult.confidence_score * 100).toFixed(0)}%)
+                  </div>
+                </div>
+
+                <p className="text-gray-700 text-xs">
+                  {asrResult.intent_description}
+                </p>
+
+                {Object.keys(asrResult.extracted_entities || {}).length > 0 && (
+                  <div className="p-3 bg-white rounded-xl border border-[var(--paper-line)] space-y-1">
+                    <div className="text-[10px] uppercase font-bold text-gray-500">Extracted Threat Entities:</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                      {Object.entries(asrResult.extracted_entities).map(([k, v]) => (
+                        <div key={k} className="flex gap-1.5">
+                          <span className="text-gray-500 capitalize">{k.replace('_', ' ')}:</span>
+                          <span className="font-bold text-[var(--ink)]">{String(v)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1 text-emerald-900">
+                  <div className="text-[11px] font-bold">Recommended Spoken Reassurance:</div>
+                  <p className="text-xs italic leading-relaxed">"{asrResult.recommended_reassurance}"</p>
+                  <div className="text-[10px] pt-1 text-emerald-800 font-bold">
+                    Suggested Action: {asrResult.suggested_action}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

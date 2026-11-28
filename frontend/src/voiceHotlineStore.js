@@ -23,6 +23,8 @@ export const SUPPORTED_INDIC_LANGUAGES = [
   { code: 'bn', name: 'Bengali', native_name: 'বাংলা', dtmf_key: '6', tts_locale: 'bn-IN' },
   { code: 'mr', name: 'Marathi', native_name: 'मराठी', dtmf_key: '7', tts_locale: 'mr-IN' },
   { code: 'gu', name: 'Gujarati', native_name: 'ગુજરાતી', dtmf_key: '8', tts_locale: 'gu-IN' },
+  { code: 'ml', name: 'Malayalam', native_name: 'മലയാളം', dtmf_key: '9', tts_locale: 'ml-IN' },
+  { code: 'pa', name: 'Punjabi', native_name: 'ਪੰਜਾਬੀ', dtmf_key: '0', tts_locale: 'pa-IN' },
 ];
 
 export const DTMF_TO_LANG_CODE = {
@@ -34,11 +36,13 @@ export const DTMF_TO_LANG_CODE = {
   '6': 'bn',
   '7': 'mr',
   '8': 'gu',
+  '9': 'ml',
+  '0': 'pa',
 };
 
 export const INDIC_HOTLINE_CATALOG = {
   en: {
-    welcome: 'Welcome to the KshemOS Cyber Safety Hotline. For English press 1, हिन्दी के लिए 2 दबाएं, தமிழுக்கு 3 அழுத்தவும், తెలుగు కోసం 4 నొక్కండి, ಕನ್ನಡಕ್ಕಾಗಿ 5 ಒತ್ತಿ, বাংলার জন্য 6 চাপুন, मराठीसाठी 7 दाबा, ગુજરાતી માટે 8 દબાવો.',
+    welcome: 'Welcome to the KshemOS Cyber Safety Hotline. For English press 1, हिन्दी के लिए 2 दबाएं, தமிழுக்கு 3 அழுத்தவும், తెలుగు కోసం 4 నొక్కండి, ಕನ್ನಡಕ್ಕಾಗಿ 5 ಒತ್ತಿ, বাংলার জন্য 6 চাপুন, मराठीसाठी 7 दाबा, ગુજરાતી માટે 8 દબાવો, മലയാളത്തിനായി 9 അമർത്തുക, ਪੰਜਾਬੀ ਲਈ 0 ਦਬਾਓ.',
     prompt_authority: 'Did the caller claim to be customs or police? Press 1 for Yes, Press 2 for No.',
     prompt_extortion: 'Did they demand money to avoid arrest, demand a secret transfer, or threaten video digital arrest? Press 1 for Yes, Press 2 for No.',
     reassurance: 'Government agencies never demand online transfers or video arrest. Hang up immediately. You are safe. We have sent an emergency helpline summary via SMS.',
@@ -93,6 +97,20 @@ export const INDIC_HOTLINE_CATALOG = {
     reassurance: 'સરકારી એજન્સીઓ ક્યારેય ઑનલાઇન ટ્રાન્સફર કે વીડિયો અરેસ્ટની માંગ કરતી નથી. તરત જ ફોન કાપી નાખો. તમે સુરક્ષિત છો. કટોકટી હેલ્પલાઇન એસએમએસ મોકલેલ છે.',
     sms_template: 'KshemOS સુરક્ષા ચેતવણી: સરકારી એજન્સીઓ કે પોલીસ ક્યારેય ઑનલાઇન પૈસા ટ્રાન્સફર માંગતી નથી. તરત જ 1930 હેલ્પલાઇન પર કૉલ કરો અથવા cybercrime.gov.in ની મુલાકાત લો. નજીકનું સાયબર ડેસ્ક: {nearest_desk}.',
   },
+  ml: {
+    welcome: 'ക്ഷോമോഎസ് സൈബർ സുരക്ഷാ ഹെൽപ്പ്‌ലൈനിലേക്ക് സ്വാഗതം. ഇംഗ്ലീഷിന് 1 അമർത്തുക, ഹിന്ദിക്ക് 2 അമർത്തുക, മലയാളത്തിനായി 9 അമർത്തുക...',
+    prompt_authority: 'വിളിച്ചയാൾ കസ്റ്റംസ്, പോലീസ് അല്ലെങ്കിൽ സിബിഐ ഉദ്യോഗസ്ഥനാണെന്ന് അവകാശപ്പെട്ടോ? അതെ എന്നതിന് 1 അമർത്തുക, അല്ല എന്നതിന് 2 അമർത്തുക.',
+    prompt_extortion: 'അറസ്റ്റ് ഒഴിവാക്കാൻ പണമോ രഹസ്യ ബാങ്ക് കൈമാറ്റമോ ആവശ്യപ്പെട്ടോ, അതോ ഡിജിറ്റൽ അറസ്റ്റ് ഭീഷണി മുഴക്കിയോ? അതെ എന്നതിന് 1 അമർത്തുക, അല്ല എന്നതിന് 2 അമർത്തുക.',
+    reassurance: 'ഔദ്യോഗിക സർക്കാർ ഏജൻസികളോ പോലീസോ ഒരിക്കലും ഓൺലൈൻ പണമിടപാടുകളോ വീഡിയോ അറസ്റ്റോ ആവശ്യപ്പെടാറില്ല. ഉടൻ കോൾ വിച്ഛേദിക്കുക. നിങ്ങൾ സുരക്ഷിതനാണ്. അടിയന്തര പ്രതിരോധ എസ്എംഎസ് അയച്ചിട്ടുണ്ട്.',
+    sms_template: 'KshemOS സുരക്ഷാ മുന്നറിയിപ്പ്: സർക്കാർ ഏജൻസികളോ പോലീസോ ഒരിക്കലും ഓൺലൈൻ പണം കൈമാറ്റമോ "ഡിജിറ്റൽ അറസ്റ്റോ" ആവശ്യപ്പെടില്ല. ഉടൻ 1930 ഹെൽപ്പ്‌ലൈനിൽ വിളിക്കുക അല്ലെങ്കിൽ cybercrime.gov.in സന്ദർശിക്കുക. അടുത്തുള്ള സൈബർ ഡെസ്ക്: {nearest_desk}.',
+  },
+  pa: {
+    welcome: 'ਕਸ਼ੇਮਓਐਸ ਸਾਈਬਰ ਸੁਰੱਖਿਆ ਹੈਲਪਲਾਈਨ ਵਿੱਚ ਤੁਹਾਡਾ ਸਵਾਗਤ ਹੈ। ਅੰਗਰੇਜ਼ੀ ਲਈ 1 ਦਬਾਓ, ਹਿੰਦੀ ਲਈ 2 ਦਬਾਓ, ਪੰਜਾਬੀ ਲਈ 0 ਦਬਾਓ...',
+    prompt_authority: 'ਕੀ ਕਾਲ ਕਰਨ ਵਾਲੇ ਨੇ ਖੁਦ ਨੂੰ ਕਸਟਮ, ਪੁਲਿਸ ਜਾਂ ਸੀਬੀਆਈ ਅਧਿਕਾਰੀ ਦੱਸਿਆ? ਹਾਂ ਲਈ 1 ਦਬਾਓ, ਨਾਂਹ ਲਈ 2 ਦਬਾਓ।',
+    prompt_extortion: 'ਕੀ ਉਹਨਾਂ ਨੇ ਗ੍ਰਿਫ਼ਤਾਰੀ ਤੋਂ ਬਚਣ ਲਈ ਪੈਸੇ, ਗੁਪਤ ਟਰਾਂਸਫਰ ਦੀ ਮੰਗ ਕੀਤੀ ਜਾਂ ਡਿਜੀਟਲ ਅਰੈਸਟ ਦੀ ਧਮਕੀ ਦਿੱਤੀ? ਹਾਂ ਲਈ 1 ਦਬਾਓ, ਨਾਂਹ ਲਈ 2 ਦਬਾਓ।',
+    reassurance: 'ਸਰਕਾਰੀ ਏਜੰਸੀਆਂ ਜਾਂ ਪੁਲਿਸ ਕਦੇ ਵੀ ਔਨਲਾਈਨ ਪੈਸੇ ਟ੍ਰਾਂਸਫਰ ਜਾਂ ਵੀਡੀਓ ਗ੍ਰਿਫ਼ਤਾਰੀ ਦੀ ਮੰਗ ਨਹੀਂ ਕਰਦੀਆਂ। ਤੁਰੰਤ ਫੋਨ ਕੱਟ ਦਿਓ। ਤੁਸੀਂ ਸੁਰੱਖਿਅਤ ਹੋ। ਐਮਰਜੈਂਸੀ ਹੈਲਪਲਾਈਨ ਐਸਐਮਐਸ ਭੇਜ ਦਿੱਤੀ ਗਈ ਹੈ।',
+    sms_template: 'KshemOS ਸੁਰੱਖਿਆ ਚੇਤਾਵਨੀ: ਸਰਕਾਰੀ ਏਜੰਸੀਆਂ ਜਾਂ ਪੁਲਿਸ ਕਦੇ ਵੀ ਔਨਲਾਈਨ ਪੈਸੇ ਟ੍ਰਾਂਸਫਰ ਜਾਂ "ਡਿਜੀਟਲ ਅਰੈਸਟ" ਦੀ ਮੰਗ ਨਹੀਂ ਕਰਦੀਆਂ। ਤੁਰੰਤ 1930 ਹੈਲਪਲਾਈਨ \'ਤੇ ਕਾਲ ਕਰੋ ਜਾਂ cybercrime.gov.in \'ਤੇ ਜਾਓ। ਨੇੜਲਾ ਸਾਈਬਰ ਡੈਸਕ: {nearest_desk}.',
+  },
 };
 
 export const REGIONAL_CYBER_DESKS = {
@@ -109,6 +127,8 @@ export const REGIONAL_CYBER_DESKS = {
   Kolkata: { desk: 'Cyber Crime Police Station, Lalbazar, Kolkata (033-22143000)', region: 'East Zone' },
   Gujarat: { desk: 'Cyber Crime Police Station, Crime Branch, Ahmedabad (079-25633660)', region: 'West Zone' },
   Ahmedabad: { desk: 'Cyber Crime Police Station, Crime Branch, Ahmedabad (079-25633660)', region: 'West Zone' },
+  Kerala: { desk: 'Cyber Crime Police Station, Police HQ, Thiruvananthapuram (0471-2322222)', region: 'South Zone' },
+  Punjab: { desk: 'State Cyber Crime Police Station, SAS Nagar Mohali, Chandigarh (0172-2293900)', region: 'North Zone' },
 };
 
 export const DEFAULT_CYBER_DESK = 'State Cyber Crime Police Desk & I4C National Command (Helpline: 1930)';
@@ -272,7 +292,7 @@ export function startLocalVoiceHotlineCall({ caller_phone = '+91 98765 43210', i
     selected_language: lang,
     audio_text: catalog.welcome,
     audio_locale: langInfo.tts_locale,
-    allowed_dtmf_keys: ['1', '2', '3', '4', '5', '6', '7', '8'],
+    allowed_dtmf_keys: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
     nearest_cyber_desk: desk,
     is_completed: false,
   };
@@ -400,6 +420,18 @@ export function processLocalVoiceHotlineInput({ session_id, dtmf_digit, speech_i
       session.triage_incident_id = `INC-HOTLINE-${session.session_id.slice(-6)}`;
     }
 
+    const defActions = {
+      ussd_code: '*99*99*1#',
+      ussd_deep_link: 'tel:*99*99*1%23',
+      aadhaar_lock_syntax: 'LOCKUID 8892',
+      aadhaar_lock_deep_link: 'sms:1947?body=LOCKUID%208892',
+      bank_card_block_syntax: 'BLOCK 1098',
+      bank_sms_deep_link: 'sms:567676?body=BLOCK%201098',
+      bank_fraud_hotline: '1800 1234',
+      national_cyber_helpline: '1930',
+    };
+    session.defensive_actions = defActions;
+
     saveSessionLocally(session);
     return {
       session_id: session.session_id,
@@ -415,6 +447,7 @@ export function processLocalVoiceHotlineInput({ session_id, dtmf_digit, speech_i
       sms_summary: smsText,
       nearest_cyber_desk: desk,
       triage_incident_id: session.triage_incident_id,
+      defensive_actions: defActions,
       is_completed: true,
     };
   }
@@ -436,6 +469,7 @@ export function processLocalVoiceHotlineInput({ session_id, dtmf_digit, speech_i
     sms_summary: session.sms_text,
     nearest_cyber_desk: desk,
     triage_incident_id: session.triage_incident_id,
+    defensive_actions: session.defensive_actions,
     is_completed: true,
   };
 }
@@ -504,6 +538,36 @@ export async function listVoiceHotlineSessionsApi(status = null, language = null
 export async function getVoiceHotlineStatsApi() {
   const res = await fetch(`${API_BASE}/stats`);
   if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to fetch hotline stats`);
+  return await res.json();
+}
+
+export async function simulateTelephonyWebhookApi(gateway = 'twilio', payload = {}) {
+  const res = await fetch(`${API_BASE}/webhook/${gateway}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to invoke telephony webhook`);
+  return await res.json();
+}
+
+export async function transcribeSpeechIntentApi(payload = {}) {
+  const res = await fetch(`${API_BASE}/asr/transcribe-intent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to transcribe speech intent`);
+  return await res.json();
+}
+
+export async function dispatchDefensiveSmsBlastApi(payload = {}) {
+  const res = await fetch(`${API_BASE}/defensive-sms/blast`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to dispatch defensive SMS blast`);
   return await res.json();
 }
 
